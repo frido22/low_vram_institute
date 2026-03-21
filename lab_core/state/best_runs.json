@@ -2,6 +2,20 @@
   "best_score": 0.61,
   "runs": [
     {
+      "finished_at": "2026-03-21T20:49:16.890132+00:00",
+      "mode": "community",
+      "run_id": "2026_03_21_run_0006",
+      "score": 0.61,
+      "title": "Test community suggestion: Parameter Golf: narrower sweep first"
+    },
+    {
+      "finished_at": "2026-03-21T20:47:35.115317+00:00",
+      "mode": "community",
+      "run_id": "2026_03_21_run_0005",
+      "score": 0.61,
+      "title": "Test community suggestion: Parameter Golf: narrower sweep first"
+    },
+    {
       "finished_at": "2026-03-21T18:41:59.607028+00:00",
       "mode": "community",
       "run_id": "2026_03_21_run_0004",

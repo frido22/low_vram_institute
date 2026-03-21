@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import base64
 import json
 import os
 import subprocess
@@ -20,19 +21,21 @@ class Publisher:
         (self.store.paths.public_pages_dir / name).write_text(content.rstrip() + "\n")
 
     def _git_publish(self, run_id: str) -> None:
-        git_dir = self.store.paths.public_root / ".git"
+        repo_root = self._repo_root()
+        git_dir = repo_root / ".git"
         if not git_dir.exists():
-            self.store.append_event("public_git_publish_skipped", {"reason": "lab_public is not a git repo"})
+            self.store.append_event("public_git_publish_skipped", {"reason": "no git repo found for publisher"})
             return
         allowed_remote = self.runtime.get("publishing", {}).get("allowed_remote_url")
         branch = self.runtime.get("publishing", {}).get("branch", "main")
-        if not self._remote_is_allowed(allowed_remote):
+        if not self._remote_is_allowed(repo_root, allowed_remote):
             self.store.append_event("public_git_publish_skipped", {"reason": "remote not allowlisted"})
             return
         git_env = os.environ.copy()
         token = git_env.get("GITHUB_TOKEN")
         base_git = ["git"]
         if token:
+            basic = base64.b64encode(f"x-access-token:{token}".encode("utf-8")).decode("ascii")
             base_git = [
                 "git",
                 "-c",
@@ -40,7 +43,7 @@ class Publisher:
                 "-c",
                 "core.askPass=",
                 "-c",
-                f"http.extraHeader=Authorization: Bearer {token}",
+                f"http.extraHeader=AUTHORIZATION: basic {basic}",
             ]
 
         commands = [
@@ -51,7 +54,7 @@ class Publisher:
         for command in commands:
             completed = subprocess.run(  # noqa: S603
                 command,
-                cwd=self.store.paths.public_root,
+                cwd=repo_root,
                 capture_output=True,
                 text=True,
                 check=False,
@@ -74,18 +77,18 @@ class Publisher:
     def _redact_command(self, command: list[str]) -> list[str]:
         redacted: list[str] = []
         for item in command:
-            if item.startswith("http.extraHeader=Authorization: Bearer "):
-                redacted.append("http.extraHeader=Authorization: Bearer [REDACTED]")
+            if item.startswith("http.extraHeader=AUTHORIZATION: basic "):
+                redacted.append("http.extraHeader=AUTHORIZATION: basic [REDACTED]")
             else:
                 redacted.append(item)
         return redacted
 
-    def _remote_is_allowed(self, allowed_remote: Optional[str]) -> bool:
+    def _remote_is_allowed(self, repo_root, allowed_remote: Optional[str]) -> bool:
         if not allowed_remote:
             return False
         completed = subprocess.run(  # noqa: S603
             ["git", "remote", "get-url", "origin"],
-            cwd=self.store.paths.public_root,
+            cwd=repo_root,
             capture_output=True,
             text=True,
             check=False,
@@ -94,6 +97,13 @@ class Publisher:
             return False
         current = completed.stdout.strip()
         return current == allowed_remote
+
+    def _repo_root(self):
+        candidate = self.store.paths.root
+        for path in [candidate, candidate.parent, self.store.paths.public_root]:
+            if (path / ".git").exists():
+                return path
+        return candidate
 
     def publish(self, result: RunResult) -> None:
         run_dir = self.store.paths.public_runs_dir / result.run_id
