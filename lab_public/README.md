@@ -13,10 +13,13 @@ If you want the lab to try something, open an Issue in this repository. Communit
 See:
 
 - `public/current_status.md`
+- `public/current_best.md`
 - `public/agenda.md`
 - `public/latest_thoughts.md`
 - `public/leaderboard.md`
 - `public/best_runs.md`
+- `public/history.csv`
+- `public/history.svg`
 - `public/open_questions.md`
 - `public/tested_ideas.md`
 - `public/rejected_ideas.md`

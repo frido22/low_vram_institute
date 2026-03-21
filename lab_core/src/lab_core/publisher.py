@@ -30,6 +30,80 @@ class Publisher:
             lines.append("- No best runs yet.")
         return "\n".join(lines)
 
+    def _render_best_summary(self) -> str:
+        best_runs = self.store.best_runs().get("runs", [])
+        lines = ["# Current Best", ""]
+        if not best_runs:
+            lines.append("- No scored runs yet.")
+            return "\n".join(lines)
+        best = best_runs[0]
+        lines.extend(
+            [
+                f"- Run: {best['run_id']}",
+                f"- Score: {best['score']:.4f}",
+                f"- Mode: {best['mode']}",
+                f"- Track: {best.get('track', 'unknown')}",
+                f"- Title: {best.get('title', 'untitled')}",
+                f"- Finished: {best.get('finished_at', 'unknown')}",
+            ]
+        )
+        return "\n".join(lines)
+
+    def _render_history_csv(self) -> str:
+        best_runs = self.store.best_runs().get("runs", [])
+        lines = ["run_id,score,mode,track,finished_at,title"]
+        for row in best_runs:
+            title = str(row.get("title", "")).replace(",", " ")
+            lines.append(
+                f"{row['run_id']},{row['score']:.8f},{row.get('mode','')},{row.get('track','')},{row.get('finished_at','')},{title}"
+            )
+        return "\n".join(lines) + "\n"
+
+    def _render_history_svg(self) -> str:
+        runs = list(reversed(self.store.best_runs().get("runs", [])))
+        width = 760
+        height = 240
+        margin = 30
+        if not runs:
+            return (
+                f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">'
+                '<text x="20" y="40" font-family="monospace" font-size="16">No history yet.</text></svg>'
+            )
+        scores = [row["score"] for row in runs]
+        min_score = min(scores)
+        max_score = max(scores)
+        if max_score == min_score:
+            max_score = min_score + 1.0
+
+        def x_for(index: int) -> float:
+            if len(runs) == 1:
+                return width / 2
+            return margin + index * ((width - 2 * margin) / (len(runs) - 1))
+
+        def y_for(score: float) -> float:
+            ratio = (score - min_score) / (max_score - min_score)
+            return height - margin - ratio * (height - 2 * margin)
+
+        points = " ".join(f"{x_for(i):.1f},{y_for(row['score']):.1f}" for i, row in enumerate(runs))
+        labels = []
+        for i, row in enumerate(runs):
+            labels.append(
+                f'<circle cx="{x_for(i):.1f}" cy="{y_for(row["score"]):.1f}" r="4" fill="#0f766e" />'
+                f'<text x="{x_for(i):.1f}" y="{height - 10}" text-anchor="middle" font-family="monospace" font-size="10">{row["run_id"].split("_")[-1]}</text>'
+            )
+        return (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
+            '<rect width="100%" height="100%" fill="#f8fafc" />'
+            f'<text x="20" y="24" font-family="monospace" font-size="16" fill="#0f172a">Best Run History (lower is better)</text>'
+            f'<line x1="{margin}" y1="{height - margin}" x2="{width - margin}" y2="{height - margin}" stroke="#94a3b8" />'
+            f'<line x1="{margin}" y1="{margin}" x2="{margin}" y2="{height - margin}" stroke="#94a3b8" />'
+            f'<polyline fill="none" stroke="#0f766e" stroke-width="3" points="{points}" />'
+            + "".join(labels)
+            + f'<text x="{margin}" y="{margin - 8}" font-family="monospace" font-size="10">{max(scores):.4f}</text>'
+            + f'<text x="{margin}" y="{height - margin + 16}" font-family="monospace" font-size="10">{min(scores):.4f}</text>'
+            + "</svg>"
+        )
+
     def _render_open_questions(self) -> str:
         queue = self.store.community_queue()
         lines = ["# Open Questions", ""]
@@ -205,9 +279,12 @@ class Publisher:
             leaderboard_lines.append(f"- {row['run_id']}: {row['score']:.4f} ({row['mode']})")
         self._write_public_page("leaderboard.md", "\n".join(leaderboard_lines))
         self._write_public_page("best_runs.md", self._render_best_runs())
+        self._write_public_page("current_best.md", self._render_best_summary())
         self._write_public_page("open_questions.md", self._render_open_questions())
         self._write_public_page("tested_ideas.md", self._render_tested_ideas(result))
         self._write_public_page("rejected_ideas.md", self.store.rejected_ideas_text())
+        self._write_public_page("history.csv", self._render_history_csv())
+        self._write_public_page("history.svg", self._render_history_svg())
 
         self._write_public_page(
             "current_status.md",

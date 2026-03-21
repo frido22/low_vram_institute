@@ -14,11 +14,7 @@
     "venv_python": "/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/.venv_pg/bin/python3",
     "dataset_variant": "sp1024",
     "train_shards": 1,
-    "proxy_train_shards": 1,
-    "proxy_val_shards": 1,
-    "proxy_train_tokens": 1048576,
-    "proxy_val_tokens": 262144,
-    "local_track": "mac_mini_m4_16gb",
+    "local_track": "mac_mini_official_like",
     "default_env": {
       "ITERATIONS": "200",
       "TRAIN_BATCH_TOKENS": "8192",
@@ -26,7 +22,7 @@
       "VAL_BATCH_SIZE": "8192",
       "TRAIN_LOG_EVERY": "25",
       "MLX_EAGER_EVAL": "1",
-      "MAX_WALLCLOCK_SECONDS": "240"
+      "MAX_WALLCLOCK_SECONDS": "600"
     }
   },
   "publishing": {

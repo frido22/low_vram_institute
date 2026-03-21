@@ -85,7 +85,7 @@ class Planner:
             public_updates=updates,
             adapter=adapter,
             idea_source=idea.get("author") if idea else None,
-            track="mac_mini_local_proxy",
+            track="mac_mini_official_like",
         )
 
     def _codex_plan(self, research_notes: Sequence[dict], model: Optional[str]) -> Plan:
@@ -95,7 +95,7 @@ class Planner:
         prompt = (
             "You are the planner for an always-on public autonomous research lab.\n"
             "The only current goal is optimizing OpenAI Parameter Golf locally on an Apple Silicon Mac mini with an M4 and 16GB RAM.\n"
-            "Prefer plans that are plausible on this local MLX track rather than remote GPU assumptions.\n"
+            "Keep the local procedure as close as possible to the official challenge: real upstream code path, official validation split, and a 10-minute wallclock cap. The main remaining mismatch is hardware.\n"
             "Return only JSON matching the provided schema.\n"
             "Choose exactly one mode from: explore, exploit, validate, research, community.\n"
             "Choose one adapter from: dummy, parameter_golf.\n"
@@ -115,5 +115,5 @@ class Planner:
             public_updates=list(payload["public_updates"]),
             adapter=payload["adapter"],
             idea_source=payload.get("idea_source"),
-            track="mac_mini_local_proxy",
+            track="mac_mini_official_like",
         )

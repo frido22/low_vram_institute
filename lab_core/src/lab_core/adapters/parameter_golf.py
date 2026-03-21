@@ -61,7 +61,7 @@ class ParameterGolfAdapter:
         quant_bytes = quant_path.stat().st_size if quant_path.exists() else 0
         score = final["val_bpb"]
         summary = (
-            f"Ran local MLX Parameter Golf proxy on the Mac mini track. "
+            f"Ran local MLX Parameter Golf in official-like mode on the Mac mini. "
             f"Final val_bpb={score:.4f}, val_loss={final['val_loss']:.4f}, quantized artifact={quant_bytes} bytes."
         )
         metrics_jsonl = "\n".join(json.dumps(row, sort_keys=True) for row in metrics_rows)

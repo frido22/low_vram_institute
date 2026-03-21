@@ -32,51 +32,6 @@ class ParameterGolfWorkspace:
         tokenizer = self.workspace / "data" / "tokenizers" / "fineweb_1024_bpe.model"
         return dataset_dir.exists() and tokenizer.exists() and bool(list(dataset_dir.glob("fineweb_val_*.bin")))
 
-    def prepare_proxy_dataset(self) -> Path:
-        variant = self.runtime.get("dataset_variant", "sp1024")
-        source = self.workspace / "data" / "datasets" / f"fineweb10B_{variant}"
-        target = self.workspace / "data" / "datasets" / f"fineweb10B_{variant}_macmini_proxy"
-        target.mkdir(parents=True, exist_ok=True)
-        self._copy_trimmed_subset(
-            source,
-            target,
-            "fineweb_train_*.bin",
-            int(self.runtime.get("proxy_train_shards", 1)),
-            int(self.runtime.get("proxy_train_tokens", 1_048_576)),
-        )
-        self._copy_trimmed_subset(
-            source,
-            target,
-            "fineweb_val_*.bin",
-            int(self.runtime.get("proxy_val_shards", 1)),
-            int(self.runtime.get("proxy_val_tokens", 262_144)),
-        )
-        return target
-
-    def _copy_trimmed_subset(self, source: Path, target: Path, pattern: str, limit: int, token_limit: int) -> None:
-        files = sorted(source.glob(pattern))[:limit]
-        if not files:
-            raise FileNotFoundError(f"No files found for proxy dataset pattern {pattern} in {source}")
-        for path in files:
-            dest = target / path.name
-            if dest.exists() and self._shard_token_count(dest) == min(self._shard_token_count(path), token_limit):
-                continue
-            self._write_trimmed_shard(path, dest, token_limit)
-
-    def _write_trimmed_shard(self, source: Path, dest: Path, token_limit: int) -> None:
-        header_bytes = 256 * 4
-        raw = source.read_bytes()
-        header = bytearray(raw[:header_bytes])
-        total_tokens = int.from_bytes(header[8:12], "little", signed=True)
-        keep_tokens = min(total_tokens, token_limit)
-        header[8:12] = int(keep_tokens).to_bytes(4, "little", signed=True)
-        payload = raw[header_bytes : header_bytes + keep_tokens * 2]
-        dest.write_bytes(bytes(header) + payload)
-
-    def _shard_token_count(self, path: Path) -> int:
-        header = path.read_bytes()[: 256 * 4]
-        return int.from_bytes(header[8:12], "little", signed=True)
-
     def download_dataset(self) -> subprocess.CompletedProcess:
         train_shards = str(self.runtime.get("train_shards", 1))
         command = [
@@ -102,6 +57,6 @@ class ParameterGolfWorkspace:
             env.update({str(k): str(v) for k, v in overrides.items()})
         env["RUN_ID"] = run_id
         env["OUT_DIR"] = str(out_dir or (self.paths.logs_dir / "parameter_golf"))
-        env.setdefault("DATA_PATH", str(self.prepare_proxy_dataset()))
+        env.setdefault("DATA_PATH", str(self.workspace / "data" / "datasets" / f"fineweb10B_{self.runtime.get('dataset_variant', 'sp1024')}"))
         env.setdefault("TOKENIZER_PATH", str(self.workspace / "data" / "tokenizers" / "fineweb_1024_bpe.model"))
         return env

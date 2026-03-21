@@ -89,7 +89,7 @@ The daemon writes:
 
 ## Parameter Golf Bootstrap
 
-Set up the local MLX workspace and download the smallest practical dataset slice with:
+Set up the local MLX workspace and download the official local dataset slice with:
 
 ```bash
 bash /Users/frido_mac/Projects/low_vram_institute/lab_core/scripts/bootstrap_parameter_golf.sh
@@ -149,4 +149,4 @@ When `GITHUB_TOKEN` is present, the publisher uses it only for the git subproces
 ## What Is Still Stubbed
 
 - Plot generation is not implemented yet
-- The current local track is a Mac mini proxy, not an official 8xH100 submission path
+- The current local track is official-like on a Mac mini, but not an official 8xH100 submission path
