@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import json
 import re
 import subprocess
+from typing import TextIO
 
 from ..config import Paths
 from ..models import Plan
@@ -34,21 +35,19 @@ class ParameterGolfAdapter:
             if artifact.exists():
                 artifact.unlink()
         if not status["dataset_ready"]:
+            self._emit("dataset missing; downloading challenge data")
             download = self.workspace.download_dataset()
             if download.returncode != 0:
                 raise RuntimeError(f"Parameter Golf dataset bootstrap failed:\n{download.stderr.strip()}")
 
         env = self.workspace.build_env(run_id, out_dir=log_dir)
         command = [self.workspace.python, "train_gpt_mlx.py"]
-        started = datetime.now(timezone.utc)
-        completed = subprocess.run(  # noqa: S603
-            command,
-            cwd=self.workspace.workspace,
-            capture_output=True,
-            text=True,
-            check=False,
-            env=env,
+        self._emit(
+            f"launching {run_id} track={plan.track} iterations={env.get('ITERATIONS')} "
+            f"batch_tokens={env.get('TRAIN_BATCH_TOKENS')} val_batch={env.get('VAL_BATCH_SIZE')}"
         )
+        started = datetime.now(timezone.utc)
+        completed = self._run_command(command, env, run_log_path)
         finished = datetime.now(timezone.utc)
         runtime_seconds = max((finished - started).total_seconds(), 0.0)
         run_log = run_log_path.read_text() if run_log_path.exists() else (completed.stdout + completed.stderr)
@@ -106,6 +105,36 @@ class ParameterGolfAdapter:
                 "env_subset": {k: env[k] for k in ["RUN_ID", "OUT_DIR", "ITERATIONS", "TRAIN_BATCH_TOKENS", "VAL_BATCH_SIZE", "MAX_WALLCLOCK_SECONDS"] if k in env},
             },
         }
+
+    def _emit(self, message: str) -> None:
+        print(f"[parameter_golf] {message}", flush=True)
+
+    def _run_command(self, command: list[str], env: dict[str, str], run_log_path) -> subprocess.CompletedProcess:
+        stdout_lines: list[str] = []
+        with run_log_path.open("w") as log_handle:
+            process = subprocess.Popen(  # noqa: S603
+                command,
+                cwd=self.workspace.workspace,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                env=env,
+            )
+            assert process.stdout is not None
+            for line in process.stdout:
+                stdout_lines.append(line)
+                log_handle.write(line)
+                log_handle.flush()
+                self._maybe_emit_live_line(line, log_handle)
+            returncode = process.wait()
+        return subprocess.CompletedProcess(command, returncode, "".join(stdout_lines), "")
+
+    def _maybe_emit_live_line(self, line: str, _log_handle: TextIO) -> None:
+        text = line.strip()
+        if not text:
+            return
+        if text.startswith(("run_id:", "model_params:", "iterations:", "step:", "warmup_step:", "final_int8_zlib_roundtrip", "WARNING:")):
+            self._emit(text)
 
     def _parse_final_metrics(self, text: str) -> dict[str, float]:
         matches = list(FINAL_EXACT_RE.finditer(text))

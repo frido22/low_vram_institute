@@ -31,6 +31,9 @@ class Supervisor:
         self.research = ResearchSnapshotService(paths)
         self.codex = CodexWrapper()
 
+    def _emit(self, message: str) -> None:
+        print(f"[lab] {message}", flush=True)
+
     def _lock_path(self) -> Path:
         return self.paths.state_dir / "run.lock"
 
@@ -73,29 +76,37 @@ class Supervisor:
         with self.run_lock():
             run_id = self._run_id()
             try:
+                self._emit(f"starting {run_id}")
                 self.store.write_checkpoint("starting", run_id)
                 self.store.write_heartbeat({"run_id": run_id, "status": "starting", "timestamp": datetime.now(timezone.utc).isoformat()})
                 codex_status = self.codex.detect()
                 self.store.append_event("codex_status", codex_status.__dict__)
+                self._emit(f"codex configured={codex_status.configured} binary={codex_status.binary or 'missing'}")
 
                 research_notes = self.research.refresh()
                 self.store.write_checkpoint("research_refreshed", run_id, {"count": len(research_notes)})
+                self._emit(f"research snapshots refreshed: {len(research_notes)}")
                 community = self.github_intake.refresh()
                 self.store.write_checkpoint("community_refreshed", run_id, {"count": len(community)})
+                self._emit(f"community ideas refreshed: {len(community)}")
 
                 plan = self.planner.plan(research_notes)
                 self.store.append_event("plan_created", {"run_id": run_id, "plan": plan.__dict__})
                 self.store.write_heartbeat({"run_id": run_id, "status": "planned", "mode": plan.mode, "timestamp": datetime.now(timezone.utc).isoformat()})
+                self._emit(f"plan {plan.mode}: {plan.title}")
 
                 result = self.executor.execute(run_id, plan)
+                self._emit(f"result score={result.evaluation.score:.4f} passed={result.evaluation.passed}")
                 self.store.update_after_run(result)
                 self.publisher.publish(result)
 
                 self.store.write_checkpoint("published", run_id, {"score": result.evaluation.score})
                 self.store.write_heartbeat({"run_id": run_id, "status": "published", "timestamp": datetime.now(timezone.utc).isoformat()})
                 self.store.append_event("run_published", {"run_id": run_id, "score": result.evaluation.score})
+                self._emit(f"published {run_id}")
                 return run_id
             except CodexInvocationError as exc:
+                self._emit(f"waiting on codex: {exc}")
                 self.store.write_checkpoint(
                     "waiting_on_codex",
                     run_id,
@@ -119,18 +130,22 @@ class Supervisor:
     def daemon(self) -> None:
         failures = 0
         cycles = 0
+        self._emit("daemon started")
         while self.config.max_cycles is None or cycles < self.config.max_cycles:
             try:
                 self.run_once()
                 failures = 0
                 cycles += 1
+                self._emit(f"cycle complete; sleeping {self.config.heartbeat_seconds}s")
                 time.sleep(self.config.heartbeat_seconds)
             except KeyboardInterrupt:
                 self.store.append_event("shutdown", {"reason": "keyboard_interrupt"})
+                self._emit("shutdown requested")
                 raise
             except CodexInvocationError as exc:
                 failures += 1
                 delay = min(self.config.base_backoff_seconds * (2 ** (failures - 1)), self.config.max_backoff_seconds)
+                self._emit(f"codex unavailable; retrying in {delay}s")
                 self.store.write_checkpoint(
                     "waiting_on_codex",
                     None,
@@ -155,6 +170,7 @@ class Supervisor:
             except Exception as exc:  # noqa: BLE001
                 failures += 1
                 delay = min(self.config.base_backoff_seconds * (2 ** (failures - 1)), self.config.max_backoff_seconds)
+                self._emit(f"run failed: {exc}; retrying in {delay}s")
                 self.store.append_event("run_failed", {"error": str(exc), "failures": failures, "retry_in": delay})
                 self.store.write_heartbeat(
                     {
