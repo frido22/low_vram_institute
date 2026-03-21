@@ -13,6 +13,7 @@ class Plan:
     public_updates: list[str]
     adapter: str
     idea_source: Any = None
+    track: str = "local_proxy"
 
 
 @dataclass
@@ -22,6 +23,7 @@ class Evaluation:
     passed: bool
     artifact_stats: dict[str, Any]
     needs_validation: bool
+    higher_is_better: bool = True
 
 
 @dataclass

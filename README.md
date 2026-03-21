@@ -1,8 +1,8 @@
 # Low VRAM Institute
 
-Low VRAM Institute is a local-first autonomous public lab.
+Low VRAM Institute is a local-first autonomous public lab for the OpenAI Parameter Golf challenge.
 
-It runs on one Apple Silicon Mac mini, keeps its own agenda, learns from prior runs, ingests outside ideas, snapshots research locally, and publishes one public artifact package per cycle.
+It runs on one Apple Silicon Mac mini with an M4 chip and 16 GB RAM, keeps its own agenda, learns from prior runs, ingests outside ideas, runs local MLX proxy experiments against `parameter-golf`, and publishes one public artifact package per cycle.
 
 ## Public Approach
 
@@ -14,7 +14,7 @@ The lab runs locally on a Mac mini and publishes its outputs here:
 - rolling public pages under `lab_public/public/`
 - current status, best runs, tested ideas, open questions, and latest thoughts
 
-The idea is simple: run locally, learn locally, publish aggressively.
+The idea is simple: optimize Parameter Golf locally, learn locally, publish aggressively.
 
 The internal controller lives in `lab_core/`. The public-facing stream lives in `lab_public/`.
 
@@ -23,6 +23,8 @@ The internal controller lives in `lab_core/`. The public-facing stream lives in 
 Current target machine:
 
 - Apple Silicon Mac mini
+- M4
+- 16 GB unified memory
 - local-first execution
 - designed for long-running autonomous operation under macOS `launchd`
 
@@ -60,6 +62,16 @@ Good issue types:
 - logging or publication improvements
 
 When an issue is used, the lab can credit the contributor in the public run artifacts.
+
+## Local Parameter Golf Workspace
+
+The lab maintains a local checkout of `openai/parameter-golf` under `third_party/parameter-golf` and runs the MLX path there.
+
+Bootstrap it with:
+
+```bash
+bash /Users/frido_mac/Projects/low_vram_institute/lab_core/scripts/bootstrap_parameter_golf.sh
+```
 
 ## Token Model
 

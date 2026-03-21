@@ -1,11 +1,11 @@
 # lab_core
 
-`lab_core` is the private control plane for an always-on public autonomous lab running on an Apple Silicon Mac mini. It owns planning, execution, evaluation, recovery, GitHub intake, research snapshots, and publication into `lab_public`.
+`lab_core` is the private control plane for an always-on public autonomous lab running on an Apple Silicon Mac mini. It is now focused on a single objective: local optimization for the OpenAI Parameter Golf challenge on an M4 Mac mini with 16 GB RAM. It owns planning, execution, evaluation, recovery, GitHub intake, research snapshots, and publication into `lab_public`.
 
 ## Principles
 
 - Always on through a local supervisor, checkpoints, lock files, retries, and resume state.
-- High agency through a planner that chooses between `explore`, `exploit`, `validate`, `research`, and `community`.
+- High agency through a planner that chooses between `explore`, `exploit`, `validate`, `research`, and `community` in service of local Parameter Golf progress.
 - Public by default through a publisher that emits one run package per cycle plus updated public status pages.
 - Deterministic state through small append-only files in `state/`, `logs/`, and `snapshots/`.
 - One-model backend in v1: Codex authenticated locally via ChatGPT. The service wrapper is intentionally local and replaceable, but no alternative providers are wired in.
@@ -21,6 +21,16 @@ The machine runs locally, but the results are pushed here:
 - contributor credit when outside ideas are tested
 
 Community members should submit ideas through GitHub Issues. Those issues are normalized into the intake queue and can be selected by the planner for public experiments.
+
+## Local Parameter Golf Target
+
+The active target machine is:
+
+- Apple Silicon Mac mini
+- M4
+- 16 GB unified memory
+
+The adapter now targets the upstream `train_gpt_mlx.py` workflow from a local checkout of `openai/parameter-golf` under `../third_party/parameter-golf`.
 
 ## Layout
 
@@ -77,6 +87,14 @@ The daemon writes:
 - research snapshots in `snapshots/research/`
 - public artifacts into `../lab_public/`
 
+## Parameter Golf Bootstrap
+
+Set up the local MLX workspace and download the smallest practical dataset slice with:
+
+```bash
+bash /Users/frido_mac/Projects/low_vram_institute/lab_core/scripts/bootstrap_parameter_golf.sh
+```
+
 ## State Files
 
 - `state/current_state.json`
@@ -122,13 +140,13 @@ When `GITHUB_TOKEN` is present, the publisher uses it only for the git subproces
 
 - Supervisor with lock file, heartbeat, stage checkpoints, stale lock cleanup, backoff, and health checks
 - Planner with five research modes and live Codex-backed plan generation
-- Executor and evaluator wired to a dummy adapter plus a Parameter Golf placeholder adapter
-- Publisher that writes run packages, ledger rows, and public status pages
+- Executor and evaluator wired to a local MLX Parameter Golf adapter
+- Publisher that writes run packages, ledger rows, public status pages, `run.log`, `metrics.jsonl`, and `analysis.md` when available
 - GitHub intake reader for issue snapshots and live issue ingestion for the configured repo
 - Local research snapshot pipeline for deterministic source fetches from config
 - Launchd plist template for boot-time startup on macOS
 
 ## What Is Still Stubbed
 
-- The Parameter Golf adapter is a placeholder shell for Apple Silicon local execution details
-- Rich per-run artifacts like `run.log`, `metrics.jsonl`, `analysis.md`, and plots are not implemented yet
+- Plot generation is not implemented yet
+- The current local track is a Mac mini proxy, not an official 8xH100 submission path

@@ -10,10 +10,12 @@ class Evaluator:
         artifact_stats = raw_result.get("artifact_stats", {})
         passed = bool(raw_result.get("passed", True))
         needs_validation = raw_result.get("needs_validation", score > 0.8)
+        higher_is_better = bool(raw_result.get("higher_is_better", True))
         return Evaluation(
             score=score,
             runtime_seconds=runtime,
             passed=passed,
             artifact_stats=artifact_stats,
             needs_validation=needs_validation,
+            higher_is_better=higher_is_better,
         )

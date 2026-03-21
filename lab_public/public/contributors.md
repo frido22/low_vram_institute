@@ -1,3 +1,3 @@
 # Contributors
 
-- Credited idea source in latest run: github:101
+- No external contributor credited in the latest run.

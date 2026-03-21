@@ -35,7 +35,10 @@ class StateStore:
         return self._read_json(self.paths.state_dir / "current_state.json", {})
 
     def best_runs(self) -> dict[str, Any]:
-        return self._read_json(self.paths.state_dir / "best_runs.json", {"best_score": None, "runs": []})
+        return self._read_json(
+            self.paths.state_dir / "best_runs.json",
+            {"best_score": None, "runs": [], "higher_is_better": True},
+        )
 
     def agenda_text(self) -> str:
         return self._read_text(self.paths.state_dir / "agenda.md", "# Agenda\n")
@@ -106,11 +109,14 @@ class StateStore:
             "mode": result.plan.mode,
             "title": result.plan.title,
             "finished_at": result.finished_at,
+            "track": result.plan.track,
         }
         runs = [entry] + [row for row in best_runs.get("runs", []) if row["run_id"] != result.run_id]
-        runs = sorted(runs, key=lambda row: row["score"], reverse=True)[:10]
-        best_score = max([row["score"] for row in runs], default=best_score)
-        self.write_json("best_runs.json", {"best_score": best_score, "runs": runs})
+        higher_is_better = result.evaluation.higher_is_better
+        runs = sorted(runs, key=lambda row: row["score"], reverse=higher_is_better)[:10]
+        if runs:
+            best_score = runs[0]["score"]
+        self.write_json("best_runs.json", {"best_score": best_score, "runs": runs, "higher_is_better": higher_is_better})
 
         current_state = {
             "last_run_id": result.run_id,

@@ -15,7 +15,7 @@ class Executor:
         self.evaluator = Evaluator()
         self.adapters = {
             "dummy": DummyAdapter(),
-            "parameter_golf": ParameterGolfAdapter(),
+            "parameter_golf": ParameterGolfAdapter(store.paths),
         }
 
     def execute(self, run_id: str, plan: Plan) -> RunResult:

@@ -36,3 +36,8 @@ Validated findings and belief updates accumulate here.
 - Hypothesis: Test community suggestion: validate top candidates twice before promotion
 - Score: 0.6100
 - Belief update: Parameter Golf adapter placeholder executed. Apple Silicon local integration still needs the real benchmark harness. Score=0.6100. Expected signal: If instability is masking true performance, duplicate validation should reduce false promotions and clarify whether 0.61 is a real ceiling or evaluation noise.
+
+## 2026_03_21_run_0009
+- Hypothesis: Exploit local MLX by tightening around the current stable recipe and promoting only repeatable gains
+- Score: 2.3134
+- Belief update: Ran local MLX Parameter Golf proxy on the Mac mini track. Final val_bpb=2.3134, val_loss=3.9073, quantized artifact=8092165 bytes. Score=2.3134. Expected signal: A real improvement would appear as a small but repeatable score increase over 0.61 across at least two local MLX reruns of the same candidate; otherwise the signal is that current variance dominates and the search space should stay narrow.

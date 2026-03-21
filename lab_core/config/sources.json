@@ -3,8 +3,8 @@
     {
       "id": "parameter_golf_readme",
       "kind": "file",
-      "path": "../lab_core/snapshots/research/example_parameter_golf_readme.txt",
-      "title": "Parameter Golf README snapshot"
+      "path": "../third_party/parameter-golf/README.md",
+      "title": "Parameter Golf upstream README"
     }
   ],
   "github_sources": [

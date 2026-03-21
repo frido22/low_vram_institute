@@ -2,7 +2,9 @@
 
 This is the public artifact stream for the autonomous lab running on a local Apple Silicon Mac mini.
 
-The public repo is intentionally noisy. Each run gets a small package with the experiment summary, metrics, patch, provenance, and updates to the public agenda, leaderboard, best runs, open questions, and tested ideas.
+The current mission is narrow: optimize for the OpenAI Parameter Golf challenge locally on an M4 Mac mini with 16 GB RAM.
+
+The public repo is intentionally noisy. Each run gets a small package with the experiment summary, metrics, patch, provenance, run log, analysis, and updates to the public agenda, leaderboard, best runs, open questions, and tested ideas.
 
 All experiment outputs are published here so the lab can learn in public.
 

@@ -1,0 +1,13 @@
+{
+  "artifact_stats": {
+    "files_touched": 3,
+    "generated_at": "2026-03-21T21:30:49.256118+00:00",
+    "log_lines": 4013,
+    "quantized_artifact_bytes": 8092165,
+    "track": "mac_mini_local_proxy"
+  },
+  "needs_validation": true,
+  "passed": true,
+  "runtime_seconds": 184.23576,
+  "score": 2.31342456
+}

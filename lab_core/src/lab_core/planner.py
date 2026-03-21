@@ -85,6 +85,7 @@ class Planner:
             public_updates=updates,
             adapter=adapter,
             idea_source=idea.get("author") if idea else None,
+            track="mac_mini_local_proxy",
         )
 
     def _codex_plan(self, research_notes: Sequence[dict], model: Optional[str]) -> Plan:
@@ -93,11 +94,13 @@ class Planner:
         community = self.store.community_queue()[:5]
         prompt = (
             "You are the planner for an always-on public autonomous research lab.\n"
+            "The only current goal is optimizing OpenAI Parameter Golf locally on an Apple Silicon Mac mini with an M4 and 16GB RAM.\n"
+            "Prefer plans that are plausible on this local MLX track rather than remote GPU assumptions.\n"
             "Return only JSON matching the provided schema.\n"
             "Choose exactly one mode from: explore, exploit, validate, research, community.\n"
             "Choose one adapter from: dummy, parameter_golf.\n"
             "Prefer community mode only when a queued idea should actually be tested now.\n"
-            "Prefer parameter_golf only for ideas clearly related to parameter golf.\n\n"
+            "Prefer parameter_golf for nearly all plans, since this lab is now dedicated to Parameter Golf.\n\n"
             f"Current state:\n{json.dumps(state, indent=2, sort_keys=True)}\n\n"
             f"Best runs:\n{json.dumps(best_runs, indent=2, sort_keys=True)}\n\n"
             f"Community queue:\n{json.dumps(community, indent=2, sort_keys=True)}\n\n"
@@ -112,4 +115,5 @@ class Planner:
             public_updates=list(payload["public_updates"]),
             adapter=payload["adapter"],
             idea_source=payload.get("idea_source"),
+            track="mac_mini_local_proxy",
         )

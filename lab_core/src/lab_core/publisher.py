@@ -177,6 +177,12 @@ class Publisher:
             )
             + "\n"
         )
+        if result.outputs.get("metrics_jsonl"):
+            (run_dir / "metrics.jsonl").write_text(result.outputs["metrics_jsonl"].rstrip() + "\n")
+        if result.outputs.get("run_log"):
+            (run_dir / "run.log").write_text(result.outputs["run_log"].rstrip() + "\n")
+        if result.outputs.get("analysis_md"):
+            (run_dir / "analysis.md").write_text(result.outputs["analysis_md"].rstrip() + "\n")
         (run_dir / "diff.patch").write_text(result.patch.rstrip() + "\n")
         (run_dir / "provenance.json").write_text(json.dumps(result.provenance, indent=2, sort_keys=True) + "\n")
 
@@ -188,6 +194,7 @@ class Publisher:
             "score": result.evaluation.score,
             "passed": result.evaluation.passed,
             "idea_source": result.plan.idea_source,
+            "track": result.plan.track,
         }
         with (self.store.paths.public_runs_dir / "ledger.jsonl").open("a") as handle:
             handle.write(json.dumps(ledger_row, sort_keys=True) + "\n")
@@ -208,6 +215,7 @@ class Publisher:
                 "# Current Status\n\n"
                 f"- Latest run: {result.run_id}\n"
                 f"- Mode: {result.plan.mode}\n"
+                f"- Track: {result.plan.track}\n"
                 f"- Score: {result.evaluation.score:.4f}\n"
                 f"- Updated: {result.finished_at}\n"
             ),
