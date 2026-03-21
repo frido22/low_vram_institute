@@ -20,7 +20,7 @@ class Paths:
 
     @classmethod
     def discover(cls, root: Optional[Path] = None) -> "Paths":
-        base = (root or Path(__file__).resolve().parents[2]).resolve()
+        base = cls._resolve_root(root)
         public_root = (base.parent / "lab_public").resolve()
         return cls(
             root=base,
@@ -33,6 +33,15 @@ class Paths:
             public_pages_dir=public_root / "public",
             config_dir=base / "config",
         )
+
+    @staticmethod
+    def _resolve_root(root: Optional[Path]) -> Path:
+        candidate = (root or Path(__file__).resolve().parents[2]).resolve()
+        if (candidate / "config" / "runtime.json").exists():
+            return candidate
+        if (candidate / "lab_core" / "config" / "runtime.json").exists():
+            return (candidate / "lab_core").resolve()
+        return candidate
 
 
 @dataclass(frozen=True)
