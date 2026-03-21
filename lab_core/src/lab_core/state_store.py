@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import asdict
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -43,9 +42,6 @@ class StateStore:
 
     def insights_text(self) -> str:
         return self._read_text(self.paths.state_dir / "insights.md", "# Insights\n")
-
-    def ideas_text(self) -> str:
-        return self._read_text(self.paths.state_dir / "ideas_queue.md", "# Ideas Queue\n")
 
     def rejected_ideas_text(self) -> str:
         return self._read_text(self.paths.state_dir / "rejected_ideas.md", "# Rejected Ideas\n")

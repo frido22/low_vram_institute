@@ -1,12 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass, field
 from typing import Any
-
-
-def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 @dataclass
@@ -41,9 +36,3 @@ class RunResult:
     logs: list[str] = field(default_factory=list)
     outputs: dict[str, Any] = field(default_factory=dict)
     provenance: dict[str, Any] = field(default_factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        data = asdict(self)
-        data["plan"] = asdict(self.plan)
-        data["evaluation"] = asdict(self.evaluation)
-        return data
