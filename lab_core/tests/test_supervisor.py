@@ -7,6 +7,23 @@ from lab_core.config import LabConfig, Paths
 from lab_core.supervisor import Supervisor
 
 
+class StubParameterGolfAdapter:
+    def run(self, run_id, plan):
+        return {
+            "score": 1.0,
+            "runtime_seconds": 1.0,
+            "artifact_stats": {},
+            "passed": True,
+            "needs_validation": False,
+            "higher_is_better": False,
+            "patch": "diff --git a/x b/x\n",
+            "summary": "stub run",
+            "logs": [],
+            "outputs": {},
+            "provenance": {},
+        }
+
+
 class SupervisorTests(unittest.TestCase):
     def make_root(self) -> Path:
         temp_dir = tempfile.TemporaryDirectory()
@@ -30,6 +47,7 @@ class SupervisorTests(unittest.TestCase):
     def test_run_once_returns_run_id(self) -> None:
         root = self.make_root()
         supervisor = Supervisor(Paths.discover(root), LabConfig(min_free_disk_bytes=1, max_cycles=1))
+        supervisor.executor.adapters["parameter_golf"] = StubParameterGolfAdapter()
         run_id = supervisor.run_once()
         self.assertIn("_run_", run_id)
 

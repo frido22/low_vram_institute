@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from .adapters.dummy import DummyAdapter
 from .adapters.parameter_golf import ParameterGolfAdapter
 from .evaluator import Evaluator
 from .models import Plan, RunResult
@@ -14,7 +13,6 @@ class Executor:
         self.store = store
         self.evaluator = Evaluator()
         self.adapters = {
-            "dummy": DummyAdapter(),
             "parameter_golf": ParameterGolfAdapter(store.paths),
         }
 

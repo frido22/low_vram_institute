@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
-import os
 import re
 import subprocess
-from pathlib import Path
 
 from ..config import Paths
 from ..models import Plan

@@ -13,7 +13,7 @@ class Plan:
     public_updates: list[str]
     adapter: str
     idea_source: Any = None
-    track: str = "local_proxy"
+    track: str = "mac_mini_official_like"
 
 
 @dataclass

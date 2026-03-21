@@ -48,7 +48,7 @@ class Planner:
         idea = self._community_idea()
 
         title_map = {
-            "explore": "Probe a new optimizer setting with a low-cost local dummy run",
+            "explore": "Probe a new local MLX Parameter Golf setting on the Mac mini",
             "exploit": "Refine the current best direction with one tighter iteration",
             "validate": "Re-run the latest promising path to estimate variance",
             "research": "Convert local research snapshots into one concrete experiment",
@@ -73,9 +73,7 @@ class Planner:
         if mode == "community" and idea:
             updates.append("contributors")
 
-        adapter = "parameter_golf" if mode in {"exploit", "validate"} else "dummy"
-        if mode == "community" and idea and "parameter golf" in idea["title"].lower():
-            adapter = "parameter_golf"
+        adapter = "parameter_golf"
 
         return Plan(
             mode=mode,
@@ -98,7 +96,7 @@ class Planner:
             "Keep the local procedure as close as possible to the official challenge: real upstream code path, official validation split, and a 10-minute wallclock cap. The main remaining mismatch is hardware.\n"
             "Return only JSON matching the provided schema.\n"
             "Choose exactly one mode from: explore, exploit, validate, research, community.\n"
-            "Choose one adapter from: dummy, parameter_golf.\n"
+            "Choose one adapter from: parameter_golf.\n"
             "Prefer community mode only when a queued idea should actually be tested now.\n"
             "Prefer parameter_golf for nearly all plans, since this lab is now dedicated to Parameter Golf.\n\n"
             f"Current state:\n{json.dumps(state, indent=2, sort_keys=True)}\n\n"
