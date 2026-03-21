@@ -29,6 +29,29 @@ class PlannerTests(unittest.TestCase):
         planner = Planner(store)
         self.assertEqual(planner.choose_mode(), "explore")
 
+    def test_choose_exploit_after_first_success(self) -> None:
+        store = self.make_store()
+        store.write_json(
+            "best_runs.json",
+            {
+                "best_score": 2.29,
+                "higher_is_better": False,
+                "runs": [{"run_id": "r1", "score": 2.29, "mode": "explore", "title": "baseline", "track": "mac_mini_official_like"}],
+            },
+        )
+        store.write_json(
+            "learning_state.json",
+            {
+                "plateau_count": 0,
+                "recent_runs": [{"run_id": "r1", "score": 2.29, "mode": "explore", "title": "baseline", "improved_best": True, "needs_validation": False}],
+                "best_score": 2.29,
+                "last_improving_run_id": "r1",
+                "tested_idea_titles": [],
+            },
+        )
+        planner = Planner(store)
+        self.assertEqual(planner.choose_mode(), "exploit")
+
 
 if __name__ == "__main__":
     unittest.main()

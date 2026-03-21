@@ -34,6 +34,18 @@ class StateStore:
     def current_state(self) -> dict[str, Any]:
         return self._read_json(self.paths.state_dir / "current_state.json", {})
 
+    def learning_state(self) -> dict[str, Any]:
+        return self._read_json(
+            self.paths.state_dir / "learning_state.json",
+            {
+                "plateau_count": 0,
+                "recent_runs": [],
+                "best_score": None,
+                "last_improving_run_id": None,
+                "tested_idea_titles": [],
+            },
+        )
+
     def best_runs(self) -> dict[str, Any]:
         return self._read_json(
             self.paths.state_dir / "best_runs.json",
@@ -59,6 +71,31 @@ class StateStore:
             if line:
                 rows.append(json.loads(line))
         return rows
+
+    def _write_community_queue(self, rows: list[dict[str, Any]]) -> None:
+        path = self.paths.state_dir / "community_queue.jsonl"
+        content = "\n".join(json.dumps(row, sort_keys=True) for row in rows)
+        path.write_text(content + ("\n" if content else ""))
+
+    def mark_community_idea_tested(self, title: str, status: str = "tested") -> None:
+        rows = self.community_queue()
+        next_rows: list[dict[str, Any]] = []
+        matched = False
+        for row in rows:
+            row_title = row.get("title", "")
+            if not matched and row_title == title:
+                matched = True
+                continue
+            next_rows.append(row)
+        self._write_community_queue(next_rows)
+
+        if not matched:
+            return
+
+        if status == "rejected":
+            rejected = self.rejected_ideas_text().rstrip()
+            rejected += f"\n- {title}\n"
+            self.write_text("rejected_ideas.md", rejected)
 
     def write_json(self, rel_name: str, payload: Any) -> None:
         path = self.paths.state_dir / rel_name
@@ -102,7 +139,8 @@ class StateStore:
 
     def update_after_run(self, result: RunResult) -> None:
         best_runs = self.best_runs()
-        best_score = best_runs.get("best_score")
+        prior_best_score = best_runs.get("best_score")
+        best_score = prior_best_score
         entry = {
             "run_id": result.run_id,
             "score": result.evaluation.score,
@@ -124,19 +162,27 @@ class StateStore:
             best_score = runs[0]["score"]
         self.write_json("best_runs.json", {"best_score": best_score, "runs": runs, "higher_is_better": higher_is_better})
 
+        improved_best = prior_best_score is None or (
+            result.evaluation.score > prior_best_score if higher_is_better else result.evaluation.score < prior_best_score
+        )
+
         current_state = {
             "last_run_id": result.run_id,
             "last_mode": result.plan.mode,
             "last_score": result.evaluation.score,
             "last_status": "passed" if result.evaluation.passed else "failed",
+            "last_title": result.plan.title,
+            "plateau_count": 0 if improved_best else self.learning_state().get("plateau_count", 0) + 1,
             "updated_at": result.finished_at,
         }
         self.write_json("current_state.json", current_state)
 
+        delta_text = "new best" if improved_best else "no improvement"
         insights = self.insights_text().rstrip() + (
             f"\n\n## {result.run_id}\n"
             f"- Hypothesis: {result.plan.title}\n"
             f"- Score: {result.evaluation.score:.4f}\n"
+            f"- Outcome: {delta_text}\n"
             f"- Belief update: {result.summary}\n"
         )
         self.write_text("insights.md", insights)
@@ -148,3 +194,31 @@ class StateStore:
             f"- Next public update focus: {', '.join(result.plan.public_updates)}\n"
         )
         self.write_text("agenda.md", agenda)
+
+        learning = self.learning_state()
+        recent_runs = [
+            {
+                "run_id": result.run_id,
+                "score": result.evaluation.score,
+                "mode": result.plan.mode,
+                "title": result.plan.title,
+                "improved_best": improved_best,
+                "needs_validation": result.evaluation.needs_validation,
+            }
+        ] + [row for row in learning.get("recent_runs", []) if row.get("run_id") != result.run_id]
+        learning.update(
+            {
+                "plateau_count": 0 if improved_best else learning.get("plateau_count", 0) + 1,
+                "recent_runs": recent_runs[:8],
+                "best_score": best_score,
+                "last_improving_run_id": result.run_id if improved_best else learning.get("last_improving_run_id"),
+            }
+        )
+        tested_titles = list(learning.get("tested_idea_titles", []))
+        if result.plan.mode == "community":
+            source_title = result.plan.title.removeprefix("Test community suggestion: ").strip()
+            if source_title and source_title not in tested_titles:
+                tested_titles.append(source_title)
+            self.mark_community_idea_tested(source_title, status="tested" if result.evaluation.passed else "rejected")
+        learning["tested_idea_titles"] = tested_titles[-20:]
+        self.write_json("learning_state.json", learning)
