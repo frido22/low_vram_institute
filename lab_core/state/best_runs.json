@@ -1,5 +1,14 @@
 {
-  "best_score": null,
+  "best_score": 2.2944445,
   "higher_is_better": false,
-  "runs": []
+  "runs": [
+    {
+      "finished_at": "2026-03-21T23:49:21.623157+00:00",
+      "mode": "explore",
+      "run_id": "2026_03_21_run_0001",
+      "score": 2.2944445,
+      "title": "Establish an upstream-local baseline on M4 under the 10-minute cap",
+      "track": "mac_mini_official_like"
+    }
+  ]
 }

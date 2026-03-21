@@ -1,3 +1,3 @@
 # Contributors
 
-- No external contributor credited yet.
+- Credited idea source in latest run: parameter_golf_readme

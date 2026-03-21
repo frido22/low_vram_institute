@@ -1,3 +1,16 @@
 # Latest Thoughts
 
-No published runs yet.
+Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2944, val_loss=3.8753, quantized artifact=10263411 bytes. Score=2.2944. Expected signal: A successful upstream MLX run that completes within 10 minutes on the Mac mini, reports final val_loss/val_bpb on the official validation split, records compressed artifact size, and captures tokens/sec plus peak memory so later changes can be compared against a stable local baseline.
+
+## Public Beliefs
+# Insights
+
+- No runs yet.
+
+## 2026_03_21_run_0001
+- Hypothesis: Establish an upstream-local baseline on M4 under the 10-minute cap
+- Score: 2.2944
+- Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2944, val_loss=3.8753, quantized artifact=10263411 bytes. Score=2.2944. Expected signal: A successful upstream MLX run that completes within 10 minutes on the Mac mini, reports final val_loss/val_bpb on the official validation split, records compressed artifact size, and captures tokens/sec plus peak memory so later changes can be compared against a stable local baseline.
+
+
+Next public focus: Clone and pin the current upstream Parameter Golf repo state used for the local MLX path., Prepare the official cached FineWeb dataset locally with the fixed validation split and a minimal training-shard count suitable for M4/16GB iteration., Run the real upstream Apple Silicon training script with a hard 10-minute wallclock cap and no local eval shortcuts that would diverge from the official validation procedure., Log wallclock, final val_bpb, artifact size, and hardware utilization notes so future ideas can be judged against a clean baseline..
