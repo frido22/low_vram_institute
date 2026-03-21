@@ -18,7 +18,7 @@ class SupervisorTests(unittest.TestCase):
         (root / "config").mkdir()
         (root.parent / "lab_public" / "runs").mkdir(parents=True, exist_ok=True)
         (root.parent / "lab_public" / "public").mkdir(parents=True, exist_ok=True)
-        (root / "config" / "runtime.json").write_text(json.dumps({}))
+        (root / "config" / "runtime.json").write_text(json.dumps({"codex": {"enabled": False}}))
         (root / "config" / "sources.json").write_text(json.dumps({"github_sources": [], "research_sources": []}))
         (root / "state" / "current_state.json").write_text(json.dumps({"last_status": "idle"}))
         (root / "state" / "best_runs.json").write_text(json.dumps({"best_score": None, "runs": []}))

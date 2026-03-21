@@ -13,6 +13,7 @@ from .executor import Executor
 from .planner import Planner
 from .publisher import Publisher
 from .services.codex_wrapper import CodexWrapper
+from .services.codex_wrapper import CodexInvocationError
 from .services.github_intake import GitHubIntake
 from .services.research import ResearchSnapshotService
 from .state_store import StateStore
@@ -71,28 +72,49 @@ class Supervisor:
         self._health_check()
         with self.run_lock():
             run_id = self._run_id()
-            self.store.write_checkpoint("starting", run_id)
-            self.store.write_heartbeat({"run_id": run_id, "status": "starting", "timestamp": datetime.now(timezone.utc).isoformat()})
-            codex_status = self.codex.detect()
-            self.store.append_event("codex_status", codex_status.__dict__)
+            try:
+                self.store.write_checkpoint("starting", run_id)
+                self.store.write_heartbeat({"run_id": run_id, "status": "starting", "timestamp": datetime.now(timezone.utc).isoformat()})
+                codex_status = self.codex.detect()
+                self.store.append_event("codex_status", codex_status.__dict__)
 
-            research_notes = self.research.refresh()
-            self.store.write_checkpoint("research_refreshed", run_id, {"count": len(research_notes)})
-            community = self.github_intake.refresh()
-            self.store.write_checkpoint("community_refreshed", run_id, {"count": len(community)})
+                research_notes = self.research.refresh()
+                self.store.write_checkpoint("research_refreshed", run_id, {"count": len(research_notes)})
+                community = self.github_intake.refresh()
+                self.store.write_checkpoint("community_refreshed", run_id, {"count": len(community)})
 
-            plan = self.planner.plan(research_notes)
-            self.store.append_event("plan_created", {"run_id": run_id, "plan": plan.__dict__})
-            self.store.write_heartbeat({"run_id": run_id, "status": "planned", "mode": plan.mode, "timestamp": datetime.now(timezone.utc).isoformat()})
+                plan = self.planner.plan(research_notes)
+                self.store.append_event("plan_created", {"run_id": run_id, "plan": plan.__dict__})
+                self.store.write_heartbeat({"run_id": run_id, "status": "planned", "mode": plan.mode, "timestamp": datetime.now(timezone.utc).isoformat()})
 
-            result = self.executor.execute(run_id, plan)
-            self.store.update_after_run(result)
-            self.publisher.publish(result)
+                result = self.executor.execute(run_id, plan)
+                self.store.update_after_run(result)
+                self.publisher.publish(result)
 
-            self.store.write_checkpoint("published", run_id, {"score": result.evaluation.score})
-            self.store.write_heartbeat({"run_id": run_id, "status": "published", "timestamp": datetime.now(timezone.utc).isoformat()})
-            self.store.append_event("run_published", {"run_id": run_id, "score": result.evaluation.score})
-            return run_id
+                self.store.write_checkpoint("published", run_id, {"score": result.evaluation.score})
+                self.store.write_heartbeat({"run_id": run_id, "status": "published", "timestamp": datetime.now(timezone.utc).isoformat()})
+                self.store.append_event("run_published", {"run_id": run_id, "score": result.evaluation.score})
+                return run_id
+            except CodexInvocationError as exc:
+                self.store.write_checkpoint(
+                    "waiting_on_codex",
+                    run_id,
+                    {"error": str(exc), "detail": exc.detail, "retryable": exc.retryable},
+                )
+                self.store.append_event(
+                    "codex_unavailable",
+                    {"run_id": run_id, "error": str(exc), "detail": exc.detail, "retryable": exc.retryable},
+                )
+                self.store.write_heartbeat(
+                    {
+                        "run_id": run_id,
+                        "status": "waiting_on_codex",
+                        "error": str(exc),
+                        "retryable": exc.retryable,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
+                raise
 
     def daemon(self) -> None:
         failures = 0
@@ -106,6 +128,30 @@ class Supervisor:
             except KeyboardInterrupt:
                 self.store.append_event("shutdown", {"reason": "keyboard_interrupt"})
                 raise
+            except CodexInvocationError as exc:
+                failures += 1
+                delay = min(self.config.base_backoff_seconds * (2 ** (failures - 1)), self.config.max_backoff_seconds)
+                self.store.write_checkpoint(
+                    "waiting_on_codex",
+                    None,
+                    {"error": str(exc), "detail": exc.detail, "retry_in": delay, "retryable": exc.retryable},
+                )
+                self.store.append_event(
+                    "codex_unavailable",
+                    {"error": str(exc), "detail": exc.detail, "retry_in": delay, "retryable": exc.retryable},
+                )
+                self.store.write_heartbeat(
+                    {
+                        "status": "waiting_on_codex",
+                        "error": str(exc),
+                        "retry_in": delay,
+                        "retryable": exc.retryable,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
+                if not exc.retryable:
+                    raise
+                time.sleep(delay)
             except Exception as exc:  # noqa: BLE001
                 failures += 1
                 delay = min(self.config.base_backoff_seconds * (2 ** (failures - 1)), self.config.max_backoff_seconds)

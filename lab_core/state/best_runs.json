@@ -2,6 +2,13 @@
   "best_score": 0.61,
   "runs": [
     {
+      "finished_at": "2026-03-21T21:04:13.105545+00:00",
+      "mode": "community",
+      "run_id": "2026_03_21_run_0008",
+      "score": 0.61,
+      "title": "Test community suggestion: validate top candidates twice before promotion"
+    },
+    {
       "finished_at": "2026-03-21T20:58:13.159227+00:00",
       "mode": "community",
       "run_id": "2026_03_21_run_0007",

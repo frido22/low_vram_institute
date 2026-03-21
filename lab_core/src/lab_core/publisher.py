@@ -24,7 +24,8 @@ class Publisher:
         best_runs = self.store.best_runs()
         lines = ["# Best Runs", ""]
         for row in best_runs.get("runs", []):
-            lines.append(f"- {row['run_id']}: {row['score']:.4f} | {row['mode']} | {row['title']}")
+            title = row.get("title", "untitled")
+            lines.append(f"- {row['run_id']}: {row['score']:.4f} | {row['mode']} | {title}")
         if len(lines) == 2:
             lines.append("- No best runs yet.")
         return "\n".join(lines)
@@ -47,7 +48,7 @@ class Publisher:
         best_runs = self.store.best_runs()
         seen_titles: set[str] = set()
         for row in best_runs.get("runs", []):
-            title = row["title"]
+            title = row.get("title", "untitled")
             if title in seen_titles:
                 continue
             seen_titles.add(title)

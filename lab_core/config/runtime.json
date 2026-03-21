@@ -5,6 +5,10 @@
     "issues_enabled": true,
     "discussions_enabled": false
   },
+  "codex": {
+    "enabled": true,
+    "model": null
+  },
   "publishing": {
     "allowed_remote_url": "https://github.com/frido22/low_vram_institute.git",
     "branch": "main"

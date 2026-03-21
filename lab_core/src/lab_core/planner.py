@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+import json
+from typing import Optional
 
+from .config import load_runtime
 from .models import Plan
+from .services.codex_wrapper import CodexWrapper
 from .state_store import StateStore
 
 
@@ -12,6 +16,8 @@ MODES = ["explore", "exploit", "validate", "research", "community"]
 class Planner:
     def __init__(self, store: StateStore) -> None:
         self.store = store
+        self.runtime = load_runtime(store.paths)
+        self.codex = CodexWrapper()
 
     def choose_mode(self) -> str:
         state = self.store.current_state()
@@ -32,6 +38,12 @@ class Planner:
         return queue[0] if queue else {}
 
     def plan(self, research_notes: Sequence[dict]) -> Plan:
+        codex_cfg = self.runtime.get("codex", {})
+        if codex_cfg.get("enabled"):
+            return self._codex_plan(research_notes, codex_cfg.get("model"))
+        return self._heuristic_plan(research_notes)
+
+    def _heuristic_plan(self, research_notes: Sequence[dict]) -> Plan:
         mode = self.choose_mode()
         idea = self._community_idea()
 
@@ -73,4 +85,31 @@ class Planner:
             public_updates=updates,
             adapter=adapter,
             idea_source=idea.get("author") if idea else None,
+        )
+
+    def _codex_plan(self, research_notes: Sequence[dict], model: Optional[str]) -> Plan:
+        state = self.store.current_state()
+        best_runs = self.store.best_runs()
+        community = self.store.community_queue()[:5]
+        prompt = (
+            "You are the planner for an always-on public autonomous research lab.\n"
+            "Return only JSON matching the provided schema.\n"
+            "Choose exactly one mode from: explore, exploit, validate, research, community.\n"
+            "Choose one adapter from: dummy, parameter_golf.\n"
+            "Prefer community mode only when a queued idea should actually be tested now.\n"
+            "Prefer parameter_golf only for ideas clearly related to parameter golf.\n\n"
+            f"Current state:\n{json.dumps(state, indent=2, sort_keys=True)}\n\n"
+            f"Best runs:\n{json.dumps(best_runs, indent=2, sort_keys=True)}\n\n"
+            f"Community queue:\n{json.dumps(community, indent=2, sort_keys=True)}\n\n"
+            f"Research notes:\n{json.dumps(list(research_notes)[:3], indent=2, sort_keys=True)}\n"
+        )
+        payload = self.codex.plan(self.store.paths.root, prompt, model=model)
+        return Plan(
+            mode=payload["mode"],
+            title=payload["title"],
+            rationale=payload["rationale"],
+            expected_signal=payload["expected_signal"],
+            public_updates=list(payload["public_updates"]),
+            adapter=payload["adapter"],
+            idea_source=payload.get("idea_source"),
         )
