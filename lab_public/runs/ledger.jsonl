@@ -1,9 +1,1 @@
-{"mode":"seed","passed":true,"run_id":"2026_03_21_run_0001","score":0.5,"timestamp":"2026-03-21T00:00:00+00:00","title":"Example seeded public artifact"}
-{"idea_source": "alice", "mode": "community", "passed": true, "run_id": "2026_03_21_run_0002", "score": 0.61, "timestamp": "2026-03-21T18:17:37.179330+00:00", "title": "Test community suggestion: Parameter Golf: narrower sweep first"}
-{"idea_source": "alice", "mode": "community", "passed": true, "run_id": "2026_03_21_run_0003", "score": 0.61, "timestamp": "2026-03-21T18:19:14.305326+00:00", "title": "Test community suggestion: Parameter Golf: narrower sweep first"}
-{"idea_source": "alice", "mode": "community", "passed": true, "run_id": "2026_03_21_run_0004", "score": 0.61, "timestamp": "2026-03-21T18:41:59.607587+00:00", "title": "Test community suggestion: Parameter Golf: narrower sweep first"}
-{"idea_source": "alice", "mode": "community", "passed": true, "run_id": "2026_03_21_run_0005", "score": 0.61, "timestamp": "2026-03-21T20:47:35.118686+00:00", "title": "Test community suggestion: Parameter Golf: narrower sweep first"}
-{"idea_source": "alice", "mode": "community", "passed": true, "run_id": "2026_03_21_run_0006", "score": 0.61, "timestamp": "2026-03-21T20:49:16.892542+00:00", "title": "Test community suggestion: Parameter Golf: narrower sweep first"}
-{"idea_source": "alice", "mode": "community", "passed": true, "run_id": "2026_03_21_run_0007", "score": 0.61, "timestamp": "2026-03-21T20:58:13.162290+00:00", "title": "Test community suggestion: Parameter Golf: narrower sweep first"}
-{"idea_source": "github:101", "mode": "community", "passed": true, "run_id": "2026_03_21_run_0008", "score": 0.61, "timestamp": "2026-03-21T21:04:13.107511+00:00", "title": "Test community suggestion: validate top candidates twice before promotion"}
-{"idea_source": null, "mode": "exploit", "passed": true, "run_id": "2026_03_21_run_0009", "score": 2.31342456, "timestamp": "2026-03-21T21:30:49.258550+00:00", "title": "Exploit local MLX by tightening around the current stable recipe and promoting only repeatable gains", "track": "mac_mini_official_like"}
+
