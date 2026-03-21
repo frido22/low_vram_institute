@@ -83,7 +83,28 @@ Set a fine-grained GitHub token in the shell or `launchd` environment:
 export GITHUB_TOKEN=...
 ```
 
+For unattended runs on macOS, prefer a local untracked env file:
+
+```bash
+mkdir -p /Users/frido_mac/.config/low-vram-lab
+cat > /Users/frido_mac/.config/low-vram-lab/env.sh
+```
+
+Then place:
+
+```bash
+export GITHUB_TOKEN='YOUR_FINE_GRAINED_PAT'
+```
+
+Finish with `Ctrl-D`, then lock down permissions:
+
+```bash
+chmod 600 /Users/frido_mac/.config/low-vram-lab/env.sh
+```
+
 The runtime config in `config/runtime.json` keeps the allowed remote pinned to one repository. The publisher refuses to push anywhere else.
+
+When `GITHUB_TOKEN` is present, the publisher uses it only for the git subprocess and avoids relying on GUI Keychain access.
 
 ## What Is Implemented In v1
 

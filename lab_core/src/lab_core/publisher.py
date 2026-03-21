@@ -29,12 +29,25 @@ class Publisher:
         if not self._remote_is_allowed(allowed_remote):
             self.store.append_event("public_git_publish_skipped", {"reason": "remote not allowlisted"})
             return
+        git_env = os.environ.copy()
+        token = git_env.get("GITHUB_TOKEN")
+        base_git = ["git"]
+        if token:
+            base_git = [
+                "git",
+                "-c",
+                "credential.helper=",
+                "-c",
+                "core.askPass=",
+                "-c",
+                f"http.extraHeader=Authorization: Bearer {token}",
+            ]
+
         commands = [
-            ["git", "add", "."],
-            ["git", "commit", "-m", f"Publish {run_id}"],
-            ["git", "push", "origin", branch],
+            base_git + ["add", "."],
+            base_git + ["commit", "-m", f"Publish {run_id}"],
+            base_git + ["push", "origin", branch],
         ]
-        env = os.environ.copy()
         for command in commands:
             completed = subprocess.run(  # noqa: S603
                 command,
@@ -42,21 +55,30 @@ class Publisher:
                 capture_output=True,
                 text=True,
                 check=False,
-                env=env,
+                env=git_env,
             )
             if completed.returncode != 0 and not (
-                command[:2] == ["git", "commit"] and "nothing to commit" in completed.stdout.lower()
+                "commit" in command and "nothing to commit" in completed.stdout.lower()
             ):
                 self.store.append_event(
                     "public_git_publish_failed",
                     {
-                        "command": command,
+                        "command": self._redact_command(command),
                         "returncode": completed.returncode,
                         "stderr": completed.stderr.strip(),
                     },
                 )
                 return
         self.store.append_event("public_git_publish_succeeded", {"run_id": run_id})
+
+    def _redact_command(self, command: list[str]) -> list[str]:
+        redacted: list[str] = []
+        for item in command:
+            if item.startswith("http.extraHeader=Authorization: Bearer "):
+                redacted.append("http.extraHeader=Authorization: Bearer [REDACTED]")
+            else:
+                redacted.append(item)
+        return redacted
 
     def _remote_is_allowed(self, allowed_remote: Optional[str]) -> bool:
         if not allowed_remote:
