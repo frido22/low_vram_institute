@@ -1,0 +1,12 @@
+{
+  "github": {
+    "owner": "frido22",
+    "repo": "low_vram_institute",
+    "issues_enabled": true,
+    "discussions_enabled": false
+  },
+  "publishing": {
+    "allowed_remote_url": "https://github.com/frido22/low_vram_institute.git",
+    "branch": "main"
+  }
+}

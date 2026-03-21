@@ -1,0 +1,23 @@
+{
+  "research_sources": [
+    {
+      "id": "parameter_golf_readme",
+      "kind": "file",
+      "path": "../lab_core/snapshots/research/example_parameter_golf_readme.txt",
+      "title": "Parameter Golf README snapshot"
+    }
+  ],
+  "github_sources": [
+    {
+      "id": "example_issue_export",
+      "kind": "file",
+      "path": "../lab_core/snapshots/research/example_github_issues.json",
+      "title": "Example GitHub issue export"
+    },
+    {
+      "id": "live_repo_issues",
+      "kind": "github_issues",
+      "title": "Live GitHub issues for the configured repo"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+{"author":"alice","body":"Try a narrower parameter sweep before brute forcing the space.","id":"seed-1","source":"seed","status":"queued","title":"Parameter Golf: narrower sweep first","url":"https://example.com/issues/1"}
+{"author": "community_user", "body": "Suggested process improvement for noisy runs.", "id": "github:101", "source": "example_issue_export", "status": "queued", "title": "Parameter Golf: validate top candidates twice before promotion", "url": "https://github.com/example/repo/issues/101"}

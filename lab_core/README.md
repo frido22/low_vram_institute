@@ -1,0 +1,102 @@
+# lab_core
+
+`lab_core` is the private control plane for an always-on public autonomous lab. It owns planning, execution, evaluation, recovery, GitHub intake, research snapshots, and publication into `lab_public`.
+
+## Principles
+
+- Always on through a local supervisor, checkpoints, lock files, retries, and resume state.
+- High agency through a planner that chooses between `explore`, `exploit`, `validate`, `research`, and `community`.
+- Public by default through a publisher that emits one run package per cycle plus updated public status pages.
+- Deterministic state through small append-only files in `state/`, `logs/`, and `snapshots/`.
+- One-model backend in v1: Codex authenticated locally via ChatGPT. The service wrapper is intentionally local and replaceable, but no alternative providers are wired in.
+
+## Layout
+
+```text
+lab_core/
+  src/lab_core/
+    adapters/
+    services/
+    cli.py
+    config.py
+    evaluator.py
+    executor.py
+    planner.py
+    publisher.py
+    supervisor.py
+  state/
+  logs/
+  snapshots/research/
+  launchd/
+  ARCHITECTURE.md
+  MANIFESTO.md
+  ROADMAP_V2.md
+```
+
+## Run
+
+Create a virtual environment, install the package, then run one cycle:
+
+```bash
+cd lab_core
+python3 -m venv .venv
+source .venv/bin/activate
+python -m ensurepip --upgrade
+pip install .
+lab-core run-once
+```
+
+Run the long-lived local daemon loop:
+
+```bash
+lab-core daemon
+```
+
+Source-only mode without installation:
+
+```bash
+PYTHONPATH=src python3 -m lab_core.cli run-once
+```
+
+The daemon writes:
+
+- machine state in `state/`
+- run and heartbeat logs in `logs/`
+- research snapshots in `snapshots/research/`
+- public artifacts into `../lab_public/`
+
+## State Files
+
+- `state/current_state.json`
+- `state/insights.md`
+- `state/ideas_queue.md`
+- `state/rejected_ideas.md`
+- `state/best_runs.json`
+- `state/agenda.md`
+- `state/community_queue.jsonl`
+
+## GitHub Token Setup
+
+Set a fine-grained GitHub token in the shell or `launchd` environment:
+
+```bash
+export GITHUB_TOKEN=...
+```
+
+The runtime config in `config/runtime.json` keeps the allowed remote pinned to one repository. The publisher refuses to push anywhere else.
+
+## What Is Implemented In v1
+
+- Supervisor with lock file, heartbeat, stage checkpoints, stale lock cleanup, backoff, and health checks
+- Planner with five research modes and deterministic mode selection
+- Executor and evaluator wired to a dummy adapter plus a Parameter Golf placeholder adapter
+- Publisher that writes run packages, ledger rows, and public status pages
+- GitHub intake reader for issue/discussion snapshots stored locally
+- Local research snapshot pipeline for deterministic source fetches from config
+- Launchd plist template for boot-time startup on macOS
+
+## What Is Still Stubbed
+
+- Real Codex CLI invocation is represented by a local wrapper interface and example command path, but not hard-bound to a machine-specific install
+- Live GitHub API polling is not enabled by default; v1 ingests local snapshots or JSON exports
+- The Parameter Golf adapter is a placeholder shell for Apple Silicon local execution details

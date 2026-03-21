@@ -1,0 +1,4 @@
+{"mode":"seed","passed":true,"run_id":"2026_03_21_run_0001","score":0.5,"timestamp":"2026-03-21T00:00:00+00:00","title":"Example seeded public artifact"}
+{"idea_source": "alice", "mode": "community", "passed": true, "run_id": "2026_03_21_run_0002", "score": 0.61, "timestamp": "2026-03-21T18:17:37.179330+00:00", "title": "Test community suggestion: Parameter Golf: narrower sweep first"}
+{"idea_source": "alice", "mode": "community", "passed": true, "run_id": "2026_03_21_run_0003", "score": 0.61, "timestamp": "2026-03-21T18:19:14.305326+00:00", "title": "Test community suggestion: Parameter Golf: narrower sweep first"}
+{"idea_source": "alice", "mode": "community", "passed": true, "run_id": "2026_03_21_run_0004", "score": 0.61, "timestamp": "2026-03-21T18:41:59.607587+00:00", "title": "Test community suggestion: Parameter Golf: narrower sweep first"}
