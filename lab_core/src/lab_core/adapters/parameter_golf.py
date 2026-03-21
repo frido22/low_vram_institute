@@ -28,6 +28,13 @@ class ParameterGolfAdapter:
 
         log_dir = self.paths.logs_dir / "parameter_golf"
         log_dir.mkdir(parents=True, exist_ok=True)
+        run_log_path = log_dir / f"{run_id}.txt"
+        if run_log_path.exists():
+            run_log_path.unlink()
+        for suffix in ["_mlx_model.npz", "_mlx_model.int8.ptz"]:
+            artifact = log_dir / f"{run_id}{suffix}"
+            if artifact.exists():
+                artifact.unlink()
         if not status["dataset_ready"]:
             download = self.workspace.download_dataset()
             if download.returncode != 0:
@@ -46,7 +53,6 @@ class ParameterGolfAdapter:
         )
         finished = datetime.now(timezone.utc)
         runtime_seconds = max((finished - started).total_seconds(), 0.0)
-        run_log_path = log_dir / f"{run_id}.txt"
         run_log = run_log_path.read_text() if run_log_path.exists() else (completed.stdout + completed.stderr)
 
         final = self._parse_final_metrics(run_log)

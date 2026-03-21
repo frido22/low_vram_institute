@@ -24,3 +24,5 @@ lab_core/state/run.lock
 lab_core/snapshots/research/live_*.json
 
 .env
+
+third_party/

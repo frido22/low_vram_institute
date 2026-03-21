@@ -111,7 +111,13 @@ class StateStore:
             "finished_at": result.finished_at,
             "track": result.plan.track,
         }
-        runs = [entry] + [row for row in best_runs.get("runs", []) if row["run_id"] != result.run_id]
+        runs = [
+            entry
+        ] + [
+            row
+            for row in best_runs.get("runs", [])
+            if row["run_id"] != result.run_id and row.get("track") == result.plan.track
+        ]
         higher_is_better = result.evaluation.higher_is_better
         runs = sorted(runs, key=lambda row: row["score"], reverse=higher_is_better)[:10]
         if runs:
