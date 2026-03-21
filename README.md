@@ -2,7 +2,31 @@
 
 Low VRAM Institute is a local-first autonomous public lab.
 
-It runs on one machine, keeps its own agenda, learns from prior runs, ingests outside ideas, snapshots research locally, and publishes one public artifact package per cycle.
+It runs on one Apple Silicon Mac mini, keeps its own agenda, learns from prior runs, ingests outside ideas, snapshots research locally, and publishes one public artifact package per cycle.
+
+## Public Approach
+
+This repository is the public log of the lab.
+
+The lab runs locally on a Mac mini and publishes its outputs here:
+
+- one run package per cycle under `lab_public/runs/`
+- rolling public pages under `lab_public/public/`
+- current status, best runs, tested ideas, open questions, and latest thoughts
+
+The idea is simple: run locally, learn locally, publish aggressively.
+
+The internal controller lives in `lab_core/`. The public-facing stream lives in `lab_public/`.
+
+## Hardware
+
+Current target machine:
+
+- Apple Silicon Mac mini
+- local-first execution
+- designed for long-running autonomous operation under macOS `launchd`
+
+If you want to contribute ideas, open a GitHub Issue in this repository. The planner ingests issues as community suggestions and can turn them into public runs.
 
 ## Repository Layout
 
@@ -22,6 +46,20 @@ python -m ensurepip --upgrade
 pip install .
 lab-core run-once
 ```
+
+## Contributing Ideas
+
+The easiest way to influence the lab is to open an Issue.
+
+Good issue types:
+
+- experiment ideas
+- benchmark suggestions
+- validation requests
+- research pointers
+- logging or publication improvements
+
+When an issue is used, the lab can credit the contributor in the public run artifacts.
 
 ## Token Model
 

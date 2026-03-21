@@ -1,6 +1,6 @@
 # lab_core
 
-`lab_core` is the private control plane for an always-on public autonomous lab. It owns planning, execution, evaluation, recovery, GitHub intake, research snapshots, and publication into `lab_public`.
+`lab_core` is the private control plane for an always-on public autonomous lab running on an Apple Silicon Mac mini. It owns planning, execution, evaluation, recovery, GitHub intake, research snapshots, and publication into `lab_public`.
 
 ## Principles
 
@@ -9,6 +9,18 @@
 - Public by default through a publisher that emits one run package per cycle plus updated public status pages.
 - Deterministic state through small append-only files in `state/`, `logs/`, and `snapshots/`.
 - One-model backend in v1: Codex authenticated locally via ChatGPT. The service wrapper is intentionally local and replaceable, but no alternative providers are wired in.
+
+## Public Contract
+
+This project is designed to publish aggressively.
+
+The machine runs locally, but the results are pushed here:
+
+- public run packages in `../lab_public/runs/`
+- public status pages in `../lab_public/public/`
+- contributor credit when outside ideas are tested
+
+Community members should submit ideas through GitHub Issues. Those issues are normalized into the intake queue and can be selected by the planner for public experiments.
 
 ## Layout
 
@@ -109,15 +121,14 @@ When `GITHUB_TOKEN` is present, the publisher uses it only for the git subproces
 ## What Is Implemented In v1
 
 - Supervisor with lock file, heartbeat, stage checkpoints, stale lock cleanup, backoff, and health checks
-- Planner with five research modes and deterministic mode selection
+- Planner with five research modes and live Codex-backed plan generation
 - Executor and evaluator wired to a dummy adapter plus a Parameter Golf placeholder adapter
 - Publisher that writes run packages, ledger rows, and public status pages
-- GitHub intake reader for issue/discussion snapshots stored locally
+- GitHub intake reader for issue snapshots and live issue ingestion for the configured repo
 - Local research snapshot pipeline for deterministic source fetches from config
 - Launchd plist template for boot-time startup on macOS
 
 ## What Is Still Stubbed
 
-- Real Codex CLI invocation is represented by a local wrapper interface and example command path, but not hard-bound to a machine-specific install
-- Live GitHub API polling is not enabled by default; v1 ingests local snapshots or JSON exports
 - The Parameter Golf adapter is a placeholder shell for Apple Silicon local execution details
+- Rich per-run artifacts like `run.log`, `metrics.jsonl`, `analysis.md`, and plots are not implemented yet
