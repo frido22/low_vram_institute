@@ -20,6 +20,45 @@ class Publisher:
     def _write_public_page(self, name: str, content: str) -> None:
         (self.store.paths.public_pages_dir / name).write_text(content.rstrip() + "\n")
 
+    def _render_best_runs(self) -> str:
+        best_runs = self.store.best_runs()
+        lines = ["# Best Runs", ""]
+        for row in best_runs.get("runs", []):
+            lines.append(f"- {row['run_id']}: {row['score']:.4f} | {row['mode']} | {row['title']}")
+        if len(lines) == 2:
+            lines.append("- No best runs yet.")
+        return "\n".join(lines)
+
+    def _render_open_questions(self) -> str:
+        queue = self.store.community_queue()
+        lines = ["# Open Questions", ""]
+        for item in queue[:20]:
+            author = item.get("author", "unknown")
+            title = item.get("title", "untitled")
+            url = item.get("url", "")
+            suffix = f" ({url})" if url else ""
+            lines.append(f"- [{item.get('status', 'queued')}] {title} by {author}{suffix}")
+        if len(lines) == 2:
+            lines.append("- No queued questions.")
+        return "\n".join(lines)
+
+    def _render_tested_ideas(self, result: RunResult) -> str:
+        lines = ["# Tested Ideas", ""]
+        best_runs = self.store.best_runs()
+        seen_titles: set[str] = set()
+        for row in best_runs.get("runs", []):
+            title = row["title"]
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
+            lines.append(f"- {title} -> {row['run_id']} scored {row['score']:.4f}")
+        lines.append("")
+        lines.append("## Latest Tested Idea")
+        lines.append(f"- {result.plan.title}")
+        lines.append(f"- Result: {result.evaluation.score:.4f}")
+        lines.append(f"- Contributor: {result.plan.idea_source or 'internal'}")
+        return "\n".join(lines)
+
     def _git_publish(self, run_id: str) -> None:
         repo_root = self._repo_root()
         git_dir = repo_root / ".git"
@@ -157,6 +196,10 @@ class Publisher:
         for row in best_runs.get("runs", []):
             leaderboard_lines.append(f"- {row['run_id']}: {row['score']:.4f} ({row['mode']})")
         self._write_public_page("leaderboard.md", "\n".join(leaderboard_lines))
+        self._write_public_page("best_runs.md", self._render_best_runs())
+        self._write_public_page("open_questions.md", self._render_open_questions())
+        self._write_public_page("tested_ideas.md", self._render_tested_ideas(result))
+        self._write_public_page("rejected_ideas.md", self.store.rejected_ideas_text())
 
         self._write_public_page(
             "current_status.md",
@@ -174,6 +217,8 @@ class Publisher:
             (
                 "# Latest Thoughts\n\n"
                 f"{result.summary}\n\n"
+                "## Public Beliefs\n"
+                f"{self.store.insights_text()}\n\n"
                 f"Next public focus: {', '.join(result.plan.public_updates)}.\n"
             ),
         )
