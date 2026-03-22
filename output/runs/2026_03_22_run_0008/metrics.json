@@ -1,0 +1,22 @@
+{
+  "artifact_stats": {
+    "curve_analysis": {
+      "curve_shape": "flat",
+      "early_improvement": 0.0,
+      "first_score": 2.322,
+      "improving": false,
+      "last_score": 2.322,
+      "late_improvement": 0,
+      "total_improvement": 0.0,
+      "total_steps": 2
+    },
+    "generated_at": "2026-03-22T20:52:16.009337+00:00",
+    "has_modified_script": false,
+    "quantized_artifact_bytes": 10379036,
+    "track": "mac_mini_official_like"
+  },
+  "needs_validation": true,
+  "passed": true,
+  "runtime_seconds": 211.314041,
+  "score": 2.32354155
+}
