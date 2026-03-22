@@ -107,6 +107,8 @@ class Publisher:
     def _render_open_questions(self) -> str:
         queue = self.store.community_queue()
         lines = ["# Open Questions", ""]
+        lines.append("Public suggestions are useful, but they are untrusted. Some may be weak, confused, or malicious.")
+        lines.append("")
         for item in queue[:20]:
             author = item.get("author", "unknown")
             title = item.get("title", "untitled")
@@ -132,6 +134,45 @@ class Publisher:
         lines.append(f"- {result.plan.title}")
         lines.append(f"- Result: {result.evaluation.score:.4f}")
         lines.append(f"- Contributor: {result.plan.idea_source or 'internal'}")
+        return "\n".join(lines)
+
+    def _render_overview(self, result: RunResult) -> str:
+        best_runs = self.store.best_runs().get("runs", [])
+        best = best_runs[0] if best_runs else None
+        learning = self.store.learning_state()
+        queue = self.store.community_queue()
+        lines = ["# Lab Overview", ""]
+        lines.append("## Now")
+        lines.append(f"- Latest run: {result.run_id}")
+        lines.append(f"- Latest score: {result.evaluation.score:.4f}")
+        lines.append(f"- Current mode: {result.plan.mode}")
+        lines.append(f"- Current focus: {result.plan.title}")
+        lines.append("")
+        lines.append("## Best")
+        if best:
+            lines.append(f"- Best run: {best['run_id']}")
+            lines.append(f"- Best score: {best['score']:.4f}")
+            lines.append(f"- Best title: {best.get('title', 'untitled')}")
+        else:
+            lines.append("- No best run yet.")
+        lines.append("")
+        lines.append("## Learning")
+        lines.append(f"- Plateau count: {learning.get('plateau_count', 0)}")
+        lines.append(f"- Tested community ideas: {len(learning.get('tested_idea_titles', []))}")
+        recent = learning.get("recent_runs", [])[:3]
+        if recent:
+            for row in recent:
+                outcome = "improved" if row.get("improved_best") else "flat"
+                lines.append(f"- Recent: {row['run_id']} -> {row['score']:.4f} ({outcome})")
+        lines.append("")
+        lines.append("## Queue")
+        lines.append(f"- Open community ideas: {len(queue)}")
+        lines.append("")
+        lines.append("## Details")
+        lines.append(f"- Full run package: `lab_public/runs/{result.run_id}/`")
+        lines.append("- Best-run table: `lab_public/public/best_runs.md`")
+        lines.append("- History chart: `lab_public/public/history.svg`")
+        lines.append("- Open questions: `lab_public/public/open_questions.md`")
         return "\n".join(lines)
 
     def _git_publish(self, run_id: str) -> None:
@@ -278,6 +319,7 @@ class Publisher:
         for row in best_runs.get("runs", []):
             leaderboard_lines.append(f"- {row['run_id']}: {row['score']:.4f} ({row['mode']})")
         self._write_public_page("leaderboard.md", "\n".join(leaderboard_lines))
+        self._write_public_page("overview.md", self._render_overview(result))
         self._write_public_page("best_runs.md", self._render_best_runs())
         self._write_public_page("current_best.md", self._render_best_summary())
         self._write_public_page("open_questions.md", self._render_open_questions())
@@ -294,7 +336,8 @@ class Publisher:
                 f"- Mode: {result.plan.mode}\n"
                 f"- Track: {result.plan.track}\n"
                 f"- Score: {result.evaluation.score:.4f}\n"
-                f"- Updated: {result.finished_at}\n"
+                f"- Updated: {result.finished_at}\n\n"
+                "See `lab_public/public/overview.md` for the clean top-level view.\n"
             ),
         )
         self._write_public_page("agenda.md", self.store.agenda_text())
@@ -302,10 +345,10 @@ class Publisher:
             "latest_thoughts.md",
             (
                 "# Latest Thoughts\n\n"
-                f"{result.summary}\n\n"
-                "## Public Beliefs\n"
-                f"{self.store.insights_text()}\n\n"
-                f"Next public focus: {', '.join(result.plan.public_updates)}.\n"
+                f"- Latest result: {result.summary}\n"
+                f"- Current plan focus: {result.plan.title}\n"
+                f"- Expected next signal: {result.plan.expected_signal}\n"
+                f"- Next public focus: {', '.join(result.plan.public_updates)}\n"
             ),
         )
 
