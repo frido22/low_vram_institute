@@ -1,5 +1,5 @@
 # Agenda
 
-- Current mode bias: community
-- Latest expected signal: Positive signal is a pass within the 10-minute wallclock and a score at or below the current best 2.29350473, especially if the 10-layer int5-funded path recovers the regressions seen from bigram-only and SWA-only probes. Negative signal is another regression or budget/time failure, which would falsify the combined public recipe on M4 hardware and justify switching back to research.
-- Next public update focus: Queued community idea is specific enough to test now: reproduce the upstream-style combined recipe, not another isolated micro-ablation., Use the official local path only: upstream code path, official validation split, 10-minute cap; hardware remains the only intentional mismatch., Main hypothesis: the missing ingredient is not bigram or SWA in isolation, but int5-funded extra depth combined with BigramHash(10240) on the validated mixed-quant base., If this run wins suspiciously or narrowly, schedule immediate validate next; if it fails on time or size, record that the community recipe does not transfer cleanly to the Mac mini track.
+- Current mode bias: validate
+- Latest expected signal: A second pass should land near the new best on the same official-split mixed-quant recipe; confirmation supports treating this recipe as the current stable local leader, while a clear regression would mark the win as noisy.
+- Next public update focus: Reproduce the exact winning recipe without adding new tactics., Report wallclock, score delta versus run_0010, and pass/fail under the 10-minute cap., State whether the community-derived win is promoted or downgraded after one confirmatory rerun.
