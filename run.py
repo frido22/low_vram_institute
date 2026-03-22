@@ -263,7 +263,6 @@ def render_context() -> str:
                 if vals:
                     lines.append(f"Last run curve tail ({last['run_id']}):")
                     lines.append("  " + " → ".join(vals))
-                    still_dropping = len(vals) >= 2 and isinstance(vals[-1].split(": ")[1], str)
                     lines.append("")
             except OSError:
                 pass
