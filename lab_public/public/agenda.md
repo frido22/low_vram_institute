@@ -1,5 +1,5 @@
 # Agenda
 
-- Current mode bias: research
-- Latest expected signal: A pass that beats or matches 2.29234832 would identify SWA as the remaining transferable upstream tactic; another clear regression would let us demote SWA and stop spending exploit budget on that branch.
-- Next public update focus: Using the validated local winner as the unchanged base to isolate one upstream delta cleanly., Testing SWA start_frac=0.4 without bundling WD so attribution is readable., Keeping the real upstream path, official validation split, and 10-minute wallclock cap fixed while checking hardware-local transfer.
+- Current mode bias: community
+- Latest expected signal: If WD=0.04 alone improves or matches the best score, it identifies the remaining useful upstream tactic on local hardware; if it regresses again, the current official-best reproduction is likely exhausted on this M4 path and the queue should stop consuming recipe deltas.
+- Next public update focus: Running one isolated upstream delta from the queued official-best recipe: WD=0.04 only, with architecture and eval path held fixed., Comparing against the validated 10L int5-MLP + BigramHash(10240) local winner to separate WD effects from the already-tested SWA regression., Treating community input as a hypothesis check, not a recipe adoption: promote only if the official-split 10-minute local result is actually better.

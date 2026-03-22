@@ -12,6 +12,6 @@
 - Isolate SWA start_frac=0.4 alone on the validated 10L int5-MLP + BigramHash(10240) official-split path under the 10-minute M4 cap -> 2026_03_22_run_0014 scored 2.2945
 
 ## Latest Tested Idea
-- Isolate SWA start_frac=0.4 alone on the validated 10L int5-MLP + BigramHash(10240) official-split path under the 10-minute M4 cap
-- Result: 2.2945
+- Test WD=0.04 alone on the validated 10L int5-MLP + BigramHash(10240) official-split local winner under the 10-minute M4 cap
+- Result: 2.2953
 - Contributor: live_repo_issues
