@@ -1,0 +1,17 @@
+{
+  "adapter": "parameter_golf",
+  "command": [
+    "/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/.venv_pg/bin/python3",
+    "train_gpt_mlx.py"
+  ],
+  "env_subset": {
+    "ITERATIONS": "200",
+    "MAX_WALLCLOCK_SECONDS": "600",
+    "OUT_DIR": "/Users/frido_mac/Projects/low_vram_institute/lab_core/logs/parameter_golf",
+    "RUN_ID": "2026_03_22_run_0001",
+    "TRAIN_BATCH_TOKENS": "8192",
+    "VAL_BATCH_SIZE": "8192"
+  },
+  "plan_mode": "exploit",
+  "workspace": "/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf"
+}

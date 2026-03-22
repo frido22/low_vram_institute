@@ -1,7 +1,16 @@
 {
-  "best_score": null,
-  "last_improving_run_id": null,
+  "best_score": 2.29436762,
+  "last_improving_run_id": "2026_03_22_run_0001",
   "plateau_count": 0,
-  "recent_runs": [],
+  "recent_runs": [
+    {
+      "improved_best": true,
+      "mode": "exploit",
+      "needs_validation": true,
+      "run_id": "2026_03_22_run_0001",
+      "score": 2.29436762,
+      "title": "Apply one upstream-proven local tactic next: sliding-window evaluation on the official validation split"
+    }
+  ],
   "tested_idea_titles": []
 }
