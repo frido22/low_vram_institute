@@ -7,6 +7,6 @@
 - 2026_03_22_run_0006: 9.2505 | validate | Replay Muon WD 0.04 With Momentum 0.99
 - 2026_03_22_run_0009: 9.2515 | research | Loosen Mixed-Quantization Passthrough Threshold
 - 2026_03_22_run_0008: 9.2520 | validate | Replay Muon Momentum 0.99 On Top Of Validated WD 0.04
+- 2026_03_22_run_0020: 9.2520 | research | Tighten Mixed-Quantization Passthrough Threshold
 - 2026_03_22_run_0011: 9.2528 | research | Probe Lower Muon Matrix Weight Decay At 0.03
 - 2026_03_22_run_0007: 9.2533 | exploit | Replay validated Muon WD 0.04 + momentum 0.99, then tighten mixed-quantization passthrough
-- 2026_03_22_run_0015: 9.2535 | validate | Replay Current Best Tied-Embedding Bigram Residual

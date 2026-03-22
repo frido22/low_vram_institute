@@ -7,11 +7,11 @@
 - Replay Muon WD 0.04 With Momentum 0.99 -> 2026_03_22_run_0006 scored 9.2505
 - Loosen Mixed-Quantization Passthrough Threshold -> 2026_03_22_run_0009 scored 9.2515
 - Replay Muon Momentum 0.99 On Top Of Validated WD 0.04 -> 2026_03_22_run_0008 scored 9.2520
+- Tighten Mixed-Quantization Passthrough Threshold -> 2026_03_22_run_0020 scored 9.2520
 - Probe Lower Muon Matrix Weight Decay At 0.03 -> 2026_03_22_run_0011 scored 9.2528
 - Replay validated Muon WD 0.04 + momentum 0.99, then tighten mixed-quantization passthrough -> 2026_03_22_run_0007 scored 9.2533
-- Replay Current Best Tied-Embedding Bigram Residual -> 2026_03_22_run_0015 scored 9.2535
 
 ## Latest Tested Idea
-- Probe a 3x MLP on the current MLX baseline
-- Result: 9.4884
-- Contributor: internal
+- Tighten Mixed-Quantization Passthrough Threshold
+- Result: 9.2520
+- Contributor: upstream_tactics
