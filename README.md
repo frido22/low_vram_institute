@@ -8,8 +8,8 @@ The system plans its own experiments, modifies the training script, learns from 
 
 Each cycle the daemon:
 
-1. Loads community ideas (GitHub issues) and research notes.
-2. Asks Codex what to try — it returns a complete modified `train_gpt_mlx.py`.
+1. Asks Codex what to try — it sees run history, near-misses, and the current best script.
+2. Codex returns a complete modified `train_gpt_mlx.py`.
 3. Validates and runs the 10-minute training experiment.
 4. Records score, diagnostics (throughput, memory, curve shape) to `state/ledger.jsonl`.
 5. If the score improved, saves the winning script for compounding.
@@ -38,10 +38,6 @@ state/best_diff.patch   — unified diff of current best vs original
 python3 run.py run-once   # single cycle
 python3 run.py daemon     # run continuously
 ```
-
-## Contributing Ideas
-
-Open a GitHub Issue. The planner ingests open issues and can turn them into experiments.
 
 ## Hardware
 

@@ -15,10 +15,6 @@ You can change anything: a single hyperparameter, the optimizer, the architectur
 
 {best_script_section}
 
-## Original train_gpt_mlx.py (baseline, unmodified)
-
-```python
 {script}
-```
 
 {errors_section}

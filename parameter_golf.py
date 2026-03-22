@@ -9,7 +9,6 @@ import re
 import subprocess
 import time
 from pathlib import Path
-from typing import TextIO
 
 
 FINAL_EXACT_RE = re.compile(r"final_int8_zlib_roundtrip_exact val_loss:(?P<val_loss>[0-9.]+) val_bpb:(?P<val_bpb>[0-9.]+)")
@@ -165,6 +164,7 @@ def run(run_id: str, plan: dict, pg_config: dict, logs_dir: Path) -> dict:
         "train_script": script_snapshot,
         "diagnostics": {
             "step_count": len(metrics_rows),
+            "total_steps": int(metrics_rows[-1]["total_steps"]) if metrics_rows else 0,
             "val_loss": final["val_loss"],
             "avg_tok_s": diagnostics.get("avg_tok_s"),
             "total_tokens": diagnostics.get("total_tokens"),
@@ -174,7 +174,6 @@ def run(run_id: str, plan: dict, pg_config: dict, logs_dir: Path) -> dict:
         },
         "provenance": {
             "adapter": "parameter_golf",
-            "plan_mode": plan.get("mode", ""),
             "workspace": str(ws.path),
             "command": command,
             "has_modified_script": bool(modified),

@@ -28,7 +28,7 @@ CONFIG_DIR = ROOT / "config"
 RUNS_DIR = ROOT / "output" / "runs"
 REPORTS_DIR = ROOT / "output" / "reports"
 
-HEARTBEAT_S = 10
+HEARTBEAT_S = 2
 BASE_BACKOFF = 10
 MAX_BACKOFF = 300
 MIN_FREE_DISK = 2_000_000_000
@@ -158,8 +158,12 @@ def render_context() -> str:
         tag = "WIN" if row.get("improved_best") else f"+{delta:.4f}"
         mod = "mod" if row.get("has_modified_script") else "base"
         parts = []
-        if row.get("step_count"):
+        if row.get("total_steps"):
+            parts.append(f"{row['total_steps']}steps")
+        elif row.get("step_count"):
             parts.append(f"{row['step_count']}steps")
+        if row.get("total_tokens"):
+            parts.append(f"{row['total_tokens']/1e6:.1f}Mtok")
         if row.get("runtime_seconds"):
             parts.append(f"{row['runtime_seconds']:.0f}s")
         if row.get("avg_tok_s"):
@@ -184,6 +188,7 @@ def render_context() -> str:
         near.sort(key=lambda r: r["score"])
         lines.append("Near-misses (within 3% of best — promising, try refining):")
         seen: set[str] = set()
+        diffs_shown = 0
         for r in near:
             t = r.get("title", "")
             if t in seen:
@@ -195,6 +200,16 @@ def render_context() -> str:
                 rationale = rationale[:77] + "..."
             hint = f" — {rationale}" if rationale else ""
             lines.append(f"- {t} (+{delta:.4f}){hint}")
+            # Include abbreviated diff for top 3 near-misses
+            if diffs_shown < 3:
+                diff_path = RUNS_DIR / r["run_id"] / "diff.patch"
+                if diff_path.exists():
+                    diff_lines = diff_path.read_text().strip().splitlines()
+                    # Show only changed lines (max 15 lines)
+                    key_lines = [l for l in diff_lines if l.startswith(("+", "-")) and not l.startswith(("+++", "---"))][:15]
+                    if key_lines:
+                        lines.append("  diff: " + " | ".join(key_lines[:8]))
+                        diffs_shown += 1
             if len(seen) >= 10:
                 break
         lines.append("")
@@ -237,6 +252,31 @@ def render_context() -> str:
             lines.append(f"- {r['run_id']} {r['score']:.4f} [{mod}] {r.get('title', '')}")
         lines.append("")
 
+    # 7. Last run's training curve excerpt (last 5 steps) — helps spot cutoff issues
+    if rows:
+        last = rows[-1]
+        metrics_path = RUNS_DIR / last["run_id"] / "metrics.jsonl"
+        if metrics_path.exists():
+            try:
+                mlines = metrics_path.read_text().strip().splitlines()
+                tail = mlines[-5:] if len(mlines) >= 5 else mlines
+                vals = []
+                for ml in tail:
+                    try:
+                        m = json.loads(ml)
+                        step = m.get("step", "?")
+                        vbpb = m.get("val_bpb", m.get("val_loss", "?"))
+                        vals.append(f"step {step}: {vbpb}")
+                    except (json.JSONDecodeError, ValueError):
+                        continue
+                if vals:
+                    lines.append(f"Last run curve tail ({last['run_id']}):")
+                    lines.append("  " + " → ".join(vals))
+                    still_dropping = len(vals) >= 2 and isinstance(vals[-1].split(": ")[1], str)
+                    lines.append("")
+            except OSError:
+                pass
+
     return "\n".join(lines)
 
 
@@ -262,11 +302,14 @@ def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
         "title": plan_dict.get("title", ""),
         "rationale": plan_dict.get("rationale", ""),
         "score": score,
+        "val_loss": diag.get("val_loss"),
         "passed": raw["passed"],
         "has_modified_script": bool(plan_dict.get("modified_script")),
         "improved_best": improved,
         "runtime_seconds": raw["runtime_seconds"],
         "step_count": diag.get("step_count", 0),
+        "total_steps": diag.get("total_steps"),
+        "total_tokens": diag.get("total_tokens"),
         "avg_tok_s": diag.get("avg_tok_s"),
         "peak_mb": diag.get("peak_mb"),
         "active_mb": diag.get("active_mb"),
@@ -347,23 +390,25 @@ def _build_prompt(run_errors: list[str] | None = None) -> str:
     rules_path = CONFIG_DIR / "parameter_golf_rules.md"
     rules = rules_path.read_text().strip() if rules_path.exists() else ""
 
-    # Training script (original)
+    # Training script (original baseline)
     ws_path = runtime.get("parameter_golf", {}).get("workspace", "")
-    script = "(script not available)"
+    original_script = ""
     if ws_path:
         sp = Path(ws_path) / "train_gpt_mlx.py"
         if sp.exists():
             try:
-                script = sp.read_text()
+                original_script = sp.read_text()
             except OSError:
                 pass
 
-    # Best modified script — Codex should start from this, not from original + diff
+    # After the first run, Codex only sees the best script — original is irrelevant
     best = best_script()
     if best:
         best_script_section = f"## Current Best Script (start from this)\n\n```python\n{best}\n```"
+        script = ""
     else:
         best_script_section = ""
+        script = f"```python\n{original_script}\n```" if original_script else "(script not available)"
 
     # Errors
     errors_section = ""

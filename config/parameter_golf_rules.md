@@ -41,6 +41,7 @@ Every run should change something. Null (unmodified baseline) is only acceptable
 - Never weaken the 600s wallclock cap
 - Start from the Mac-mini launch baseline unless you have a specific reason to change it
 - Never remove or bypass final evaluation (`final_int8_zlib_roundtrip_exact`)
+- Do not modify the format of step, throughput, memory, or final print statements — our metrics pipeline depends on them
 - Never change data/tokenizer path resolution
 - Never import network libraries (socket, http, urllib, requests) or subprocess
 - Keep scripts under 1500 lines (upstream rule — enforced in the script header itself)
