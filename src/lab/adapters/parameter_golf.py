@@ -5,6 +5,7 @@ import difflib
 import json
 import re
 import subprocess
+import time
 from pathlib import Path
 from typing import TextIO
 
@@ -177,12 +178,25 @@ class ParameterGolfAdapter:
                 env=env,
             )
             assert process.stdout is not None
+            peak_rss_mb = 0.0
+            last_rss_sample_at = 0.0
             for line in process.stdout:
                 stdout_lines.append(line)
                 log_handle.write(line)
                 log_handle.flush()
+                now = time.monotonic()
+                if now - last_rss_sample_at >= 1.0:
+                    peak_rss_mb = max(peak_rss_mb, self._sample_rss_mb(process.pid))
+                    last_rss_sample_at = now
                 self._maybe_emit_live_line(line, log_handle)
             returncode = process.wait()
+            peak_rss_mb = max(peak_rss_mb, self._sample_rss_mb(process.pid))
+            if peak_rss_mb > 0:
+                memory_line = f"memory:peak_mb:{peak_rss_mb:.1f} active_mb:{peak_rss_mb:.1f}\n"
+                stdout_lines.append(memory_line)
+                log_handle.write(memory_line)
+                log_handle.flush()
+                self._emit(memory_line.strip())
         return subprocess.CompletedProcess(command, returncode, "".join(stdout_lines), "")
 
     def _maybe_emit_live_line(self, line: str, _log_handle: TextIO) -> None:
@@ -191,6 +205,21 @@ class ParameterGolfAdapter:
             return
         if text.startswith(("run_id:", "model_params:", "iterations:", "step:", "warmup_step:", "final_int8_zlib_roundtrip", "throughput:", "memory:", "WARNING:")):
             self._emit(text)
+
+    def _sample_rss_mb(self, pid: int) -> float:
+        completed = subprocess.run(  # noqa: S603
+            ["ps", "-o", "rss=", "-p", str(pid)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if completed.returncode != 0:
+            return 0.0
+        try:
+            rss_kb = int(completed.stdout.strip() or "0")
+        except ValueError:
+            return 0.0
+        return rss_kb / 1024.0
 
     # --- Metric parsing ---
 

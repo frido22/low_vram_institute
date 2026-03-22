@@ -22,7 +22,16 @@ The original is always restored after each run — be fearless.
 2. REASON: Think about why a technique would help given the limited step budget on this hardware.
 3. DIVERSIFY: Check idea categories in lessons. Don't repeat exhausted categories.
 4. LEARN: Study what worked and what failed. Form hypotheses, not just random trials.
-5. VALIDATE SPARINGLY: Only validate when the improvement is large (>0.01) and the run was truly novel.
+5. SPEND THE RUN BUDGET WELL: One Mac mini run is expensive. Prefer a new serious idea over another weak replay.
+6. VALIDATE SPARINGLY: Validate only after a clearly meaningful win or a major architectural change. Tiny gains are not worth many replay runs on this machine.
+
+## Budget Policy
+
+- Default to new ideas and new script changes, not replays
+- Do not spend more than 2 consecutive runs on the same title unless the first run was a clear step-change
+- Do not let community ideas dominate the queue; they must compete with stronger local hypotheses
+- If the recent runs are flat, pivot quickly instead of validating again
+- Treat Apple Silicon baseline behavior as the starting point; preserve the local MLX operating assumptions unless you have a specific reason to change them
 
 ## Hard Rules
 
@@ -43,5 +52,6 @@ The original is always restored after each run — be fearless.
 - More steps = more gradient updates = potentially better final score
 - 16GB unified memory — cannot run models that need >14GB
 - Throughput and step count are reported per run — use them to track optimization impact
+- Memory usage is reported per run — track whether a change buys score efficiently or just increases pressure
 - Learning rate schedule, initialization, and per-step efficiency all matter
 - Techniques that need thousands of steps to pay off may not transfer — reason about step budget

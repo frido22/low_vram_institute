@@ -85,6 +85,24 @@ class Planner:
         community = self.store.community_queue()[:5]
         lessons = self.store.lessons_text().strip() or "# Lessons\n- none"
         recent = learning.get("recent_runs", [])[:12]
+        recent_titles = [row.get("title", "") for row in recent[:4]]
+        consecutive_same_title = 1
+        if recent_titles:
+            first_title = recent_titles[0]
+            for title in recent_titles[1:]:
+                if title == first_title and title:
+                    consecutive_same_title += 1
+                else:
+                    break
+        recent_modes = [row.get("mode", "") for row in recent[:4]]
+        consecutive_same_mode = 1
+        if recent_modes:
+            first_mode = recent_modes[0]
+            for mode in recent_modes[1:]:
+                if mode == first_mode and mode:
+                    consecutive_same_mode += 1
+                else:
+                    break
 
         recent_lines = []
         for row in recent:
@@ -115,6 +133,11 @@ class Planner:
             f"- best_score: {best_runs.get('best_score', 'none')}\n"
             f"- last: {state.get('last_run_id', 'none')} {state.get('last_score', '')} ({state.get('last_status', '')})\n"
             f"- plateau_count: {learning.get('plateau_count', 0)}\n\n"
+            "## Budget Pressure\n"
+            f"- consecutive_same_title: {consecutive_same_title}\n"
+            f"- consecutive_same_mode: {consecutive_same_mode}\n"
+            f"- open_community_ideas: {len(community)}\n"
+            "- This machine should prefer a strong new idea over repeated weak validation.\n\n"
             "## Recent Runs\n"
             f"{recent_block}\n\n"
             "## Best Runs\n"
@@ -214,8 +237,8 @@ class Planner:
             "- exploit: compound on current best\n"
             "- research: try something new\n"
             "- community: test an external suggestion\n"
-            "- validate: confirm a suspicious win (only if delta > 0.01 and first of its kind)\n\n"
-            "Prefer exploit/research. Avoid validate unless necessary.\n\n"
+            "- validate: confirm a suspicious win only when it is clearly worth burning another scarce run\n\n"
+            "Prefer exploit/research. Avoid validate unless necessary. Avoid spending many runs on one weak idea.\n\n"
             "## Output\n"
             "Return `modified_script`: the COMPLETE modified `train_gpt_mlx.py`, or null.\n"
             "To compound: incorporate the best diff below and add your changes.\n"
