@@ -108,10 +108,7 @@ class Supervisor:
                         self._emit(f"code patch failed (attempt {patch_attempt + 1}/6): {exc}")
                         self.store.append_event("code_patch_failed", {"run_id": run_id, "attempt": patch_attempt + 1, "error": str(exc)})
                         if patch_attempt == 5:
-                            # Give up on patches, run without
-                            self._emit("code patch failed 6 times, running without patch")
-                            plan.code_patch = None
-                            result = self.executor.execute(run_id, plan)
+                            raise RuntimeError("code patch failed 6 times") from exc
                 self._emit(f"result score={result.evaluation.score:.4f} passed={result.evaluation.passed}")
                 self.store.update_after_run(result)
                 self.publisher.publish(result)
