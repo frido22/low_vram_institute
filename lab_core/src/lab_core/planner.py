@@ -228,10 +228,10 @@ class Planner:
 
         return overrides
 
-    def plan(self, research_notes: Sequence[dict]) -> Plan:
+    def plan(self, research_notes: Sequence[dict], patch_errors: Sequence[str] | None = None) -> Plan:
         codex_cfg = self.runtime.get("codex", {})
         if codex_cfg.get("enabled"):
-            return self._codex_plan(research_notes, codex_cfg.get("model"))
+            return self._codex_plan(research_notes, codex_cfg.get("model"), patch_errors=patch_errors)
         return self._heuristic_plan(research_notes)
 
     def _heuristic_plan(self, research_notes: Sequence[dict]) -> Plan:
@@ -301,7 +301,9 @@ class Planner:
                 return "(script could not be read)"
         return "(script not available)"
 
-    def _codex_plan(self, research_notes: Sequence[dict], model: Optional[str]) -> Plan:
+    def _codex_plan(
+        self, research_notes: Sequence[dict], model: Optional[str], patch_errors: Sequence[str] | None = None,
+    ) -> Plan:
         script_content = self._training_script_content()
         prompt = (
             "You are the planner for an always-on public autonomous research lab.\n"
@@ -324,6 +326,14 @@ class Planner:
             "## Current train_gpt_mlx.py\n\n"
             f"```python\n{script_content}\n```\n"
         )
+        if patch_errors:
+            prompt += (
+                "\n## Previous Patch Errors\n\n"
+                "Your previous code_patch attempts failed. Fix the errors below.\n"
+                "The 'old' string must match EXACTLY — copy it from the script above.\n\n"
+            )
+            for i, err in enumerate(patch_errors):
+                prompt += f"- Attempt {i + 1}: {err}\n"
         payload = self.codex.plan(self.store.paths.root, prompt, model=model)
         return Plan(
             mode=payload["mode"],

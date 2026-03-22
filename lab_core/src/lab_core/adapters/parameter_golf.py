@@ -18,6 +18,9 @@ STEP_RE = re.compile(r"step:(?P<step>\d+)/(?P<total>\d+).*?val_loss:(?P<val_loss
 THROUGHPUT_RE = re.compile(r"throughput:avg_tok_s:(?P<avg_tok_s>[0-9.]+) total_tokens:(?P<total_tokens>\d+)")
 MEMORY_RE = re.compile(r"memory:peak_mb:(?P<peak_mb>[0-9.]+) active_mb:(?P<active_mb>[0-9.]+)")
 
+class CodePatchError(RuntimeError):
+    """Raised when a code patch fails to apply or validate."""
+
 BANNED_IMPORTS = ["socket", "http", "urllib", "requests"]
 REQUIRED_MARKERS = ["final_int8_zlib_roundtrip_exact", "MAX_WALLCLOCK_SECONDS"]
 MAX_PATCHED_LINES = 1500
@@ -155,11 +158,9 @@ class ParameterGolfAdapter:
                 script_path.write_text(patched_content)
                 self._emit("code patch applied successfully")
             except Exception as exc:
-                # Bad patch: log warning and run without it (env overrides still apply)
                 script_path.write_text(original_content)
                 backup_path.unlink(missing_ok=True)
-                self._emit(f"WARNING: code patch skipped: {exc}")
-                patched_content = None
+                raise CodePatchError(str(exc)) from exc
         try:
             yield patched_content
         finally:

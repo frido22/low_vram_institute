@@ -12,6 +12,7 @@ from .config import LabConfig, Paths
 from .executor import Executor
 from .planner import Planner
 from .publisher import Publisher
+from .adapters.parameter_golf import CodePatchError
 from .services.codex_wrapper import CodexWrapper
 from .services.codex_wrapper import CodexInvocationError
 from .services.github_intake import GitHubIntake
@@ -90,14 +91,27 @@ class Supervisor:
                 self.store.write_checkpoint("community_refreshed", run_id, {"count": len(community)})
                 self._emit(f"community ideas refreshed: {len(community)}")
 
-                plan = self.planner.plan(research_notes)
-                plan_summary = {k: v for k, v in plan.__dict__.items() if k != "code_patch"}
-                plan_summary["has_code_patch"] = bool(plan.code_patch)
-                self.store.append_event("plan_created", {"run_id": run_id, "plan": plan_summary})
-                self.store.write_heartbeat({"run_id": run_id, "status": "planned", "mode": plan.mode, "timestamp": datetime.now(timezone.utc).isoformat()})
-                self._emit(f"plan {plan.mode}: {plan.title}")
+                patch_errors: list[str] = []
+                for patch_attempt in range(6):  # 1 initial + 5 retries
+                    plan = self.planner.plan(research_notes, patch_errors=patch_errors or None)
+                    plan_summary = {k: v for k, v in plan.__dict__.items() if k != "code_patch"}
+                    plan_summary["has_code_patch"] = bool(plan.code_patch)
+                    self.store.append_event("plan_created", {"run_id": run_id, "plan": plan_summary})
+                    self.store.write_heartbeat({"run_id": run_id, "status": "planned", "mode": plan.mode, "timestamp": datetime.now(timezone.utc).isoformat()})
+                    self._emit(f"plan {plan.mode}: {plan.title}")
 
-                result = self.executor.execute(run_id, plan)
+                    try:
+                        result = self.executor.execute(run_id, plan)
+                        break
+                    except CodePatchError as exc:
+                        patch_errors.append(str(exc))
+                        self._emit(f"code patch failed (attempt {patch_attempt + 1}/6): {exc}")
+                        self.store.append_event("code_patch_failed", {"run_id": run_id, "attempt": patch_attempt + 1, "error": str(exc)})
+                        if patch_attempt == 5:
+                            # Give up on patches, run without
+                            self._emit("code patch failed 6 times, running without patch")
+                            plan.code_patch = None
+                            result = self.executor.execute(run_id, plan)
                 self._emit(f"result score={result.evaluation.score:.4f} passed={result.evaluation.passed}")
                 self.store.update_after_run(result)
                 self.publisher.publish(result)
