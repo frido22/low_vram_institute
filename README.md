@@ -19,8 +19,8 @@ The lab runs locally on a Mac mini and publishes its outputs here:
 See the generated public summaries:
 
 - [Overview](/Users/frido_mac/Projects/low_vram_institute/lab_public/public/overview.md)
-- [Current Best](/Users/frido_mac/Projects/low_vram_institute/lab_public/public/current_best.md)
 - [Best Run History](/Users/frido_mac/Projects/low_vram_institute/lab_public/public/best_runs.md)
+- [Open Questions](/Users/frido_mac/Projects/low_vram_institute/lab_public/public/open_questions.md)
 - [History Chart](/Users/frido_mac/Projects/low_vram_institute/lab_public/public/history.svg)
 
 The idea is simple: match the official Parameter Golf procedure as closely as possible on local hardware, learn locally, publish aggressively.

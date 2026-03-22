@@ -49,6 +49,17 @@ class Publisher:
         )
         return "\n".join(lines)
 
+    def _render_pointer_page(self, title: str, target: str, note: str) -> str:
+        return "\n".join(
+            [
+                f"# {title}",
+                "",
+                note,
+                "",
+                f"- Primary file: `{target}`",
+            ]
+        )
+
     def _history_rows(self) -> list[dict]:
         ledger_path = self.store.paths.public_runs_dir / "ledger.jsonl"
         if not ledger_path.exists():
@@ -171,17 +182,22 @@ class Publisher:
         learning = self.store.learning_state()
         queue = self.store.community_queue()
         lines = ["# Lab Overview", ""]
-        lines.append("## Now")
-        lines.append(f"- Latest run: {result.run_id}")
-        lines.append(f"- Latest score: {result.evaluation.score:.4f}")
-        lines.append(f"- Current mode: {result.plan.mode}")
-        lines.append(f"- Current focus: {result.plan.title}")
+        lines.append("## Latest")
+        lines.append(f"- Run: {result.run_id}")
+        lines.append(f"- Score: {result.evaluation.score:.4f}")
+        lines.append(f"- Mode: {result.plan.mode}")
+        lines.append(f"- Focus: {result.plan.title}")
+        lines.append(f"- Runtime: {result.evaluation.runtime_seconds:.2f}s")
+        lines.append(f"- Passed: {result.evaluation.passed}")
+        lines.append(f"- Needs validation: {result.evaluation.needs_validation}")
+        if result.plan.logging_focus:
+            lines.append(f"- Logging focus: {', '.join(result.plan.logging_focus)}")
         lines.append("")
         lines.append("## Best")
         if best:
-            lines.append(f"- Best run: {best['run_id']}")
-            lines.append(f"- Best score: {best['score']:.4f}")
-            lines.append(f"- Best title: {best.get('title', 'untitled')}")
+            lines.append(f"- Run: {best['run_id']}")
+            lines.append(f"- Score: {best['score']:.4f}")
+            lines.append(f"- Title: {best.get('title', 'untitled')}")
         else:
             lines.append("- No best run yet.")
         lines.append("")
@@ -196,13 +212,6 @@ class Publisher:
         lines.append("")
         lines.append("## Queue")
         lines.append(f"- Open community ideas: {len(queue)}")
-        lines.append("")
-        lines.append("## Logging Focus")
-        if result.plan.logging_focus:
-            for item in result.plan.logging_focus:
-                lines.append(f"- {item}")
-        else:
-            lines.append("- score")
         lines.append("")
         lines.append("## Details")
         lines.append(f"- Full run package: `lab_public/runs/{result.run_id}/`")
@@ -366,34 +375,10 @@ class Publisher:
         self._write_public_page("history.csv", self._render_history_csv())
         self._write_public_page("history.svg", self._render_history_svg())
 
-        self._write_public_page(
-            "current_status.md",
-            (
-                "# Current Status\n\n"
-                f"- Latest run: {result.run_id}\n"
-                f"- Mode: {result.plan.mode}\n"
-                f"- Track: {result.plan.track}\n"
-                f"- Score: {result.evaluation.score:.4f}\n"
-                f"- Updated: {result.finished_at}\n\n"
-                "See `lab_public/public/overview.md` for the clean top-level view.\n"
-            ),
-        )
+        self._write_public_page("current_status.md", self._render_pointer_page("Current Status", "lab_public/public/overview.md", "This file is kept for compatibility. Use the overview as the primary dashboard."))
+        self._write_public_page("current_best.md", self._render_pointer_page("Current Best", "lab_public/public/overview.md", "This file is kept for compatibility. The overview and best-runs page hold the primary current-best view."))
+        self._write_public_page("leaderboard.md", self._render_pointer_page("Leaderboard", "lab_public/public/best_runs.md", "This file is kept for compatibility. Use best_runs.md as the compact ranked view."))
         self._write_public_page("agenda.md", self.store.agenda_text())
-        self._write_public_page(
-            "latest_thoughts.md",
-            (
-                "# Latest Thoughts\n\n"
-                f"- Latest result: {result.summary}\n"
-                f"- Current plan focus: {result.plan.title}\n"
-                f"- Expected next signal: {result.plan.expected_signal}\n"
-                f"- Next public focus: {', '.join(result.plan.public_updates)}\n"
-            ),
-        )
-
-        contributors = "# Contributors\n\n"
-        if result.plan.idea_source:
-            contributors += f"- Credited idea source in latest run: {result.plan.idea_source}\n"
-        else:
-            contributors += "- No external contributor credited in the latest run.\n"
-        self._write_public_page("contributors.md", contributors)
+        self._write_public_page("latest_thoughts.md", self._render_pointer_page("Latest Thoughts", "lab_public/runs/<run_id>/summary.md", "This file is kept for compatibility. The latest run summary is the primary source of narrative detail."))
+        self._write_public_page("contributors.md", self._render_pointer_page("Contributors", "lab_public/public/tested_ideas.md", "This file is kept for compatibility. Credited idea sources appear in tested ideas and run summaries."))
         self._git_publish(result.run_id)
