@@ -118,21 +118,36 @@ def _analyze_curve(metrics_jsonl: str) -> str:
 # ---------------------------------------------------------------------------
 
 def render_context() -> str:
+    """Render ledger into dense prompt context. Scales to 1000+ runs.
+
+    Sections:
+    1. Scoreboard — best score, run count, plateau streak
+    2. Recent 15 — full diagnostics + score delta from best
+    3. Near-misses — within 3% of best, with rationale (worth refining)
+    4. Failures — deduplicated, sorted by delta (disasters last)
+    5. Improvements — the compound path to current best
+    """
     rows = ledger_rows()
     if not rows:
         return "No runs yet."
-    best = min(rows, key=lambda r: r["score"])
+    best_row = min(rows, key=lambda r: r["score"])
+    best_val = best_row["score"]
     improvements = [r for r in rows if r.get("improved_best")]
-    plateau = len(rows) - max((i for i, r in enumerate(rows) if r.get("improved_best")), default=0) - 1
+    last_imp_idx = max((i for i, r in enumerate(rows) if r.get("improved_best")), default=0)
+    plateau = len(rows) - last_imp_idx - 1
 
     lines: list[str] = []
-    lines.append(f"Best: {best['score']:.4f} ({best['run_id']}) | {best.get('title', '')}")
+
+    # 1. Scoreboard
+    lines.append(f"Best: {best_val:.4f} ({best_row['run_id']}) | {best_row.get('title', '')}")
     lines.append(f"Runs: {len(rows)} | Improvements: {len(improvements)} | Plateau streak: {plateau}")
     lines.append("")
 
+    # 2. Recent runs with diagnostics + delta
     lines.append("Recent runs:")
     for row in rows[-15:]:
-        tag = "WIN" if row.get("improved_best") else "flat"
+        delta = row["score"] - best_val
+        tag = "WIN" if row.get("improved_best") else f"+{delta:.4f}"
         mod = "mod" if row.get("has_modified_script") else "base"
         parts = []
         if row.get("step_count"):
@@ -146,22 +161,50 @@ def render_context() -> str:
         if row.get("curve") and row["curve"] != "no_data":
             parts.append(row["curve"])
         diag = f" [{', '.join(parts)}]" if parts else ""
-        lines.append(f"- {row['run_id']} | {row['score']:.4f} | {tag} | {mod}{diag} | {row.get('title', '')}")
+        lines.append(f"- {row['run_id']} | {row['score']:.4f} {tag} | {mod}{diag} | {row.get('title', '')}")
     lines.append("")
 
+    # Collect all non-improving modified runs
     failed = [r for r in rows if not r.get("improved_best") and r.get("has_modified_script")]
-    if failed:
+
+    # 3. Near-misses (within 3% of best) — promising, worth refining
+    near = [r for r in failed if r["score"] < best_val * 1.03]
+    if near:
+        near.sort(key=lambda r: r["score"])
+        lines.append("Near-misses (within 3% of best — promising, try refining):")
         seen: set[str] = set()
-        unique: list[str] = []
-        for r in reversed(failed):
+        for r in near:
             t = r.get("title", "")
-            if t not in seen:
-                seen.add(t)
-                unique.append(f"- {t} ({r['score']:.4f})")
-        lines.append(f"Failed modifications ({len(failed)} total, don't repeat):")
-        lines.extend(unique[:20])
+            if t in seen:
+                continue
+            seen.add(t)
+            delta = r["score"] - best_val
+            rationale = r.get("rationale", "")
+            if len(rationale) > 80:
+                rationale = rationale[:77] + "..."
+            hint = f" — {rationale}" if rationale else ""
+            lines.append(f"- {t} (+{delta:.4f}){hint}")
+            if len(seen) >= 10:
+                break
         lines.append("")
 
+    # 4. Failures — deduplicated, sorted by how bad (delta ascending)
+    if failed:
+        by_title: dict[str, dict] = {}
+        for r in failed:
+            t = r.get("title", "")
+            if t not in by_title or r["score"] < by_title[t]["score"]:
+                by_title[t] = r
+        sorted_fails = sorted(by_title.values(), key=lambda r: r["score"])
+        lines.append(f"Failed ideas ({len(by_title)} unique, don't repeat):")
+        for r in sorted_fails[:20]:
+            delta = r["score"] - best_val
+            lines.append(f"- {r.get('title', '')} (+{delta:.4f})")
+        if len(by_title) > 20:
+            lines.append(f"  ... and {len(by_title) - 20} more")
+        lines.append("")
+
+    # 5. Improvement path — how we got to current best
     if improvements:
         lines.append("Improvements (path to current best):")
         for r in improvements:
@@ -193,6 +236,7 @@ def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "mode": plan_dict.get("mode", ""),
         "title": plan_dict.get("title", ""),
+        "rationale": plan_dict.get("rationale", ""),
         "score": score,
         "passed": raw["passed"],
         "has_modified_script": bool(plan_dict.get("modified_script")),

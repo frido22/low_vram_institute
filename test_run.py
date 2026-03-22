@@ -53,10 +53,32 @@ class RenderContextTests(unittest.TestCase):
 
     def test_with_runs(self):
         run._append_ledger({"run_id": "r1", "score": 2.3, "improved_best": True, "title": "baseline", "mode": "explore"})
-        run._append_ledger({"run_id": "r2", "score": 2.5, "improved_best": False, "has_modified_script": True, "title": "bad idea", "mode": "exploit"})
+        run._append_ledger({"run_id": "r2", "score": 2.5, "improved_best": False, "has_modified_script": True, "title": "bad idea", "mode": "exploit", "rationale": "tried something wild"})
         ctx = run.render_context()
         self.assertIn("Best: 2.3000", ctx)
-        self.assertIn("Failed modifications", ctx)
+        self.assertIn("Failed ideas", ctx)
+        self.assertIn("+0.2000", ctx)  # delta from best
+
+    def test_near_misses(self):
+        run._append_ledger({"run_id": "r1", "score": 2.30, "improved_best": True, "title": "baseline"})
+        run._append_ledger({"run_id": "r2", "score": 2.31, "improved_best": False, "has_modified_script": True, "title": "close one", "rationale": "tweaked lr schedule"})
+        run._append_ledger({"run_id": "r3", "score": 5.00, "improved_best": False, "has_modified_script": True, "title": "disaster"})
+        ctx = run.render_context()
+        self.assertIn("Near-misses", ctx)
+        self.assertIn("close one", ctx)
+        self.assertIn("tweaked lr schedule", ctx)
+        # disaster should be in failures, not near-misses
+        self.assertIn("disaster", ctx)
+
+    def test_scales_to_many_runs(self):
+        run._append_ledger({"run_id": "r1", "score": 2.3, "improved_best": True, "title": "baseline"})
+        for i in range(100):
+            run._append_ledger({"run_id": f"r{i+2}", "score": 2.3 + i * 0.01, "improved_best": False, "has_modified_script": True, "title": f"idea_{i}"})
+        ctx = run.render_context()
+        # Should still render without blowing up
+        self.assertIn("Best: 2.3000", ctx)
+        # Should cap failures at 20
+        self.assertIn("and ", ctx)  # "... and N more"
 
 
 class CurveTests(unittest.TestCase):
