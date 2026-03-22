@@ -14,6 +14,7 @@ class Plan:
     adapter: str
     logging_focus: list[str] = field(default_factory=list)
     idea_source: Any = None
+    idea_id: Any = None
     track: str = "mac_mini_official_like"
 
 

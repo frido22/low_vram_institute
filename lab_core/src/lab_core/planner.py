@@ -124,6 +124,7 @@ class Planner:
             adapter=adapter,
             logging_focus=logging_focus_map[mode],
             idea_source=idea.get("author") if idea else None,
+            idea_id=idea.get("id") if idea else None,
             track="mac_mini_official_like",
         )
 
@@ -165,5 +166,6 @@ class Planner:
             adapter=payload["adapter"],
             logging_focus=list(payload.get("logging_focus") or []),
             idea_source=payload.get("idea_source"),
+            idea_id=payload.get("idea_id"),
             track="mac_mini_official_like",
         )

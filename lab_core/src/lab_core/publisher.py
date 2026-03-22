@@ -61,15 +61,8 @@ class Publisher:
         )
 
     def _history_rows(self) -> list[dict]:
-        ledger_path = self.store.paths.public_runs_dir / "ledger.jsonl"
-        if not ledger_path.exists():
-            return []
-        rows: list[dict] = []
-        for line in ledger_path.read_text().splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            rows.append(json.loads(line))
+        rows = list(self.store.best_runs().get("runs", []))
+        rows.sort(key=lambda row: row.get("finished_at", ""))
         return rows
 
     def _render_history_csv(self) -> str:
@@ -78,7 +71,7 @@ class Publisher:
         for row in best_runs:
             title = str(row.get("title", "")).replace(",", " ")
             lines.append(
-                f"{row['run_id']},{row['score']:.8f},{row.get('mode','')},{row.get('track','')},{row.get('timestamp','')},{title}"
+                f"{row['run_id']},{row['score']:.8f},{row.get('mode','')},{row.get('track','')},{row.get('finished_at','')},{title}"
             )
         return "\n".join(lines) + "\n"
 
@@ -133,7 +126,7 @@ class Publisher:
         return (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
             '<rect width="100%" height="100%" fill="#f8fafc" />'
-            f'<text x="20" y="24" font-family="monospace" font-size="16" fill="#0f172a">Best Run History (lower is better)</text>'
+            f'<text x="20" y="24" font-family="monospace" font-size="16" fill="#0f172a">Best Runs Over Time (lower is better)</text>'
             + "".join(y_ticks)
             + f'<line x1="{left_margin}" y1="{height - bottom_margin}" x2="{width - right_margin}" y2="{height - bottom_margin}" stroke="#94a3b8" />'
             + f'<line x1="{left_margin}" y1="{top_margin}" x2="{left_margin}" y2="{height - bottom_margin}" stroke="#94a3b8" />'
@@ -247,7 +240,7 @@ class Publisher:
             ]
 
         commands = [
-            base_git + ["add", "."],
+            base_git + ["add", "lab_public/public", "lab_public/runs"],
             base_git + ["commit", "-m", f"Publish {run_id}"],
             base_git + ["push", "origin", branch],
         ]

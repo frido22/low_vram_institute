@@ -80,13 +80,14 @@ class StateStore:
         content = "\n".join(json.dumps(row, sort_keys=True) for row in rows)
         path.write_text(content + ("\n" if content else ""))
 
-    def mark_community_idea_tested(self, title: str, status: str = "tested") -> None:
+    def mark_community_idea_tested(self, idea_id: str | None, status: str = "tested") -> None:
+        if not idea_id:
+            return
         rows = self.community_queue()
         next_rows: list[dict[str, Any]] = []
         matched = False
         for row in rows:
-            row_title = row.get("title", "")
-            if not matched and row_title == title:
+            if not matched and row.get("id") == idea_id:
                 matched = True
                 continue
             next_rows.append(row)
@@ -97,7 +98,7 @@ class StateStore:
 
         if status == "rejected":
             rejected = self.rejected_ideas_text().rstrip()
-            rejected += f"\n- {title}\n"
+            rejected += f"\n- {idea_id}\n"
             self.write_text("rejected_ideas.md", rejected)
 
     def write_json(self, rel_name: str, payload: Any) -> None:
@@ -267,7 +268,7 @@ class StateStore:
             source_title = result.plan.title.removeprefix("Test community suggestion: ").strip()
             if source_title and source_title not in tested_titles:
                 tested_titles.append(source_title)
-            self.mark_community_idea_tested(source_title, status="tested" if result.evaluation.passed else "rejected")
+            self.mark_community_idea_tested(result.plan.idea_id, status="tested" if result.evaluation.passed else "rejected")
         learning["tested_idea_titles"] = tested_titles[-20:]
         self.write_json("learning_state.json", learning)
         self.write_text("insights.md", self._render_insights(learning["recent_runs"]))

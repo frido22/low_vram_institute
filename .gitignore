@@ -17,6 +17,9 @@ lab_core/logs/*.log
 lab_core/logs/*.json
 lab_core/logs/*.jsonl
 lab_core/logs/*_state_snapshot.json
+lab_core/logs/parameter_golf/*.txt
+lab_core/logs/parameter_golf/*.npz
+lab_core/logs/parameter_golf/*.ptz
 
 lab_core/state/checkpoint.json
 lab_core/state/run.lock
