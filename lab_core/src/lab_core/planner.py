@@ -281,9 +281,9 @@ class Planner:
             "community": "A public response tied to a concrete test or a documented rejection.",
         }
 
-        updates = ["current_status", "agenda", "latest_thoughts", "leaderboard"]
+        updates = ["overview", "best_runs", "open_questions"]
         if mode == "community" and idea:
-            updates.append("contributors")
+            updates.append("tested_ideas")
 
         adapter = "parameter_golf"
         env_overrides = self._legal_env_overrides()
