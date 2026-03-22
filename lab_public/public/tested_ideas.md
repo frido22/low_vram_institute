@@ -9,9 +9,9 @@
 - Apply one upstream-proven local tactic next: sliding-window evaluation on the official validation split -> 2026_03_22_run_0001 scored 2.2944
 - Establish an upstream-local baseline on M4 under the 10-minute cap -> 2026_03_21_run_0001 scored 2.2944
 - Research the next upstream tactic to test on the official-split local path: mixed quantization before more exploit runs -> 2026_03_22_run_0004 scored 2.2945
-- Re-run sliding-window evaluation once on the official validation split under the 10-minute local cap -> 2026_03_22_run_0002 scored 2.2946
+- Isolate SWA start_frac=0.4 alone on the validated 10L int5-MLP + BigramHash(10240) official-split path under the 10-minute M4 cap -> 2026_03_22_run_0014 scored 2.2945
 
 ## Latest Tested Idea
-- Isolate the next untested upstream tactic on top of the validated 10L int5-MLP + BigramHash(10240) local winner before more exploit runs
-- Result: 2.2941
-- Contributor: internal
+- Isolate SWA start_frac=0.4 alone on the validated 10L int5-MLP + BigramHash(10240) official-split path under the 10-minute M4 cap
+- Result: 2.2945
+- Contributor: live_repo_issues

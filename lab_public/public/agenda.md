@@ -1,5 +1,5 @@
 # Agenda
 
 - Current mode bias: research
-- Latest expected signal: A short ranked candidate list with one concrete next run that is upstream-adjacent, not already tested by title, and plausibly compatible with the official-like M4 10-minute path.
-- Next public update focus: State that the current local best is still run 2026_03_22_run_0010 at 2.29234832 and that the recent SWA+WD add-on regressed., Audit repeated upstream tactics versus local tested titles to separate already-covered ideas from truly new ones., Nominate exactly one bounded next experiment only if it is distinct from mixed quantization, sliding eval, bigram features, and the already-tried SWA+WD combo.
+- Latest expected signal: A pass that beats or matches 2.29234832 would identify SWA as the remaining transferable upstream tactic; another clear regression would let us demote SWA and stop spending exploit budget on that branch.
+- Next public update focus: Using the validated local winner as the unchanged base to isolate one upstream delta cleanly., Testing SWA start_frac=0.4 without bundling WD so attribution is readable., Keeping the real upstream path, official validation split, and 10-minute wallclock cap fixed while checking hardware-local transfer.
