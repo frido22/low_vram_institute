@@ -1,0 +1,14 @@
+{
+  "artifact_stats": {
+    "files_touched": 3,
+    "generated_at": "2026-03-22T12:12:32.160549+00:00",
+    "has_code_patch": true,
+    "log_lines": 1165,
+    "quantized_artifact_bytes": 6241116,
+    "track": "mac_mini_official_like"
+  },
+  "needs_validation": true,
+  "passed": true,
+  "runtime_seconds": 1514.755157,
+  "score": 9.48837202
+}

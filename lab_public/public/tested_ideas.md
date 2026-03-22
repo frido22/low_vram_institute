@@ -12,6 +12,6 @@
 - Replay Current Best Tied-Embedding Bigram Residual -> 2026_03_22_run_0015 scored 9.2535
 
 ## Latest Tested Idea
-- Probe Offset-Averaged Sliding Validation
-- Result: 9.2565
-- Contributor: upstream_tactics
+- Probe a 3x MLP on the current MLX baseline
+- Result: 9.4884
+- Contributor: internal
