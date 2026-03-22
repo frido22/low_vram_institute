@@ -1,8 +1,0 @@
-run_id=2026_03_22_run_0005
-
-# edit 0: replace 127 chars -> 207 chars
-{"old": "    matrix_lr: float = float(os.environ.get(\"MATRIX_LR\", 0.04))\n    scalar_lr: float = float(os.environ.get(\"SCALAR_LR\", 0.04))", "new": "    matrix_lr: float = float(os.environ.get(\"MATRIX_LR\", 0.04))\n    muon_weight_decay: float = float(os.environ.get(\"MUON_WEIGHT_DECAY\", 0.04))\n    scalar_lr: float = float(os.environ.get(\"SCALAR_LR\", 0.04))"}
-# edit 1: replace 71 chars -> 71 chars
-{"old": "    muon_momentum: float = float(os.environ.get(\"MUON_MOMENTUM\", 0.95))", "new": "    muon_momentum: float = float(os.environ.get(\"MUON_MOMENTUM\", 0.99))"}
-# edit 2: replace 63 chars -> 106 chars
-{"old": "            out[k] = p - lr * (g_ortho * scale).astype(p.dtype)", "new": "            out[k] = p * (1.0 - lr * self.args.muon_weight_decay) - lr * (g_ortho * scale).astype(p.dtype)"}

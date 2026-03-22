@@ -1,4 +1,0 @@
-run_id=2026_03_22_run_0019
-
-# edit 0: replace 54 chars -> 54 chars
-{"old": "    mlp_mult: int = int(os.environ.get(\"MLP_MULT\", 2))", "new": "    mlp_mult: int = int(os.environ.get(\"MLP_MULT\", 3))"}

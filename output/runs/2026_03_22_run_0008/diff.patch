@@ -1,4 +1,0 @@
-run_id=2026_03_22_run_0008
-
-# edit 0: replace 71 chars -> 71 chars
-{"old": "    muon_momentum: float = float(os.environ.get(\"MUON_MOMENTUM\", 0.95))", "new": "    muon_momentum: float = float(os.environ.get(\"MUON_MOMENTUM\", 0.99))"}
