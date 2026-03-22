@@ -12,6 +12,6 @@
 - Probe Lower Muon Matrix Weight Decay At 0.03 -> 2026_03_22_run_0011 scored 9.2528
 
 ## Latest Tested Idea
-- Replay the current warmdown-tuned MLX path
+- Replay Warmdown-Tuned MLX Path
 - Result: 9.2541
-- Contributor: lesson:2026_03_22_run_0022
+- Contributor: lessons

@@ -1,0 +1,10 @@
+{
+  "adapter": "parameter_golf",
+  "command": [
+    "/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/.venv_pg/bin/python3",
+    "train_gpt_mlx.py"
+  ],
+  "has_code_patch": false,
+  "plan_mode": "validate",
+  "workspace": "/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf"
+}
