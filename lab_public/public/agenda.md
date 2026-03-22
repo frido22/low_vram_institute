@@ -1,5 +1,5 @@
 # Agenda
 
-- Current mode bias: validate
-- Latest expected signal: A second pass should land near the new best on the same official-split mixed-quant recipe; confirmation supports treating this recipe as the current stable local leader, while a clear regression would mark the win as noisy.
-- Next public update focus: Reproduce the exact winning recipe without adding new tactics., Report wallclock, score delta versus run_0010, and pass/fail under the 10-minute cap., State whether the community-derived win is promoted or downgraded after one confirmatory rerun.
+- Current mode bias: community
+- Latest expected signal: If the community claim transfers locally, this run should beat 2.29234832 or at least match it more consistently; otherwise it will show that SWA(0.4)+WD=0.04 does not survive the M4 official-like constraint.
+- Next public update focus: Testing only the unverified pieces of the current public official-best recipe, not re-running the already-tested core bundle., Keeping the run on the real upstream-like path: official validation split, upstream tactics, and a strict 10-minute wallclock cap., Logging whether SWA(start_frac=0.4) and WD=0.04 improve score enough to justify promotion beyond the current local best.

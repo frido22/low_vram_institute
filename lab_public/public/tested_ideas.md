@@ -12,6 +12,6 @@
 - Isolate one genuinely new upstream tactic after two local regressions: verify whether int5-funded depth or BigramHash(10240) is the next official-like test -> 2026_03_22_run_0009 scored 2.2947
 
 ## Latest Tested Idea
-- Re-run the new local best once on the official-like M4 path to confirm the int5-funded 10th-layer plus BigramHash(10240) gain under the 10-minute cap
-- Result: 2.2939
-- Contributor: live_repo_issues
+- Test the remaining smell-checked official-best deltas on top of the validated local winner: add SWA start_frac=0.4 and WD=0.04 to the int5-funded 10th-layer plus BigramHash(10240) official-split path under the 10-minute M4 cap
+- Result: 2.2966
+- Contributor: https://github.com/frido22/low_vram_institute/issues/1
