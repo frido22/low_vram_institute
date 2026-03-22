@@ -12,6 +12,6 @@
 - Probe Lower Muon Matrix Weight Decay At 0.03 -> 2026_03_22_run_0011 scored 9.2528
 
 ## Latest Tested Idea
-- Shorten warmdown to match the Mac mini's actual 10-minute step budget
-- Result: 3.3581
-- Contributor: local_m4_wallclock_analysis
+- Replay the current warmdown-tuned MLX path
+- Result: 9.2541
+- Contributor: lesson:2026_03_22_run_0022
