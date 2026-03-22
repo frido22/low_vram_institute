@@ -11,3 +11,4 @@ run_id,run_number,score,mode,track,finished_at,title
 2026_03_22_run_0010,10,9.25053552,validate,mac_mini_official_like,2026-03-22T08:25:55.830014+00:00,Replay Muon WD 0.04 With Momentum 0.99
 2026_03_22_run_0011,11,9.25053552,validate,mac_mini_official_like,2026-03-22T08:50:17.799665+00:00,Replay Muon WD 0.04 With Momentum 0.99
 2026_03_22_run_0012,12,8.06816845,research,mac_mini_official_like,2026-03-22T09:15:52.297547+00:00,Probe Tied-Embedding Bigram Residual
+2026_03_22_run_0013,13,5.86622822,validate,mac_mini_official_like,2026-03-22T09:40:57.679340+00:00,Replay Tied-Embedding Bigram Residual

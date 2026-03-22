@@ -1,5 +1,6 @@
 # Tested Ideas
 
+- Replay Tied-Embedding Bigram Residual -> 2026_03_22_run_0013 scored 5.8662
 - Probe Tied-Embedding Bigram Residual -> 2026_03_22_run_0012 scored 8.0682
 - Replay Muon WD 0.04 With Momentum 0.99 -> 2026_03_22_run_0006 scored 9.2505
 - Loosen Mixed-Quantization Passthrough Threshold -> 2026_03_22_run_0009 scored 9.2515
@@ -9,9 +10,8 @@
 - Pair validated Muon WD 0.04 with upstream Muon momentum 0.99 -> 2026_03_22_run_0005 scored 9.2544
 - Probe Muon Matrix Weight Decay 0.05 Around The Validated 0.99 Momentum Scaffold -> 2026_03_22_run_0010 scored 9.2551
 - Validate Muon Matrix Weight Decay 0.04 with a second official-like replay -> 2026_03_22_run_0003 scored 9.2585
-- Reapply Muon Matrix Weight Decay 0.04 -> 2026_03_22_run_0002 scored 9.2600
 
 ## Latest Tested Idea
-- Probe Tied-Embedding Bigram Residual
-- Result: 8.0682
-- Contributor: upstream_tactics
+- Replay Tied-Embedding Bigram Residual
+- Result: 5.8662
+- Contributor: prior_run_2026_03_22_run_0012 + upstream_bigram_features
