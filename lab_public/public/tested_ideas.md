@@ -12,6 +12,6 @@
 - Replay validated Muon WD 0.04 + momentum 0.99, then tighten mixed-quantization passthrough -> 2026_03_22_run_0007 scored 9.2533
 
 ## Latest Tested Idea
-- Tighten Mixed-Quantization Passthrough Threshold
-- Result: 9.2520
-- Contributor: upstream_tactics
+- Probe decoupled weight decay on the current tied-residual MLX path
+- Result: 9.3116
+- Contributor: internal
