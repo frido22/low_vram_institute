@@ -44,4 +44,5 @@ Open a GitHub Issue. The planner ingests issues and can turn them into experimen
 
 - Apple Silicon Mac mini, M4, 16 GB unified memory
 - 10-minute wallclock cap, with step count treated as an optimization target rather than a fixed limit
+- Reproducible launch baseline: `ITERATIONS=200`, `TRAIN_BATCH_TOKENS=8192`, `VAL_BATCH_SIZE=8192`, `VAL_LOSS_EVERY=0`, `TRAIN_LOG_EVERY=25`, `MLX_EAGER_EVAL=1`
 - Designed for long-running autonomous operation under macOS `launchd`

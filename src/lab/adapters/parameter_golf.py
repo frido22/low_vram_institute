@@ -102,6 +102,16 @@ class ParameterGolfAdapter:
             "track": plan.track,
             "train_script": script_snapshot,
         }
+        launch_baseline = {
+            "ITERATIONS": env.get("ITERATIONS"),
+            "TRAIN_BATCH_TOKENS": env.get("TRAIN_BATCH_TOKENS"),
+            "VAL_BATCH_SIZE": env.get("VAL_BATCH_SIZE"),
+            "VAL_LOSS_EVERY": env.get("VAL_LOSS_EVERY"),
+            "TRAIN_LOG_EVERY": env.get("TRAIN_LOG_EVERY"),
+            "MAX_WALLCLOCK_SECONDS": env.get("MAX_WALLCLOCK_SECONDS"),
+            "MLX_EAGER_EVAL": env.get("MLX_EAGER_EVAL"),
+            "MLX_MAX_MICROBATCH_TOKENS": env.get("MLX_MAX_MICROBATCH_TOKENS"),
+        }
         return {
             "score": score,
             "runtime_seconds": runtime_seconds,
@@ -123,6 +133,7 @@ class ParameterGolfAdapter:
                 "workspace": str(self.workspace.workspace),
                 "command": command,
                 "has_modified_script": bool(modified),
+                "launch_baseline_env": launch_baseline,
             },
         }
 

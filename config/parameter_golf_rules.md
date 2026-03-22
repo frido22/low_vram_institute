@@ -38,6 +38,7 @@ The original is always restored after each run — be fearless.
 - Model + code must fit in 16MB (16,000,000 bytes) compressed — this is the Parameter Golf size cap
 - Never train on validation data or leak validation into training
 - Never weaken the 600s wallclock cap
+- Start from the Mac-mini launch baseline unless you have a specific reason to change it
 - Never remove or bypass final evaluation (`final_int8_zlib_roundtrip_exact`)
 - Never change data/tokenizer path resolution
 - Never import network libraries (socket, http, urllib, requests) or subprocess
@@ -47,6 +48,7 @@ The original is always restored after each run — be fearless.
 
 ## Mac Mini Reality
 
+- Reproducible launch baseline: `ITERATIONS=200`, `TRAIN_BATCH_TOKENS=8192`, `VAL_BATCH_SIZE=8192`, `VAL_LOSS_EVERY=0`, `TRAIN_LOG_EVERY=25`, `MAX_WALLCLOCK_SECONDS=600`, `MLX_EAGER_EVAL=1`, `MLX_MAX_MICROBATCH_TOKENS=8192`
 - The baseline gets ~15 training steps in 10 minutes — but this is NOT a fixed limit
 - Optimizing code speed (faster forward/backward, less overhead) means more steps in the same 600s
 - More steps = more gradient updates = potentially better final score

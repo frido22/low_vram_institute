@@ -13,6 +13,14 @@
     "venv_python": "/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/.venv_pg/bin/python3",
     "dataset_variant": "sp1024",
     "train_shards": 1,
+    "iterations": 200,
+    "train_batch_tokens": 8192,
+    "val_batch_size": 8192,
+    "val_loss_every": 0,
+    "train_log_every": 25,
+    "max_wallclock_seconds": 600,
+    "mlx_eager_eval": true,
+    "mlx_max_microbatch_tokens": 8192,
     "local_track": "mac_mini_official_like"
   },
   "publishing": {

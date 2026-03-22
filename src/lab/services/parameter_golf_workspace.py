@@ -55,4 +55,15 @@ class ParameterGolfWorkspace:
         env["OUT_DIR"] = str(out_dir or (self.paths.logs_dir / "parameter_golf"))
         env.setdefault("DATA_PATH", str(self.workspace / "data" / "datasets" / f"fineweb10B_{self.runtime.get('dataset_variant', 'sp1024')}"))
         env.setdefault("TOKENIZER_PATH", str(self.workspace / "data" / "tokenizers" / "fineweb_1024_bpe.model"))
+        # Reproducible Mac mini launch baseline. The planner can still rewrite the
+        # script freely, but runs should start from settings that are known to fit
+        # this machine instead of silently falling back to large upstream defaults.
+        env.setdefault("ITERATIONS", str(self.runtime.get("iterations", 200)))
+        env.setdefault("TRAIN_BATCH_TOKENS", str(self.runtime.get("train_batch_tokens", 8192)))
+        env.setdefault("VAL_BATCH_SIZE", str(self.runtime.get("val_batch_size", 8192)))
+        env.setdefault("VAL_LOSS_EVERY", str(self.runtime.get("val_loss_every", 0)))
+        env.setdefault("TRAIN_LOG_EVERY", str(self.runtime.get("train_log_every", 25)))
+        env.setdefault("MAX_WALLCLOCK_SECONDS", str(self.runtime.get("max_wallclock_seconds", 600)))
+        env.setdefault("MLX_EAGER_EVAL", str(int(bool(self.runtime.get("mlx_eager_eval", True)))))
+        env.setdefault("MLX_MAX_MICROBATCH_TOKENS", str(self.runtime.get("mlx_max_microbatch_tokens", 8192)))
         return env
