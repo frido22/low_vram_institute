@@ -1,3 +1,4 @@
 run_id,score,mode,track,finished_at,title
 2026_03_22_run_0016,2.29645359,explore,mac_mini_official_like,2026-03-22T01:50:13.302710+00:00,Establish Official Parameter Golf Baseline on M4 Mac mini
 2026_03_22_run_0017,2.29327863,validate,mac_mini_official_like,2026-03-22T01:53:35.802055+00:00,Re-run official baseline twice on the upstream validation path
+2026_03_22_run_0018,2.29340939,community,mac_mini_official_like,2026-03-22T01:56:59.141319+00:00,Queue the public validation-policy idea and test whether it improves promotion discipline without changing the upstream eval path
