@@ -1,9 +1,9 @@
 {
-  "last_mode": "validate",
-  "last_run_id": "2026_03_22_run_0002",
-  "last_score": 2.29455078,
+  "last_mode": "exploit",
+  "last_run_id": "2026_03_22_run_0003",
+  "last_score": 2.29474478,
   "last_status": "passed",
-  "last_title": "Re-run sliding-window evaluation once on the official validation split under the 10-minute local cap",
-  "plateau_count": 1,
-  "updated_at": "2026-03-22T00:07:23.997778+00:00"
+  "last_title": "Apply one upstream-proven local tactic next: quantization-focused weight decay on the current sliding-window official-split path",
+  "plateau_count": 2,
+  "updated_at": "2026-03-22T00:10:58.541889+00:00"
 }

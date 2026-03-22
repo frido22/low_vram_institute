@@ -1,8 +1,16 @@
 {
   "best_score": 2.29436762,
   "last_improving_run_id": "2026_03_22_run_0001",
-  "plateau_count": 1,
+  "plateau_count": 2,
   "recent_runs": [
+    {
+      "improved_best": false,
+      "mode": "exploit",
+      "needs_validation": true,
+      "run_id": "2026_03_22_run_0003",
+      "score": 2.29474478,
+      "title": "Apply one upstream-proven local tactic next: quantization-focused weight decay on the current sliding-window official-split path"
+    },
     {
       "improved_best": false,
       "mode": "validate",

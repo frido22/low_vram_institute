@@ -25,6 +25,14 @@
       "score": 2.29455078,
       "title": "Re-run sliding-window evaluation once on the official validation split under the 10-minute local cap",
       "track": "mac_mini_official_like"
+    },
+    {
+      "finished_at": "2026-03-22T00:10:58.541889+00:00",
+      "mode": "exploit",
+      "run_id": "2026_03_22_run_0003",
+      "score": 2.29474478,
+      "title": "Apply one upstream-proven local tactic next: quantization-focused weight decay on the current sliding-window official-split path",
+      "track": "mac_mini_official_like"
     }
   ]
 }

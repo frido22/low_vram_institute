@@ -18,3 +18,9 @@
 - Score: 2.2946
 - Outcome: no improvement
 - Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2946, val_loss=3.8755, quantized artifact=10262767 bytes. Score=2.2946. Expected signal: A second pass with the same sliding-window setup either reproduces roughly the same `val_bpb` and upgrades confidence in the tactic, or regresses enough to mark the prior win as noisy and avoid promoting it.
+
+## 2026_03_22_run_0003
+- Hypothesis: Apply one upstream-proven local tactic next: quantization-focused weight decay on the current sliding-window official-split path
+- Score: 2.2947
+- Outcome: no improvement
+- Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2947, val_loss=3.8758, quantized artifact=10262012 bytes. Score=2.2947. Expected signal: A modest but real improvement versus 2.29436762, or a clear no-gain result that narrows the next branch before plateau count rises further.

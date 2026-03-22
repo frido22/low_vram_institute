@@ -1,6 +1,6 @@
 # Latest Thoughts
 
-Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2946, val_loss=3.8755, quantized artifact=10262767 bytes. Score=2.2946. Expected signal: A second pass with the same sliding-window setup either reproduces roughly the same `val_bpb` and upgrades confidence in the tactic, or regresses enough to mark the prior win as noisy and avoid promoting it.
+Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2947, val_loss=3.8758, quantized artifact=10262012 bytes. Score=2.2947. Expected signal: A modest but real improvement versus 2.29436762, or a clear no-gain result that narrows the next branch before plateau count rises further.
 
 ## Public Beliefs
 # Insights
@@ -24,5 +24,11 @@ Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bp
 - Outcome: no improvement
 - Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2946, val_loss=3.8755, quantized artifact=10262767 bytes. Score=2.2946. Expected signal: A second pass with the same sliding-window setup either reproduces roughly the same `val_bpb` and upgrades confidence in the tactic, or regresses enough to mark the prior win as noisy and avoid promoting it.
 
+## 2026_03_22_run_0003
+- Hypothesis: Apply one upstream-proven local tactic next: quantization-focused weight decay on the current sliding-window official-split path
+- Score: 2.2947
+- Outcome: no improvement
+- Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2947, val_loss=3.8758, quantized artifact=10262012 bytes. Score=2.2947. Expected signal: A modest but real improvement versus 2.29436762, or a clear no-gain result that narrows the next branch before plateau count rises further.
 
-Next public focus: Validate the current best by repeating the same sliding-window evaluation configuration once under the same 10-minute cap., Keep the code path and official validation split unchanged; only test reproducibility of the latest gain., Promote sliding-window eval only if the repeat is directionally consistent with run `2026_03_22_run_0001`..
+
+Next public focus: Keep the current sliding-window evaluation setup unchanged so the comparison stays official-like., Test one quantization-focused weight decay setting drawn from repeated upstream practice., Promote only if it improves the official validation score under the same 10-minute local cap..
