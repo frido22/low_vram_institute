@@ -76,6 +76,7 @@ class Planner:
         mode = self.choose_mode()
         idea = self._community_idea()
         learning = self.store.learning_state()
+        lessons = self.store.lessons_text()
         tactics = self._top_tactics(research_notes)
         tactic_phrase = tactics[0] if tactics else "one upstream-inspired adjustment"
         logging_focus_map = {
@@ -95,7 +96,7 @@ class Planner:
         }
         rationale_map = {
             "explore": "No reliable best run exists yet, so the loop should establish a baseline.",
-            "exploit": f"A previous score exists, the loop is not yet plateaued, and upstream patterns suggest {tactic_phrase} is worth trying.",
+            "exploit": f"A previous score exists, the loop is not yet plateaued, and upstream patterns suggest {tactic_phrase} is worth trying. Compact lessons are in mind.",
             "validate": "Recent results need confirmation before the public ledger treats them as solid.",
             "research": f"The local loop has plateaued, so it should pivot to one specific upstream tactic instead of accumulating more generic runs.",
             "community": "Outside suggestions are public inputs, but they may be weak, noisy, or malicious. Test them only when they survive basic scrutiny and fit the current agenda.",
@@ -129,6 +130,7 @@ class Planner:
     def _codex_plan(self, research_notes: Sequence[dict], model: Optional[str]) -> Plan:
         state = self.store.current_state()
         learning = self.store.learning_state()
+        lessons = self.store.lessons_text()
         best_runs = self.store.best_runs()
         community = self.store.community_queue()[:5]
         tactics = self._top_tactics(research_notes)
@@ -147,6 +149,7 @@ class Planner:
             "Prefer parameter_golf for nearly all plans, since this lab is now dedicated to Parameter Golf.\n\n"
             f"Current state:\n{json.dumps(state, indent=2, sort_keys=True)}\n\n"
             f"Learning state:\n{json.dumps(learning, indent=2, sort_keys=True)}\n\n"
+            f"Compact lessons:\n{lessons}\n\n"
             f"Best runs:\n{json.dumps(best_runs, indent=2, sort_keys=True)}\n\n"
             f"Community queue:\n{json.dumps(community, indent=2, sort_keys=True)}\n\n"
             f"Upstream tactics seen repeatedly:\n{json.dumps(tactics, indent=2)}\n\n"
