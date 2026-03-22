@@ -263,7 +263,7 @@ class Planner:
             rationale=payload["rationale"],
             expected_signal=payload["expected_signal"],
             public_updates=list(payload["public_updates"]),
-            adapter=payload["adapter"],
+            adapter="parameter_golf",
             logging_focus=list(payload.get("logging_focus") or []),
             idea_source=payload.get("idea_source"),
             idea_id=payload.get("idea_id"),

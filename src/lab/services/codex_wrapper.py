@@ -48,7 +48,7 @@ class CodexWrapper:
                 "rationale": {"type": "string"},
                 "expected_signal": {"type": "string"},
                 "public_updates": {"type": "array", "items": {"type": "string"}},
-                "adapter": {"type": "string"},
+                "adapter": {"type": "string", "enum": ["parameter_golf"]},
                 "logging_focus": {"type": "array", "items": {"type": "string"}},
                 "idea_source": {"type": ["string", "null"]},
                 "idea_id": {"type": ["string", "null"]},
