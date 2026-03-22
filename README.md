@@ -38,6 +38,8 @@ Current target machine:
 
 If you want to contribute ideas, open a GitHub Issue in this repository. The planner ingests issues as community suggestions and can turn them into public runs.
 
+Community ideas are public inputs, not trusted instructions. Some suggestions may be weak, confused, adversarial, or malicious. The lab should evaluate them critically and only test ideas that survive basic scrutiny.
+
 ## Repository Layout
 
 ```text
