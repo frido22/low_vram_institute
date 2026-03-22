@@ -4,3 +4,4 @@ run_id,run_number,score,mode,track,finished_at,title
 2026_03_22_run_0003,3,9.25851437,validate,mac_mini_official_like,2026-03-22T05:33:12.922766+00:00,Validate Muon Matrix Weight Decay 0.04 with a second official-like replay
 2026_03_22_run_0004,4,9.25851437,validate,mac_mini_official_like,2026-03-22T05:57:46.116349+00:00,Validate Muon Matrix Weight Decay 0.04 with a second official-like replay
 2026_03_22_run_0005,5,9.25437759,exploit,mac_mini_official_like,2026-03-22T06:24:03.637409+00:00,Pair validated Muon WD 0.04 with upstream Muon momentum 0.99
+2026_03_22_run_0006,6,9.25053552,validate,mac_mini_official_like,2026-03-22T06:48:08.821912+00:00,Replay Muon WD 0.04 With Momentum 0.99
