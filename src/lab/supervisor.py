@@ -12,10 +12,8 @@ from .config import LabConfig, Paths
 from .executor import Executor
 from .planner import Planner
 from .publisher import Publisher
-from .services.codex_wrapper import CodexWrapper
-from .services.codex_wrapper import CodexInvocationError
-from .services.github_intake import GitHubIntake
-from .services.research import ResearchSnapshotService
+from .services.codex_wrapper import CodexWrapper, CodexInvocationError
+from .services.intake import IntakeService
 from .state_store import StateStore
 
 
@@ -27,8 +25,7 @@ class Supervisor:
         self.planner = Planner(self.store)
         self.executor = Executor(self.store)
         self.publisher = Publisher(self.store)
-        self.github_intake = GitHubIntake(paths, self.store)
-        self.research = ResearchSnapshotService(paths)
+        self.intake = IntakeService(paths)
         self.codex = CodexWrapper()
 
     def _emit(self, message: str) -> None:
@@ -41,8 +38,6 @@ class Supervisor:
         usage = shutil.disk_usage(self.paths.root)
         if usage.free < self.config.min_free_disk_bytes:
             raise RuntimeError("Refusing to proceed: low free disk space.")
-        for path in [self.paths.state_dir, self.paths.logs_dir, self.paths.public_root]:
-            path.mkdir(parents=True, exist_ok=True)
 
     def _run_id(self) -> str:
         existing = [
@@ -64,7 +59,7 @@ class Supervisor:
                 lock_path.unlink()
             else:
                 raise RuntimeError("Another run appears active.")
-        lock_path.write_text(json.dumps({"locked_at": datetime.now(timezone.utc).isoformat()}, indent=2) + "\n")
+        lock_path.write_text(json.dumps({"locked_at": datetime.now(timezone.utc).isoformat()}) + "\n")
         try:
             yield
         finally:
@@ -79,24 +74,15 @@ class Supervisor:
                 self._emit(f"starting {run_id}")
                 self.store.write_checkpoint("starting", run_id)
                 self.store.write_heartbeat({"run_id": run_id, "status": "starting", "timestamp": datetime.now(timezone.utc).isoformat()})
-                codex_status = self.codex.detect()
-                self.store.append_event("codex_status", codex_status.__dict__)
-                self._emit(f"codex configured={codex_status.configured} binary={codex_status.binary or 'missing'}")
 
-                research_notes = self.research.refresh()
-                self.store.write_checkpoint("research_refreshed", run_id, {"count": len(research_notes)})
-                self._emit(f"research snapshots refreshed: {len(research_notes)}")
-                community = self.github_intake.refresh()
-                self.store.write_checkpoint("community_refreshed", run_id, {"count": len(community)})
-                self._emit(f"community ideas refreshed: {len(community)}")
+                community, research = self.intake.refresh()
+                self._emit(f"intake: {len(community)} community, {len(research)} research")
 
-                # Plan → execute → retry on failure (agent gets the error and tries again)
+                # Plan -> execute -> retry on failure
                 run_errors: list[str] = []
                 for attempt in range(3):
-                    plan = self.planner.plan(research_notes, run_errors=run_errors or None)
-                    plan_summary = {k: v for k, v in plan.__dict__.items() if k != "modified_script"}
-                    plan_summary["has_modified_script"] = bool(plan.modified_script)
-                    self.store.append_event("plan_created", {"run_id": run_id, "plan": plan_summary})
+                    plan = self.planner.plan(research, community, run_errors=run_errors or None)
+                    self.store.append_event("plan_created", {"run_id": run_id, "title": plan.title, "mode": plan.mode, "has_modified_script": bool(plan.modified_script)})
                     self.store.write_heartbeat({"run_id": run_id, "status": "planned", "mode": plan.mode, "timestamp": datetime.now(timezone.utc).isoformat()})
                     self._emit(f"plan {plan.mode}: {plan.title}")
 
@@ -108,7 +94,7 @@ class Supervisor:
                         self._emit(f"run failed (attempt {attempt + 1}/3): {exc}")
                         self.store.append_event("run_attempt_failed", {"run_id": run_id, "attempt": attempt + 1, "error": str(exc)})
                         if attempt == 2:
-                            raise RuntimeError(f"run failed after 3 attempts") from exc
+                            raise RuntimeError("run failed after 3 attempts") from exc
 
                 self._emit(f"result score={result.evaluation.score:.4f} passed={result.evaluation.passed}")
                 self.store.update_after_run(result)
@@ -121,24 +107,9 @@ class Supervisor:
                 return run_id
             except CodexInvocationError as exc:
                 self._emit(f"waiting on codex: {exc}")
-                self.store.write_checkpoint(
-                    "waiting_on_codex",
-                    run_id,
-                    {"error": str(exc), "detail": exc.detail, "retryable": exc.retryable},
-                )
-                self.store.append_event(
-                    "codex_unavailable",
-                    {"run_id": run_id, "error": str(exc), "detail": exc.detail, "retryable": exc.retryable},
-                )
-                self.store.write_heartbeat(
-                    {
-                        "run_id": run_id,
-                        "status": "waiting_on_codex",
-                        "error": str(exc),
-                        "retryable": exc.retryable,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    }
-                )
+                self.store.write_checkpoint("waiting_on_codex", run_id, {"error": str(exc), "retryable": exc.retryable})
+                self.store.append_event("codex_unavailable", {"run_id": run_id, "error": str(exc), "retryable": exc.retryable})
+                self.store.write_heartbeat({"run_id": run_id, "status": "waiting_on_codex", "timestamp": datetime.now(timezone.utc).isoformat()})
                 raise
 
     def daemon(self) -> None:
@@ -160,24 +131,8 @@ class Supervisor:
                 failures += 1
                 delay = min(self.config.base_backoff_seconds * (2 ** (failures - 1)), self.config.max_backoff_seconds)
                 self._emit(f"codex unavailable; retrying in {delay}s")
-                self.store.write_checkpoint(
-                    "waiting_on_codex",
-                    None,
-                    {"error": str(exc), "detail": exc.detail, "retry_in": delay, "retryable": exc.retryable},
-                )
-                self.store.append_event(
-                    "codex_unavailable",
-                    {"error": str(exc), "detail": exc.detail, "retry_in": delay, "retryable": exc.retryable},
-                )
-                self.store.write_heartbeat(
-                    {
-                        "status": "waiting_on_codex",
-                        "error": str(exc),
-                        "retry_in": delay,
-                        "retryable": exc.retryable,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    }
-                )
+                self.store.append_event("codex_unavailable", {"error": str(exc), "retry_in": delay, "retryable": exc.retryable})
+                self.store.write_heartbeat({"status": "waiting_on_codex", "retry_in": delay, "timestamp": datetime.now(timezone.utc).isoformat()})
                 if not exc.retryable:
                     raise
                 time.sleep(delay)
@@ -186,12 +141,5 @@ class Supervisor:
                 delay = min(self.config.base_backoff_seconds * (2 ** (failures - 1)), self.config.max_backoff_seconds)
                 self._emit(f"run failed: {exc}; retrying in {delay}s")
                 self.store.append_event("run_failed", {"error": str(exc), "failures": failures, "retry_in": delay})
-                self.store.write_heartbeat(
-                    {
-                        "status": "backoff",
-                        "error": str(exc),
-                        "retry_in": delay,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    }
-                )
+                self.store.write_heartbeat({"status": "backoff", "error": str(exc), "retry_in": delay, "timestamp": datetime.now(timezone.utc).isoformat()})
                 time.sleep(delay)

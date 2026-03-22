@@ -8,8 +8,9 @@ Real upstream code path, official validation split, `MAX_WALLCLOCK_SECONDS=600`.
 ## Agency
 
 You have FULL, UNRESTRICTED agency over the training script.
-Return the complete modified `train_gpt_mlx.py` as `modified_script`, or null to run unmodified.
+Return the complete modified `train_gpt_mlx.py` as `modified_script`.
 The original is always restored after each run — be fearless.
+Every run should change something. Null (unmodified baseline) is only acceptable for the very first run.
 
 - A single hyperparameter tweak can be the winning move (warmdown_iters 1200→15 was a 2.5x improvement)
 - But you can also rewrite entire functions, add new classes, or replace the architecture wholesale

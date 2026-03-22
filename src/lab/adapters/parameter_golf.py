@@ -101,6 +101,15 @@ class ParameterGolfAdapter:
             "metrics_jsonl": metrics_jsonl,
             "track": plan.track,
             "train_script": script_snapshot,
+            "diagnostics": {
+                "step_count": len(metrics_rows),
+                "val_loss": final["val_loss"],
+                "avg_tok_s": diagnostics.get("avg_tok_s"),
+                "total_tokens": diagnostics.get("total_tokens"),
+                "peak_mb": diagnostics.get("peak_mb"),
+                "active_mb": diagnostics.get("active_mb"),
+                "quantized_bytes": quant_bytes,
+            },
         }
         launch_baseline = {
             "ITERATIONS": env.get("ITERATIONS"),

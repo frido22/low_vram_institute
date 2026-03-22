@@ -33,13 +33,9 @@ class SupervisorTests(unittest.TestCase):
         (root / "snapshots" / "research").mkdir(parents=True)
         (root / "config").mkdir()
         (root / "output" / "runs").mkdir(parents=True, exist_ok=True)
-        (root / "output" / "public").mkdir(parents=True, exist_ok=True)
+        (root / "output" / "reports").mkdir(parents=True, exist_ok=True)
         (root / "config" / "runtime.json").write_text(json.dumps({"codex": {"enabled": False}}))
         (root / "config" / "sources.json").write_text(json.dumps({"github_sources": [], "research_sources": []}))
-        (root / "state" / "current_state.json").write_text(json.dumps({"last_status": "idle"}))
-        (root / "state" / "best_runs.json").write_text(json.dumps({"best_score": None, "runs": []}))
-        (root / "state" / "community_queue.jsonl").write_text("")
-        (root / "state" / "learning_state.json").write_text(json.dumps({"plateau_count": 0, "recent_runs": [], "best_score": None, "last_improving_run_id": None, "tested_idea_titles": []}))
         return root
 
     def test_run_once_returns_run_id(self) -> None:

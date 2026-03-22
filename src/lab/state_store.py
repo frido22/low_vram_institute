@@ -6,69 +6,37 @@ from pathlib import Path
 from typing import Any
 
 from .config import Paths
-from .models import COMMUNITY_TITLE_PREFIX, RunResult
+from .models import RunResult
 
 
 class StateStore:
     def __init__(self, paths: Paths) -> None:
         self.paths = paths
-        self._ensure_layout()
-
-    def _ensure_layout(self) -> None:
-        for path in [
-            self.paths.state_dir,
-            self.paths.logs_dir,
-            self.paths.research_dir,
-            self.paths.public_root,
-            self.paths.public_runs_dir,
-            self.paths.public_pages_dir,
-        ]:
+        for path in [paths.state_dir, paths.logs_dir, paths.public_root,
+                     paths.public_runs_dir, paths.public_pages_dir]:
             path.mkdir(parents=True, exist_ok=True)
 
-    def _read_text(self, path: Path, default: str) -> str:
-        return path.read_text() if path.exists() else default
+    # --- Readers ---
 
     def _read_json(self, path: Path, default: Any) -> Any:
         return json.loads(path.read_text()) if path.exists() else default
 
-    # --- Core state readers ---
+    def _read_text(self, path: Path, default: str) -> str:
+        return path.read_text() if path.exists() else default
 
-    def current_state(self) -> dict[str, Any]:
-        return self._read_json(self.paths.state_dir / "current_state.json", {})
-
-    def learning_state(self) -> dict[str, Any]:
-        return self._read_json(
-            self.paths.state_dir / "learning_state.json",
-            {
-                "plateau_count": 0,
-                "recent_runs": [],
-                "best_score": None,
-                "last_improving_run_id": None,
-                "tested_idea_titles": [],
-            },
-        )
-
-    def best_runs(self) -> dict[str, Any]:
-        return self._read_json(
-            self.paths.state_dir / "best_runs.json",
-            {"best_score": None, "runs": [], "higher_is_better": True},
-        )
-
-    def lessons_text(self) -> str:
-        return self._read_text(self.paths.state_dir / "lessons.md", "# Lessons\n")
-
-    def rejected_ideas_text(self) -> str:
-        return self._read_text(self.paths.state_dir / "rejected_ideas.md", "# Rejected Ideas\n")
+    def best_score(self) -> float | None:
+        rows = self.ledger_rows()
+        if not rows:
+            return None
+        return min(r["score"] for r in rows)
 
     def best_script(self) -> str | None:
-        """Return the full modified script from the current best run, or None."""
         data = self._read_json(self.paths.state_dir / "best_script.json", None)
         if isinstance(data, dict):
             return data.get("modified_script")
         return None
 
     def best_diff(self) -> str:
-        """Unified diff of the current best changes vs original."""
         return self._read_text(self.paths.state_dir / "best_diff.patch", "")
 
     # --- Ledger ---
@@ -88,42 +56,95 @@ class StateStore:
         with (self.paths.state_dir / "ledger.jsonl").open("a") as handle:
             handle.write(json.dumps(row, sort_keys=True) + "\n")
 
-    # --- Community queue ---
+    # --- Curve analysis ---
 
-    def community_queue(self) -> list[dict[str, Any]]:
-        path = self.paths.state_dir / "community_queue.jsonl"
-        if not path.exists():
-            return []
-        rows: list[dict[str, Any]] = []
-        for line in path.read_text().splitlines():
-            line = line.strip()
-            if line:
-                rows.append(json.loads(line))
-        return rows
-
-    def _write_community_queue(self, rows: list[dict[str, Any]]) -> None:
-        path = self.paths.state_dir / "community_queue.jsonl"
-        content = "\n".join(json.dumps(row, sort_keys=True) for row in rows)
-        path.write_text(content + ("\n" if content else ""))
-
-    def mark_community_idea_tested(self, idea_id: str | None, status: str = "tested") -> None:
-        if not idea_id:
-            return
-        rows = self.community_queue()
-        next_rows: list[dict[str, Any]] = []
-        matched = False
-        for row in rows:
-            if not matched and row.get("id") == idea_id:
-                matched = True
+    def _analyze_curve(self, outputs: dict[str, Any]) -> str:
+        """One-word training curve shape from metrics_jsonl. Zero overhead."""
+        text = outputs.get("metrics_jsonl", "")
+        if not text:
+            return "no_data"
+        scores = []
+        for line in text.strip().splitlines():
+            try:
+                row = json.loads(line.strip())
+                scores.append(row.get("val_bpb", row.get("val_loss", 0)))
+            except (json.JSONDecodeError, ValueError):
                 continue
-            next_rows.append(row)
-        self._write_community_queue(next_rows)
-        if not matched:
-            return
-        if status == "rejected":
-            rejected = self.rejected_ideas_text().rstrip()
-            rejected += f"\n- {idea_id}\n"
-            self.write_text("rejected_ideas.md", rejected)
+        if len(scores) < 2:
+            return "too_short"
+        mid = len(scores) // 2
+        early = scores[0] - scores[mid]
+        late = scores[mid] - scores[-1]
+        if early > 0.001 and late > 0.001:
+            return "improving"
+        if early > 0.001 and late <= 0.001:
+            return "plateaued"
+        if early <= 0.001 and late > 0.001:
+            return "slow_start"
+        return "flat"
+
+    # --- Prompt context ---
+
+    def render_context(self) -> str:
+        """Render full history into dense prompt context. Scales to 1000 runs."""
+        rows = self.ledger_rows()
+        if not rows:
+            return "No runs yet."
+
+        best = min(rows, key=lambda r: r["score"])
+        improvements = [r for r in rows if r.get("improved_best")]
+        plateau = len(rows) - max((i for i, r in enumerate(rows) if r.get("improved_best")), default=0) - 1
+
+        lines: list[str] = []
+
+        # Scoreboard
+        lines.append(f"Best: {best['score']:.4f} ({best['run_id']}) | {best.get('title', '')}")
+        lines.append(f"Runs: {len(rows)} | Improvements: {len(improvements)} | Plateau streak: {plateau}")
+        lines.append("")
+
+        # Recent runs with diagnostics
+        lines.append("Recent runs:")
+        for row in rows[-15:]:
+            tag = "WIN" if row.get("improved_best") else "flat"
+            mod = "mod" if row.get("has_modified_script") else "base"
+            parts = []
+            if row.get("step_count"):
+                parts.append(f"{row['step_count']}steps")
+            if row.get("runtime_seconds"):
+                parts.append(f"{row['runtime_seconds']:.0f}s")
+            if row.get("avg_tok_s"):
+                parts.append(f"{row['avg_tok_s']:.0f}tok/s")
+            if row.get("peak_mb"):
+                parts.append(f"{row['peak_mb']:.0f}MB")
+            if row.get("curve") and row["curve"] != "no_data":
+                parts.append(row["curve"])
+            diag = f" [{', '.join(parts)}]" if parts else ""
+            lines.append(f"- {row['run_id']} | {row['score']:.4f} | {tag} | {mod}{diag} | {row.get('title', '')}")
+        lines.append("")
+
+        # Failed modifications — unique titles only, most recent last
+        failed = [r for r in rows if not r.get("improved_best") and r.get("has_modified_script")]
+        if failed:
+            seen: set[str] = set()
+            unique_fails: list[str] = []
+            for r in reversed(failed):
+                title = r.get("title", "")
+                if title not in seen:
+                    seen.add(title)
+                    unique_fails.append(f"- {title} ({r['score']:.4f})")
+            lines.append(f"Failed modifications ({len(failed)} total, don't repeat):")
+            lines.extend(unique_fails[:20])
+            lines.append("")
+
+        # Compound path — every improvement
+        if improvements:
+            lines.append("Improvements (the path to current best):")
+            for r in improvements:
+                mod = "+script" if r.get("has_modified_script") else "baseline"
+                lines.append(f"- {r['run_id']} {r['score']:.4f} [{mod}] {r.get('title', '')}")
+            lines.append("")
+
+        return "\n".join(lines)
 
     # --- Writers ---
 
@@ -155,22 +176,9 @@ class StateStore:
         }
         (self.paths.state_dir / "checkpoint.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
-    def snapshot_state(self, run_id: str) -> Path:
-        payload = {
-            "current_state": self.current_state(),
-            "best_runs": self.best_runs(),
-            "learning_state": self.learning_state(),
-            "lessons": self.lessons_text(),
-            "community_queue": self.community_queue(),
-        }
-        snapshot_path = self.paths.logs_dir / f"{run_id}_state_snapshot.json"
-        snapshot_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-        return snapshot_path
-
-    # --- Best script memory ---
+    # --- Update after run ---
 
     def save_best_script(self, result: RunResult) -> None:
-        """Save a winning run's modified script and its unified diff."""
         if not result.plan.modified_script:
             return
         self.write_json("best_script.json", {
@@ -179,207 +187,22 @@ class StateStore:
             "title": result.plan.title,
             "modified_script": result.plan.modified_script,
         })
-        # The diff is stored in result.patch (computed by the adapter)
         self.write_text("best_diff.patch", result.patch)
 
-    # --- Lessons rendering ---
-
-    def _render_lessons(
-        self,
-        best_runs: list[dict[str, Any]],
-        learning: dict[str, Any],
-        recent_runs: list[dict[str, Any]],
-        result: RunResult | None = None,
-        improved_best: bool = False,
-    ) -> str:
-        lines = ["# Lessons", ""]
-
-        # Current best
-        if best_runs:
-            best = best_runs[0]
-            lines.append(f"Best: {best['run_id']} {best['score']:.4f} | {best.get('title', 'untitled')}")
-        else:
-            lines.append("Best: none yet")
-        lines.append("")
-
-        # Hardware context
-        lines.append("## Hardware Reality")
-        lines.append("- Mac mini M4 16GB, 600s wallclock limit")
-        lines.append("- Faster code = more training steps = potentially better score")
-        lines.append("- Reason about whether a technique helps given the actual step count from recent runs")
-        lines.append("")
-
-        # Best diff reference
-        best_diff = self.best_diff().strip()
-        if best_diff:
-            lines.append("## Current Best Changes (unified diff)")
-            lines.append(f"```diff\n{best_diff}\n```")
-            lines.append("")
-
-        # Causal insights (preserved across runs)
-        existing = self._read_text(self.paths.state_dir / "insights.md", "").strip()
-        if result and improved_best and result.plan.modified_script:
-            new_insight = (
-                f"- **{result.run_id}** ({result.evaluation.score:.4f}): "
-                f"{result.plan.title} — IMPROVED."
-            )
-            existing = (existing + "\n" + new_insight).strip()
-            self.write_text("insights.md", existing)
-        if existing:
-            lines.append("## What Worked (causal insights)")
-            lines.append(existing)
-            lines.append("")
-
-        # Failed hypotheses
-        if result and not improved_best and result.plan.modified_script:
-            failed = self._read_text(self.paths.state_dir / "failed.md", "").strip()
-            new_fail = (
-                f"- **{result.run_id}** ({result.evaluation.score:.4f}): "
-                f"{result.plan.title} — FLAT/REGRESSED."
-            )
-            failed = (failed + "\n" + new_fail).strip()
-            # Keep last 20 failures
-            fail_lines = failed.splitlines()
-            if len(fail_lines) > 20:
-                failed = "\n".join(fail_lines[-20:])
-            self.write_text("failed.md", failed)
-
-        failed_text = self._read_text(self.paths.state_dir / "failed.md", "").strip()
-        if failed_text:
-            lines.append("## What Failed (do not repeat)")
-            lines.append(failed_text)
-            lines.append("")
-
-        # Idea categories tested
-        lines.append("## Idea Categories Explored")
-        categories = self._count_categories(recent_runs + [r for r in best_runs])
-        for cat, count in sorted(categories.items()):
-            lines.append(f"- {cat}: {count} runs")
-        lines.append("")
-
-        # Recent experiment deltas
-        lines.append("## Recent Runs")
-        if recent_runs:
-            for row in recent_runs[:12]:
-                mod_tag = "modified" if row.get("has_modified_script") else "baseline"
-                outcome = "improved" if row.get("improved_best") else "flat"
-                lines.append(f"- {row['run_id']}: {row['score']:.4f} ({outcome}) [{mod_tag}] {row.get('title', '')}")
-        else:
-            lines.append("- none")
-        lines.append("")
-
-        # Tested community ideas
-        tested = learning.get("tested_idea_titles", [])[-5:]
-        if tested:
-            lines.append("## Tested Ideas (avoid repeating)")
-            for title in tested:
-                lines.append(f"- {title}")
-
-        return "\n".join(lines)
-
-    def _count_categories(self, runs: list[dict[str, Any]]) -> dict[str, int]:
-        """Categorize runs by what they changed."""
-        categories: dict[str, int] = {}
-        for run in runs:
-            title = run.get("title", "").lower()
-            if any(w in title for w in ["warmdown", "warmup", "schedule", "lr", "learning rate", "cosine"]):
-                cat = "schedule"
-            elif any(w in title for w in ["bigram", "smeargate", "mlp", "layer", "depth", "architecture", "residual", "embed"]):
-                cat = "architecture"
-            elif any(w in title for w in ["quantiz", "int5", "int6", "int8", "compress", "zlib", "zstd"]):
-                cat = "quantization"
-            elif any(w in title for w in ["muon", "adam", "momentum", "weight decay", "wd", "optimizer"]):
-                cat = "optimizer"
-            elif any(w in title for w in ["eval", "valid", "sliding", "window"]):
-                cat = "evaluation"
-            elif any(w in title for w in ["swa", "averaging", "ema"]):
-                cat = "weight_averaging"
-            elif any(w in title for w in ["replay", "confirm", "re-run"]):
-                cat = "validation"
-            else:
-                cat = "other"
-            categories[cat] = categories.get(cat, 0) + 1
-        return categories
-
-    # --- Main update ---
-
     def update_after_run(self, result: RunResult) -> None:
-        best_runs = self.best_runs()
-        prior_best_score = best_runs.get("best_score")
-        best_score = prior_best_score
-        entry = {
-            "run_id": result.run_id,
-            "score": result.evaluation.score,
-            "mode": result.plan.mode,
-            "title": result.plan.title,
-            "finished_at": result.finished_at,
-            "track": result.plan.track,
-            "runtime_seconds": result.evaluation.runtime_seconds,
-        }
-        runs = [
-            entry
-        ] + [
-            row
-            for row in best_runs.get("runs", [])
-            if row["run_id"] != result.run_id and row.get("track") == result.plan.track
-        ]
-        higher_is_better = result.evaluation.higher_is_better
-        runs = sorted(runs, key=lambda row: row["score"], reverse=higher_is_better)[:10]
-        if runs:
-            best_score = runs[0]["score"]
-        self.write_json("best_runs.json", {"best_score": best_score, "runs": runs, "higher_is_better": higher_is_better})
+        rows = self.ledger_rows()
+        prior_best = min((r["score"] for r in rows), default=None)
+        improved = prior_best is None or result.evaluation.score < prior_best
 
-        improved_best = prior_best_score is None or (
-            result.evaluation.score > prior_best_score if higher_is_better else result.evaluation.score < prior_best_score
-        )
-
-        # Save winning script
-        if improved_best and result.plan.modified_script:
+        if improved and result.plan.modified_script:
             self.save_best_script(result)
 
-        current_state = {
-            "last_run_id": result.run_id,
-            "last_mode": result.plan.mode,
-            "last_score": result.evaluation.score,
-            "last_status": "passed" if result.evaluation.passed else "failed",
-            "last_title": result.plan.title,
-            "plateau_count": 0 if improved_best else self.learning_state().get("plateau_count", 0) + 1,
-            "updated_at": result.finished_at,
-        }
-        self.write_json("current_state.json", current_state)
+        # Extract diagnostics from adapter output
+        diag = (result.outputs or {}).get("diagnostics", {})
 
-        learning = self.learning_state()
-        recent_runs = [
-            {
-                "run_id": result.run_id,
-                "score": result.evaluation.score,
-                "mode": result.plan.mode,
-                "title": result.plan.title,
-                "improved_best": improved_best,
-                "needs_validation": result.evaluation.needs_validation,
-                "runtime_seconds": result.evaluation.runtime_seconds,
-                "has_modified_script": bool(result.plan.modified_script),
-            }
-        ] + [row for row in learning.get("recent_runs", []) if row.get("run_id") != result.run_id]
-        learning.update(
-            {
-                "plateau_count": 0 if improved_best else learning.get("plateau_count", 0) + 1,
-                "recent_runs": recent_runs[:12],
-                "best_score": best_score,
-                "last_improving_run_id": result.run_id if improved_best else learning.get("last_improving_run_id"),
-            }
-        )
-        tested_titles = list(learning.get("tested_idea_titles", []))
-        if result.plan.mode == "community":
-            source_title = result.plan.title.removeprefix(COMMUNITY_TITLE_PREFIX).strip()
-            if source_title and source_title not in tested_titles:
-                tested_titles.append(source_title)
-            self.mark_community_idea_tested(result.plan.idea_id, status="tested" if result.evaluation.passed else "rejected")
-        learning["tested_idea_titles"] = tested_titles[-20:]
-        self.write_json("learning_state.json", learning)
-        self.write_text("lessons.md", self._render_lessons(runs, learning, learning["recent_runs"], result, improved_best))
+        # Curve analysis from metrics_jsonl
+        curve = self._analyze_curve(result.outputs or {})
 
-        # Append to ledger
         self.append_ledger({
             "run_id": result.run_id,
             "timestamp": result.finished_at,
@@ -387,7 +210,22 @@ class StateStore:
             "title": result.plan.title,
             "score": result.evaluation.score,
             "passed": result.evaluation.passed,
-            "idea_source": result.plan.idea_source,
-            "track": result.plan.track,
             "has_modified_script": bool(result.plan.modified_script),
+            "improved_best": improved,
+            "runtime_seconds": result.evaluation.runtime_seconds,
+            "step_count": diag.get("step_count", 0),
+            "avg_tok_s": diag.get("avg_tok_s"),
+            "peak_mb": diag.get("peak_mb"),
+            "active_mb": diag.get("active_mb"),
+            "quantized_bytes": diag.get("quantized_bytes"),
+            "curve": curve,
+            "track": result.plan.track,
+        })
+
+        self.write_json("current_state.json", {
+            "last_run_id": result.run_id,
+            "last_score": result.evaluation.score,
+            "last_status": "passed" if result.evaluation.passed else "failed",
+            "last_title": result.plan.title,
+            "updated_at": result.finished_at,
         })

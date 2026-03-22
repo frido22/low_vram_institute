@@ -18,10 +18,8 @@ class PlannerTests(unittest.TestCase):
         (root / "snapshots" / "research").mkdir(parents=True)
         (root / "config").mkdir()
         (root / "output" / "runs").mkdir(parents=True, exist_ok=True)
-        (root / "output" / "public").mkdir(parents=True, exist_ok=True)
-        (root / "state" / "current_state.json").write_text(json.dumps({"last_status": "idle"}))
-        (root / "state" / "best_runs.json").write_text(json.dumps({"best_score": None, "runs": []}))
-        (root / "state" / "community_queue.jsonl").write_text("")
+        (root / "output" / "reports").mkdir(parents=True, exist_ok=True)
+        (root / "config" / "runtime.json").write_text(json.dumps({}))
         return StateStore(Paths.discover(root))
 
     def test_choose_explore_without_history(self) -> None:
@@ -31,24 +29,8 @@ class PlannerTests(unittest.TestCase):
 
     def test_choose_exploit_after_first_success(self) -> None:
         store = self.make_store()
-        store.write_json(
-            "best_runs.json",
-            {
-                "best_score": 2.29,
-                "higher_is_better": False,
-                "runs": [{"run_id": "r1", "score": 2.29, "mode": "explore", "title": "baseline", "track": "mac_mini_official_like"}],
-            },
-        )
-        store.write_json(
-            "learning_state.json",
-            {
-                "plateau_count": 0,
-                "recent_runs": [{"run_id": "r1", "score": 2.29, "mode": "explore", "title": "baseline", "improved_best": True, "needs_validation": False}],
-                "best_score": 2.29,
-                "last_improving_run_id": "r1",
-                "tested_idea_titles": [],
-            },
-        )
+        # Add a ledger entry so best_score() returns something
+        store.append_ledger({"run_id": "r1", "score": 2.29, "mode": "explore", "title": "baseline", "has_modified_script": False, "improved_best": True})
         planner = Planner(store)
         self.assertEqual(planner.choose_mode(), "exploit")
 
