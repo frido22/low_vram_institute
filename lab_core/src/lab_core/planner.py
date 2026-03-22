@@ -200,15 +200,10 @@ class Planner:
         base_val_batch = int(defaults.get("VAL_BATCH_SIZE", "8192"))
         recent_runtime = None
         if recent:
-            latest_id = recent[0].get("run_id")
-            latest_run_dir = self.store.paths.public_runs_dir / str(latest_id)
-            metrics_path = latest_run_dir / "metrics.json"
-            if metrics_path.exists():
-                try:
-                    payload = json.loads(metrics_path.read_text())
-                    recent_runtime = float(payload.get("runtime_seconds", 0.0))
-                except (OSError, ValueError, TypeError):
-                    recent_runtime = None
+            try:
+                recent_runtime = float(recent[0].get("runtime_seconds", 0.0))
+            except (TypeError, ValueError):
+                recent_runtime = None
 
         if recent_runtime and recent_runtime < 420:
             target = int(round(base_iterations * min(600.0 / max(recent_runtime, 1.0), 2.5) / 25.0) * 25)

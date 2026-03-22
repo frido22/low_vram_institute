@@ -207,6 +207,8 @@ class StateStore:
             "title": result.plan.title,
             "finished_at": result.finished_at,
             "track": result.plan.track,
+            "runtime_seconds": result.evaluation.runtime_seconds,
+            "env_overrides": dict(result.plan.env_overrides),
         }
         runs = [
             entry
@@ -253,6 +255,8 @@ class StateStore:
                 "title": result.plan.title,
                 "improved_best": improved_best,
                 "needs_validation": result.evaluation.needs_validation,
+                "runtime_seconds": result.evaluation.runtime_seconds,
+                "env_overrides": dict(result.plan.env_overrides),
             }
         ] + [row for row in learning.get("recent_runs", []) if row.get("run_id") != result.run_id]
         learning.update(
