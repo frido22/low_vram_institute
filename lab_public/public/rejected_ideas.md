@@ -1,3 +1,1 @@
 # Rejected Ideas
-
-- None yet.
