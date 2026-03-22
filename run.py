@@ -379,28 +379,20 @@ def _call_codex(prompt: str, model: str | None = None) -> dict:
 
 
 def _fetch_ideas(runtime: dict) -> str:
-    """Fetch open GitHub issues as community ideas. Fails silently."""
     repo = runtime.get("github", {})
     slug = f"{repo.get('owner', '')}/{repo.get('repo', '')}"
     if not slug.strip("/"):
         return ""
-    r = subprocess.run(
-        ["gh", "issue", "list", "-R", slug, "--json", "title,body", "--limit", "10"],
-        capture_output=True, text=True, check=False,
-    )  # noqa: S603
+    r = subprocess.run(["gh", "issue", "list", "-R", slug, "--json", "title,body", "--limit", "10"],
+                       capture_output=True, text=True, check=False)
     if r.returncode != 0:
         return ""
-    try:
-        issues = json.loads(r.stdout)
-    except json.JSONDecodeError:
-        return ""
+    issues = json.loads(r.stdout) if r.stdout.strip() else []
     if not issues:
         return ""
-    lines = ["## Community Ideas (from GitHub Issues)", ""]
+    lines = ["## Community Ideas (GitHub Issues)"]
     for iss in issues:
-        body = (iss.get("body") or "").replace("\n", " ").strip()
-        if len(body) > 120:
-            body = body[:117] + "..."
+        body = (iss.get("body") or "").replace("\n", " ").strip()[:120]
         lines.append(f"- {iss['title']}: {body}" if body else f"- {iss['title']}")
     return "\n".join(lines)
 
