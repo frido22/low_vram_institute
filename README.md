@@ -39,6 +39,10 @@ python3 run.py run-once   # single cycle
 python3 run.py daemon     # run continuously
 ```
 
+## Contributing Ideas
+
+Open a GitHub Issue with your idea. The daemon picks up open issues every cycle and feeds them to Codex as experiment candidates.
+
 ## Hardware
 
 - Apple Silicon Mac mini, M4, 16 GB unified memory

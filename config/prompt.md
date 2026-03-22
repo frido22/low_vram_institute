@@ -17,4 +17,6 @@ You can change anything: a single hyperparameter, the optimizer, the architectur
 
 {script}
 
+{ideas}
+
 {errors_section}

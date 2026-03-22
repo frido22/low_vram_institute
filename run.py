@@ -244,10 +244,13 @@ def render_context() -> str:
                 lines.append("- Pattern: more steps correlates with better scores")
             lines.append("")
 
-    # 6. Improvement path — how we got to current best
+    # 6. Improvement path — how we got to current best (last 30)
     if improvements:
         lines.append("Improvements (path to current best):")
-        for r in improvements:
+        shown = improvements[-30:]
+        if len(improvements) > 30:
+            lines.append(f"  ({len(improvements) - 30} earlier improvements omitted)")
+        for r in shown:
             mod = "+script" if r.get("has_modified_script") else "baseline"
             lines.append(f"- {r['run_id']} {r['score']:.4f} [{mod}] {r.get('title', '')}")
         lines.append("")
@@ -375,6 +378,33 @@ def _call_codex(prompt: str, model: str | None = None) -> dict:
             raise CodexError(f"Invalid JSON: {exc}") from exc
 
 
+def _fetch_ideas(runtime: dict) -> str:
+    """Fetch open GitHub issues as community ideas. Fails silently."""
+    repo = runtime.get("github", {})
+    slug = f"{repo.get('owner', '')}/{repo.get('repo', '')}"
+    if not slug.strip("/"):
+        return ""
+    r = subprocess.run(
+        ["gh", "issue", "list", "-R", slug, "--json", "title,body", "--limit", "10"],
+        capture_output=True, text=True, check=False,
+    )  # noqa: S603
+    if r.returncode != 0:
+        return ""
+    try:
+        issues = json.loads(r.stdout)
+    except json.JSONDecodeError:
+        return ""
+    if not issues:
+        return ""
+    lines = ["## Community Ideas (from GitHub Issues)", ""]
+    for iss in issues:
+        body = (iss.get("body") or "").replace("\n", " ").strip()
+        if len(body) > 120:
+            body = body[:117] + "..."
+        lines.append(f"- {iss['title']}: {body}" if body else f"- {iss['title']}")
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------------------
 # Plan (prompt from config/prompt.md template)
 # ---------------------------------------------------------------------------
@@ -410,6 +440,9 @@ def _build_prompt(run_errors: list[str] | None = None) -> str:
         best_script_section = ""
         script = f"```python\n{original_script}\n```" if original_script else "(script not available)"
 
+    # Community ideas from GitHub issues
+    ideas = _fetch_ideas(runtime)
+
     # Errors
     errors_section = ""
     if run_errors:
@@ -422,6 +455,7 @@ def _build_prompt(run_errors: list[str] | None = None) -> str:
         history=render_context(),
         best_script_section=best_script_section,
         script=script,
+        ideas=ideas,
         errors_section=errors_section,
     )
 
