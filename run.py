@@ -319,7 +319,7 @@ class CodexError(RuntimeError):
         self.retryable = retryable
 
 
-def _call_codex(prompt: str, model: str | None = None) -> dict:
+def _call_codex(prompt: str, model: str | None = None, reasoning_effort: str | None = None) -> dict:
     binary = shutil.which("codex")
     if not binary:
         raise CodexError("Codex CLI not found in PATH.")
@@ -346,6 +346,8 @@ def _call_codex(prompt: str, model: str | None = None) -> dict:
                "--color", "never"]
         if model:
             cmd.extend(["--model", model])
+        if reasoning_effort:
+            cmd.extend(["-c", f'model_reasoning_effort=\"{reasoning_effort}\"'])
 
         r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, check=False)  # noqa: S603
         if r.returncode != 0:
@@ -441,7 +443,11 @@ def plan(run_errors: list[str] | None = None) -> dict:
 
     if codex_cfg.get("enabled"):
         prompt = _build_prompt(run_errors)
-        payload = _call_codex(prompt, model=codex_cfg.get("model"))
+        payload = _call_codex(
+            prompt,
+            model=codex_cfg.get("model"),
+            reasoning_effort=codex_cfg.get("reasoning_effort"),
+        )
         return {
             "title": payload["title"],
             "rationale": payload["rationale"],
