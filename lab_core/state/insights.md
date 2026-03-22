@@ -24,3 +24,9 @@
 - Score: 2.2947
 - Outcome: no improvement
 - Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2947, val_loss=3.8758, quantized artifact=10262012 bytes. Score=2.2947. Expected signal: A modest but real improvement versus 2.29436762, or a clear no-gain result that narrows the next branch before plateau count rises further.
+
+## 2026_03_22_run_0004
+- Hypothesis: Research the next upstream tactic to test on the official-split local path: mixed quantization before more exploit runs
+- Score: 2.2945
+- Outcome: no improvement
+- Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2945, val_loss=3.8754, quantized artifact=10261283 bytes. Score=2.2945. Expected signal: A concrete, upstream-grounded next run spec that preserves the real code path, official validation split, and 10-minute cap while isolating whether mixed quantization is the next credible improvement lever on M4/16GB.

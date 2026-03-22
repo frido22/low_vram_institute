@@ -1,9 +1,9 @@
 {
-  "last_mode": "exploit",
-  "last_run_id": "2026_03_22_run_0003",
-  "last_score": 2.29474478,
+  "last_mode": "research",
+  "last_run_id": "2026_03_22_run_0004",
+  "last_score": 2.29450958,
   "last_status": "passed",
-  "last_title": "Apply one upstream-proven local tactic next: quantization-focused weight decay on the current sliding-window official-split path",
-  "plateau_count": 2,
-  "updated_at": "2026-03-22T00:10:58.541889+00:00"
+  "last_title": "Research the next upstream tactic to test on the official-split local path: mixed quantization before more exploit runs",
+  "plateau_count": 3,
+  "updated_at": "2026-03-22T00:14:33.695361+00:00"
 }

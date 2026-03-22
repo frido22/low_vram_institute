@@ -19,6 +19,14 @@
       "track": "mac_mini_official_like"
     },
     {
+      "finished_at": "2026-03-22T00:14:33.695361+00:00",
+      "mode": "research",
+      "run_id": "2026_03_22_run_0004",
+      "score": 2.29450958,
+      "title": "Research the next upstream tactic to test on the official-split local path: mixed quantization before more exploit runs",
+      "track": "mac_mini_official_like"
+    },
+    {
       "finished_at": "2026-03-22T00:07:23.997778+00:00",
       "mode": "validate",
       "run_id": "2026_03_22_run_0002",

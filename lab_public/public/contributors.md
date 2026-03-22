@@ -1,3 +1,3 @@
 # Contributors
 
-- Credited idea source in latest run: weight decay for quantization
+- Credited idea source in latest run: parameter_golf_readme

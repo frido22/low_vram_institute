@@ -1,8 +1,16 @@
 {
   "best_score": 2.29436762,
   "last_improving_run_id": "2026_03_22_run_0001",
-  "plateau_count": 2,
+  "plateau_count": 3,
   "recent_runs": [
+    {
+      "improved_best": false,
+      "mode": "research",
+      "needs_validation": true,
+      "run_id": "2026_03_22_run_0004",
+      "score": 2.29450958,
+      "title": "Research the next upstream tactic to test on the official-split local path: mixed quantization before more exploit runs"
+    },
     {
       "improved_best": false,
       "mode": "exploit",
