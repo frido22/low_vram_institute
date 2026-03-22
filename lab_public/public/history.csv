@@ -1,3 +1,4 @@
 run_id,score,mode,track,finished_at,title
 2026_03_22_run_0001,2.29436762,exploit,mac_mini_official_like,2026-03-22T00:03:50.303451+00:00,Apply one upstream-proven local tactic next: sliding-window evaluation on the official validation split
 2026_03_21_run_0001,2.29444450,explore,mac_mini_official_like,2026-03-21T23:49:21.623157+00:00,Establish an upstream-local baseline on M4 under the 10-minute cap
+2026_03_22_run_0002,2.29455078,validate,mac_mini_official_like,2026-03-22T00:07:23.997778+00:00,Re-run sliding-window evaluation once on the official validation split under the 10-minute local cap

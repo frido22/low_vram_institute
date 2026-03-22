@@ -1,8 +1,16 @@
 {
   "best_score": 2.29436762,
   "last_improving_run_id": "2026_03_22_run_0001",
-  "plateau_count": 0,
+  "plateau_count": 1,
   "recent_runs": [
+    {
+      "improved_best": false,
+      "mode": "validate",
+      "needs_validation": false,
+      "run_id": "2026_03_22_run_0002",
+      "score": 2.29455078,
+      "title": "Re-run sliding-window evaluation once on the official validation split under the 10-minute local cap"
+    },
     {
       "improved_best": true,
       "mode": "exploit",

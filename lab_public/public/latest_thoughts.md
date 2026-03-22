@@ -1,6 +1,6 @@
 # Latest Thoughts
 
-Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2944, val_loss=3.8751, quantized artifact=10266406 bytes. Score=2.2944. Expected signal: A cleaner lower val_bpb than 2.2944445 from the same upstream-local baseline path, with runtime still inside the 10-minute wallclock cap. Even a modest improvement would confirm the local stack is sensitive to known upstream tactics.
+Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2946, val_loss=3.8755, quantized artifact=10262767 bytes. Score=2.2946. Expected signal: A second pass with the same sliding-window setup either reproduces roughly the same `val_bpb` and upgrades confidence in the tactic, or regresses enough to mark the prior win as noisy and avoid promoting it.
 
 ## Public Beliefs
 # Insights
@@ -18,5 +18,11 @@ Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bp
 - Outcome: new best
 - Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2944, val_loss=3.8751, quantized artifact=10266406 bytes. Score=2.2944. Expected signal: A cleaner lower val_bpb than 2.2944445 from the same upstream-local baseline path, with runtime still inside the 10-minute wallclock cap. Even a modest improvement would confirm the local stack is sensitive to known upstream tactics.
 
+## 2026_03_22_run_0002
+- Hypothesis: Re-run sliding-window evaluation once on the official validation split under the 10-minute local cap
+- Score: 2.2946
+- Outcome: no improvement
+- Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2946, val_loss=3.8755, quantized artifact=10262767 bytes. Score=2.2946. Expected signal: A second pass with the same sliding-window setup either reproduces roughly the same `val_bpb` and upgrades confidence in the tactic, or regresses enough to mark the prior win as noisy and avoid promoting it.
 
-Next public focus: Use the real upstream training/eval path with the official FineWeb validation split and preserve the 10-minute wallclock cap., Test exactly one concrete tactic next: sliding-window evaluation, without mixing in extra architecture or quantization changes., Treat the M4/16GB machine as the only mismatch; avoid local-only shortcuts that break comparability., If the run improves cleanly, queue a confirmatory rerun next; if not, move to the next single upstream tactic rather than branching widely..
+
+Next public focus: Validate the current best by repeating the same sliding-window evaluation configuration once under the same 10-minute cap., Keep the code path and official validation split unchanged; only test reproducibility of the latest gain., Promote sliding-window eval only if the repeat is directionally consistent with run `2026_03_22_run_0001`..
