@@ -30,18 +30,62 @@ class Publisher:
             lines.append("- No best runs yet.")
         return "\n".join(lines)
 
-    def _history_rows(self) -> list[dict]:
-        rows = list(self.store.best_runs().get("runs", []))
-        rows.sort(key=lambda row: row.get("finished_at", ""))
+    def _ledger_rows(self) -> list[dict]:
+        path = self.store.paths.public_runs_dir / "ledger.jsonl"
+        if not path.exists():
+            return []
+        rows: list[dict] = []
+        for line in path.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            rows.append(json.loads(line))
         return rows
+
+    def _run_number(self, run_id: str) -> int:
+        try:
+            return int(run_id.split("_")[-1])
+        except (TypeError, ValueError, AttributeError):
+            return 0
+
+    def _history_rows(self) -> list[dict]:
+        ledger = self._ledger_rows()
+        higher_is_better = self.store.best_runs().get("higher_is_better", False)
+        history: list[dict] = []
+        best_score: Optional[float] = None
+        best_row: Optional[dict] = None
+        for row in ledger:
+            score = row.get("score")
+            if score is None:
+                continue
+            if best_score is None:
+                best_score = score
+                best_row = row
+            else:
+                improved = score > best_score if higher_is_better else score < best_score
+                if improved:
+                    best_score = score
+                    best_row = row
+            if best_row is not None:
+                history.append(
+                    {
+                        "run_id": row.get("run_id", ""),
+                        "score": best_score,
+                        "mode": best_row.get("mode", ""),
+                        "track": best_row.get("track", ""),
+                        "finished_at": row.get("timestamp", ""),
+                        "title": best_row.get("title", ""),
+                    }
+                )
+        return history
 
     def _render_history_csv(self) -> str:
         best_runs = self._history_rows()
-        lines = ["run_id,score,mode,track,finished_at,title"]
+        lines = ["run_id,run_number,score,mode,track,finished_at,title"]
         for row in best_runs:
             title = str(row.get("title", "")).replace(",", " ")
             lines.append(
-                f"{row['run_id']},{row['score']:.8f},{row.get('mode','')},{row.get('track','')},{row.get('finished_at','')},{title}"
+                f"{row['run_id']},{self._run_number(row['run_id'])},{row['score']:.8f},{row.get('mode','')},{row.get('track','')},{row.get('finished_at','')},{title}"
             )
         return "\n".join(lines) + "\n"
 
@@ -79,7 +123,7 @@ class Publisher:
         points = " ".join(f"{x_for(i):.1f},{y_for(row['score']):.1f}" for i, row in enumerate(runs))
         labels = []
         for i, row in enumerate(runs):
-            run_label = row["run_id"].split("_")[-1]
+            run_label = str(self._run_number(row["run_id"]))
             labels.append(
                 f'<circle cx="{x_for(i):.1f}" cy="{y_for(row["score"]):.1f}" r="4" fill="#0f766e" />'
                 f'<text x="{x_for(i):.1f}" y="{height - 28}" text-anchor="middle" font-family="monospace" font-size="10" fill="#334155">{run_label}</text>'
@@ -96,7 +140,7 @@ class Publisher:
         return (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
             '<rect width="100%" height="100%" fill="#f8fafc" />'
-            f'<text x="20" y="24" font-family="monospace" font-size="16" fill="#0f172a">Best Runs Over Time (lower is better)</text>'
+            f'<text x="20" y="24" font-family="monospace" font-size="16" fill="#0f172a">Cumulative Best Score By Run (lower is better)</text>'
             + "".join(y_ticks)
             + f'<line x1="{left_margin}" y1="{height - bottom_margin}" x2="{width - right_margin}" y2="{height - bottom_margin}" stroke="#94a3b8" />'
             + f'<line x1="{left_margin}" y1="{top_margin}" x2="{left_margin}" y2="{height - bottom_margin}" stroke="#94a3b8" />'
