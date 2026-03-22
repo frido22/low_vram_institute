@@ -1,7 +1,15 @@
 {
-  "best_score": 2.29436762,
+  "best_score": 2.29386796,
   "higher_is_better": false,
   "runs": [
+    {
+      "finished_at": "2026-03-22T00:18:25.288631+00:00",
+      "mode": "exploit",
+      "run_id": "2026_03_22_run_0005",
+      "score": 2.29386796,
+      "title": "Test mixed quantization on the official-split sliding-window path under the 10-minute local cap",
+      "track": "mac_mini_official_like"
+    },
     {
       "finished_at": "2026-03-22T00:03:50.303451+00:00",
       "mode": "exploit",

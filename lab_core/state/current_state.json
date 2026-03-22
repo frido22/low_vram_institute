@@ -1,9 +1,9 @@
 {
-  "last_mode": "research",
-  "last_run_id": "2026_03_22_run_0004",
-  "last_score": 2.29450958,
+  "last_mode": "exploit",
+  "last_run_id": "2026_03_22_run_0005",
+  "last_score": 2.29386796,
   "last_status": "passed",
-  "last_title": "Research the next upstream tactic to test on the official-split local path: mixed quantization before more exploit runs",
-  "plateau_count": 3,
-  "updated_at": "2026-03-22T00:14:33.695361+00:00"
+  "last_title": "Test mixed quantization on the official-split sliding-window path under the 10-minute local cap",
+  "plateau_count": 0,
+  "updated_at": "2026-03-22T00:18:25.288631+00:00"
 }

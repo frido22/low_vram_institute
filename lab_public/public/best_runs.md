@@ -1,5 +1,6 @@
 # Best Runs
 
+- 2026_03_22_run_0005: 2.2939 | exploit | Test mixed quantization on the official-split sliding-window path under the 10-minute local cap
 - 2026_03_22_run_0001: 2.2944 | exploit | Apply one upstream-proven local tactic next: sliding-window evaluation on the official validation split
 - 2026_03_21_run_0001: 2.2944 | explore | Establish an upstream-local baseline on M4 under the 10-minute cap
 - 2026_03_22_run_0004: 2.2945 | research | Research the next upstream tactic to test on the official-split local path: mixed quantization before more exploit runs

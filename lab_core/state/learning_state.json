@@ -1,8 +1,16 @@
 {
-  "best_score": 2.29436762,
-  "last_improving_run_id": "2026_03_22_run_0001",
-  "plateau_count": 3,
+  "best_score": 2.29386796,
+  "last_improving_run_id": "2026_03_22_run_0005",
+  "plateau_count": 0,
   "recent_runs": [
+    {
+      "improved_best": true,
+      "mode": "exploit",
+      "needs_validation": true,
+      "run_id": "2026_03_22_run_0005",
+      "score": 2.29386796,
+      "title": "Test mixed quantization on the official-split sliding-window path under the 10-minute local cap"
+    },
     {
       "improved_best": false,
       "mode": "research",
