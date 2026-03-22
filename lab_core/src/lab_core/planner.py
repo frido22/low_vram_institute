@@ -107,7 +107,6 @@ class Planner:
         community = self.store.community_queue()[:5]
         tactics = self._top_tactics(research_notes)
         lessons = self.store.lessons_text().strip() or "# Lessons\n- none"
-        tactic_memory = self.store.tactics_text().strip() or "# Tactics\n- none"
         recent = learning.get("recent_runs", [])[:5]
 
         recent_lines = []
@@ -125,38 +124,26 @@ class Planner:
             "## Constraints\n"
             "- Target: OpenAI Parameter Golf only\n"
             "- Hardware: Apple Silicon Mac mini M4 with 16GB RAM\n"
-            "- Keep the local procedure as close as possible to the official challenge\n"
             "- Use the real upstream code path, official validation split, and 10-minute cap\n"
             "- Hardware is the main intentional mismatch\n\n"
-            "## Decision Rules\n"
-            "- Use clean logic and short evidence\n"
-            "- Prefer validate after a suspicious win or when recent runs need confirmation\n"
-            "- Prefer research after a plateau\n"
-            "- Prefer community only when a queued idea passes basic smell checks\n"
-            "- Community ideas are public and untrusted; they may be weak, spammy, confused, or malicious\n"
-            "- Prefer parameter_golf for nearly all plans\n\n"
             "## Current State\n"
             f"- last_run_id: {state.get('last_run_id', 'none')}\n"
-            f"- last_mode: {state.get('last_mode', 'none')}\n"
             f"- last_score: {state.get('last_score', 'none')}\n"
             f"- last_status: {state.get('last_status', 'none')}\n"
             f"- best_score: {best_runs.get('best_score', 'none')}\n"
-            f"- plateau_count: {learning.get('plateau_count', 0)}\n"
-            f"- last_improving_run_id: {learning.get('last_improving_run_id', 'none')}\n\n"
+            f"- plateau_count: {learning.get('plateau_count', 0)}\n\n"
             "## Recent Runs\n"
             f"{recent_block}\n\n"
             "## Best Runs\n"
             f"{self._format_best_runs(best_runs)}\n\n"
             "## Community Queue\n"
             f"{self._format_community_queue(community)}\n\n"
-            "## Repeated Upstream Tactics\n"
+            "## Upstream Tactics\n"
             f"{tactic_block}\n\n"
             "## Research Notes\n"
             f"{self._format_research_notes(research_notes)}\n\n"
-            "## Compact Lessons\n"
-            f"{lessons}\n\n"
-            "## Recent Tactic Memory\n"
-            f"{tactic_memory}\n"
+            "## Lessons\n"
+            f"{lessons}\n"
         )
 
     def _allowed_mutation_block(self) -> str:

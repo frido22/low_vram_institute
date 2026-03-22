@@ -52,17 +52,8 @@ class StateStore:
             {"best_score": None, "runs": [], "higher_is_better": True},
         )
 
-    def agenda_text(self) -> str:
-        return self._read_text(self.paths.state_dir / "agenda.md", "# Agenda\n")
-
-    def insights_text(self) -> str:
-        return self._read_text(self.paths.state_dir / "insights.md", "# Insights\n")
-
     def lessons_text(self) -> str:
         return self._read_text(self.paths.state_dir / "lessons.md", "# Lessons\n")
-
-    def tactics_text(self) -> str:
-        return self._read_text(self.paths.state_dir / "tactics.md", "# Tactics\n")
 
     def rejected_ideas_text(self) -> str:
         return self._read_text(self.paths.state_dir / "rejected_ideas.md", "# Rejected Ideas\n")
@@ -137,87 +128,47 @@ class StateStore:
             "current_state": self.current_state(),
             "best_runs": self.best_runs(),
             "learning_state": self.learning_state(),
-            "agenda": self.agenda_text(),
-            "insights": self.insights_text(),
             "lessons": self.lessons_text(),
-            "tactics": self.tactics_text(),
             "community_queue": self.community_queue(),
         }
         snapshot_path = self.paths.logs_dir / f"{run_id}_state_snapshot.json"
         snapshot_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
         return snapshot_path
 
-    def _render_insights(self, recent_runs: list[dict[str, Any]]) -> str:
-        lines = ["# Insights", ""]
-        if not recent_runs:
-            lines.append("- No runs yet.")
-            return "\n".join(lines)
-        for row in recent_runs[:8]:
-            outcome = "improved" if row.get("improved_best") else "flat"
-            lines.append(f"## {row['run_id']}")
-            lines.append(f"- Title: {row['title']}")
-            lines.append(f"- Score: {row['score']:.4f}")
-            lines.append(f"- Outcome: {outcome}")
-            lines.append(f"- Needs validation: {row.get('needs_validation', False)}")
-            lines.append("")
-        return "\n".join(lines).rstrip()
-
     def _render_lessons(
         self,
         best_runs: list[dict[str, Any]],
         learning: dict[str, Any],
-        queue_size: int,
+        recent_runs: list[dict[str, Any]],
     ) -> str:
         lines = ["# Lessons", ""]
-        lines.append("## Current Best Pattern")
+
+        # Best pattern
         if best_runs:
             best = best_runs[0]
-            lines.append(f"- Best run: {best['run_id']}")
-            lines.append(f"- Best score: {best['score']:.4f}")
-            lines.append(f"- Best title: {best.get('title', 'untitled')}")
+            lines.append(f"Best: {best['run_id']} {best['score']:.4f} | {best.get('title', 'untitled')}")
         else:
-            lines.append("- No best run yet.")
+            lines.append("Best: none yet")
         lines.append("")
-        lines.append("## Working Signals")
-        if best_runs:
-            for row in best_runs[:3]:
-                lines.append(f"- {row['title']} -> {row['score']:.4f}")
+
+        # Recent experiment deltas — what changed and whether it helped
+        lines.append("## Recent Deltas")
+        if recent_runs:
+            for row in recent_runs[:6]:
+                overrides = row.get("env_overrides") or {}
+                if overrides:
+                    delta = ", ".join(f"{key}={value}" for key, value in sorted(overrides.items()))
+                else:
+                    delta = "no env override"
+                if row.get("has_code_patch"):
+                    delta += " + code patch"
+                outcome = "improved" if row.get("improved_best") else "flat"
+                lines.append(f"- {row['run_id']}: {delta} -> {row['score']:.4f} ({outcome})")
         else:
-            lines.append("- No stable signals yet.")
+            lines.append("- none")
         lines.append("")
-        lines.append("## Current Risks")
-        lines.append(f"- Plateau count: {learning.get('plateau_count', 0)}")
-        last_improving = learning.get("last_improving_run_id") or "none"
-        lines.append(f"- Last improving run: {last_improving}")
-        lines.append(f"- Open community ideas: {queue_size}")
-        lines.append("")
-        lines.append("## Avoid Repeating")
-        tested = learning.get("tested_idea_titles", [])[-5:]
-        if tested:
-            for title in tested:
-                lines.append(f"- {title}")
-        else:
-            lines.append("- No tested community ideas yet.")
-        return "\n".join(lines)
 
-    def _render_tactics(self, recent_runs: list[dict[str, Any]]) -> str:
-        lines = ["# Tactics", ""]
-        if not recent_runs:
-            lines.append("- No experiment deltas yet.")
-            return "\n".join(lines)
-
-        lines.append("## Recent Experiment Deltas")
-        for row in recent_runs[:6]:
-            overrides = row.get("env_overrides") or {}
-            if overrides:
-                delta = ", ".join(f"{key}={value}" for key, value in sorted(overrides.items()))
-            else:
-                delta = "no env override"
-            if row.get("has_code_patch"):
-                delta += " + code patch"
-            outcome = "improved" if row.get("improved_best") else "flat"
-            lines.append(f"- {row['run_id']}: {delta} -> {row['score']:.4f} ({outcome})")
-
+        # Repeated signals — which settings correlate with improvement
         stats: dict[str, dict[str, int]] = {}
         for row in recent_runs:
             for key, value in (row.get("env_overrides") or {}).items():
@@ -225,23 +176,25 @@ class StateStore:
                 entry = stats.setdefault(label, {"improved": 0, "flat": 0})
                 bucket = "improved" if row.get("improved_best") else "flat"
                 entry[bucket] += 1
+        if stats:
+            lines.append("## Repeated Signals")
+            ranked = sorted(
+                stats.items(),
+                key=lambda item: (item[1]["improved"], -item[1]["flat"], item[0]),
+                reverse=True,
+            )[:8]
+            for label, counts in ranked:
+                verdict = "positive" if counts["improved"] > counts["flat"] else "unclear"
+                lines.append(f"- {label}: improved={counts['improved']} flat={counts['flat']} -> {verdict}")
+            lines.append("")
 
-        lines.append("")
-        lines.append("## Repeated Signals")
-        if not stats:
-            lines.append("- No repeated env signals yet.")
-            return "\n".join(lines)
+        # Avoid repeating tested community ideas
+        tested = learning.get("tested_idea_titles", [])[-5:]
+        if tested:
+            lines.append("## Tested Ideas (avoid repeating)")
+            for title in tested:
+                lines.append(f"- {title}")
 
-        ranked = sorted(
-            stats.items(),
-            key=lambda item: (item[1]["improved"], -item[1]["flat"], item[0]),
-            reverse=True,
-        )[:8]
-        for label, counts in ranked:
-            verdict = "lean positive" if counts["improved"] > counts["flat"] else "unclear"
-            lines.append(
-                f"- {label}: improved={counts['improved']} flat={counts['flat']} -> {verdict}"
-            )
         return "\n".join(lines)
 
     def update_after_run(self, result: RunResult) -> None:
@@ -286,14 +239,6 @@ class StateStore:
         }
         self.write_json("current_state.json", current_state)
 
-        agenda = (
-            "# Agenda\n\n"
-            f"- Current mode bias: {result.plan.mode}\n"
-            f"- Latest expected signal: {result.plan.expected_signal}\n"
-            f"- Next public update focus: {', '.join(result.plan.public_updates)}\n"
-        )
-        self.write_text("agenda.md", agenda)
-
         learning = self.learning_state()
         code_patch_summary = ""
         if result.plan.code_patch:
@@ -328,6 +273,4 @@ class StateStore:
             self.mark_community_idea_tested(result.plan.idea_id, status="tested" if result.evaluation.passed else "rejected")
         learning["tested_idea_titles"] = tested_titles[-20:]
         self.write_json("learning_state.json", learning)
-        self.write_text("insights.md", self._render_insights(learning["recent_runs"]))
-        self.write_text("lessons.md", self._render_lessons(runs, learning, len(self.community_queue())))
-        self.write_text("tactics.md", self._render_tactics(learning["recent_runs"]))
+        self.write_text("lessons.md", self._render_lessons(runs, learning, learning["recent_runs"]))
