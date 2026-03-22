@@ -561,18 +561,8 @@ def _render_svg() -> str:
 
 #Git push
 
-_runs_since_push = 0
-GIT_PUSH_EVERY = 5  # batch git pushes to save time
 
-
-def _git_push(run_id: str, force: bool = False) -> None:
-    global _runs_since_push  # noqa: PLW0603
-    _runs_since_push += 1
-    if not force and _runs_since_push < GIT_PUSH_EVERY:
-        # Just commit locally, push later
-        _git_commit(run_id)
-        return
-    _runs_since_push = 0
+def _git_push(run_id: str) -> None:
     _git_commit(run_id)
     _git_remote_push()
 
