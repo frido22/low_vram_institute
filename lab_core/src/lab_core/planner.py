@@ -15,6 +15,7 @@ class Planner:
         self.store = store
         self.runtime = load_runtime(store.paths)
         self.codex = CodexWrapper()
+        self.track = self.runtime.get("parameter_golf", {}).get("local_track", "mac_mini_official_like")
 
     def choose_mode(self) -> str:
         state = self.store.current_state()
@@ -287,7 +288,7 @@ class Planner:
             env_overrides=env_overrides,
             idea_source=idea.get("author") if idea else None,
             idea_id=idea.get("id") if idea else None,
-            track="mac_mini_official_like",
+            track=self.track,
         )
 
     def _training_script_content(self) -> str:
@@ -333,6 +334,6 @@ class Planner:
             env_overrides=self._normalize_env_overrides(payload.get("env_overrides")),
             idea_source=payload.get("idea_source"),
             idea_id=payload.get("idea_id"),
-            track="mac_mini_official_like",
+            track=self.track,
             code_patch=payload.get("code_patch") or None,
         )

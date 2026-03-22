@@ -240,9 +240,6 @@ class StateStore:
         self.write_json("current_state.json", current_state)
 
         learning = self.learning_state()
-        code_patch_summary = ""
-        if result.plan.code_patch:
-            code_patch_summary = result.plan.code_patch[:200]
         recent_runs = [
             {
                 "run_id": result.run_id,
@@ -254,7 +251,6 @@ class StateStore:
                 "runtime_seconds": result.evaluation.runtime_seconds,
                 "env_overrides": dict(result.plan.env_overrides),
                 "has_code_patch": bool(result.plan.code_patch),
-                "code_patch_summary": code_patch_summary,
             }
         ] + [row for row in learning.get("recent_runs", []) if row.get("run_id") != result.run_id]
         learning.update(

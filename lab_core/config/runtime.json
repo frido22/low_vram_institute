@@ -2,8 +2,7 @@
   "github": {
     "owner": "frido22",
     "repo": "low_vram_institute",
-    "issues_enabled": true,
-    "discussions_enabled": false
+    "issues_enabled": true
   },
   "codex": {
     "enabled": true,
