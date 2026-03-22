@@ -13,7 +13,7 @@ Each cycle the daemon:
 3. Validates and runs the 10-minute training experiment.
 4. Records score, diagnostics (throughput, memory, curve shape) to `state/ledger.jsonl`.
 5. If the score improved, saves the winning script for compounding.
-6. Publishes submission-ready artifacts, CSV, SVG chart, and pushes to GitHub.
+6. Publishes lean per-run artifacts, history files, and pushes to GitHub.
 
 ## Architecture
 
