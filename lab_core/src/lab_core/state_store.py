@@ -213,6 +213,8 @@ class StateStore:
                 delta = ", ".join(f"{key}={value}" for key, value in sorted(overrides.items()))
             else:
                 delta = "no env override"
+            if row.get("has_code_patch"):
+                delta += " + code patch"
             outcome = "improved" if row.get("improved_best") else "flat"
             lines.append(f"- {row['run_id']}: {delta} -> {row['score']:.4f} ({outcome})")
 
@@ -293,6 +295,9 @@ class StateStore:
         self.write_text("agenda.md", agenda)
 
         learning = self.learning_state()
+        code_patch_summary = ""
+        if result.plan.code_patch:
+            code_patch_summary = result.plan.code_patch[:200]
         recent_runs = [
             {
                 "run_id": result.run_id,
@@ -303,6 +308,8 @@ class StateStore:
                 "needs_validation": result.evaluation.needs_validation,
                 "runtime_seconds": result.evaluation.runtime_seconds,
                 "env_overrides": dict(result.plan.env_overrides),
+                "has_code_patch": bool(result.plan.code_patch),
+                "code_patch_summary": code_patch_summary,
             }
         ] + [row for row in learning.get("recent_runs", []) if row.get("run_id") != result.run_id]
         learning.update(

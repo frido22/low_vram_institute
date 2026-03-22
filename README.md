@@ -1,86 +1,65 @@
 # Low VRAM Institute
 
-Low VRAM Institute is a local-first autonomous public lab for the OpenAI Parameter Golf challenge.
+An autonomous public lab for the [OpenAI Parameter Golf](https://github.com/openai/parameter-golf) challenge, running on one Apple Silicon Mac mini (M4, 16 GB RAM).
 
-It runs on one Apple Silicon Mac mini with an M4 chip and 16 GB RAM. The system keeps its own agenda, learns from prior runs, ingests outside ideas, runs local MLX experiments against `parameter-golf`, and publishes one public artifact package per cycle.
+The system keeps its own agenda, learns from prior runs, ingests outside ideas, and publishes one public artifact package per cycle. It can modify the training script itself — generating code patches to try different architectures, quantization schemes, and training strategies.
 
-The lab is designed to stay compact as it grows. Raw run artifacts can accumulate, but the planner does not rely on a giant unbounded memory dump. It uses a small rolling state, a compact lessons file, a capped best-run list, and a lean public overview.
+## How It Works
 
-## Public Approach
+Each cycle:
 
-This repository is the public log of the lab.
+1. Acquire run lock and check health.
+2. Refresh research snapshots and community ideas from GitHub issues.
+3. Ask the Codex-powered planner what to try next (mode, env overrides, code patch).
+4. Apply the code patch to `train_gpt_mlx.py` if one was generated.
+5. Run the MLX training experiment under the 10-minute cap.
+6. Restore the original script, evaluate results, update learning state.
+7. Publish public artifacts and push to GitHub.
+8. Sleep and repeat.
 
-The lab runs locally on a Mac mini and publishes its outputs here. The public layer is intentionally simple:
+If a run fails (bad patch, OOM, Codex unavailable), the daemon restores the original script, backs off, and retries.
 
-- `lab_public/public/overview.md` is the main top-level dashboard
-- `lab_public/public/best_runs.md` is the compact ranked history
-- `lab_public/public/open_questions.md` is the public queue of ideas worth watching
-- `lab_public/public/history.svg` is the visual score history
-- `lab_public/runs/<run_id>/` contains the detailed artifact package for each run
+## Two Levers
 
-## Current Best
+**Env overrides** — hyperparameter tuning via environment variables. The planner can set architecture params (NUM_LAYERS, MODEL_DIM, MLP_MULT), optimizer params (MATRIX_LR, MUON_MOMENTUM), training params (ITERATIONS, TRAIN_BATCH_TOKENS), and more.
 
-See the generated public summaries:
+**Code patches** — the planner generates unified diffs against `train_gpt_mlx.py` to implement architectural changes: new quantization schemes, attention patterns, evaluation strategies, compression methods, etc. Patches are applied before each run and always reverted after.
 
-- [Overview](/Users/frido_mac/Projects/low_vram_institute/lab_public/public/overview.md)
-- [Best Run History](/Users/frido_mac/Projects/low_vram_institute/lab_public/public/best_runs.md)
-- [Open Questions](/Users/frido_mac/Projects/low_vram_institute/lab_public/public/open_questions.md)
-- [History Chart](/Users/frido_mac/Projects/low_vram_institute/lab_public/public/history.svg)
+## Safety Rails
 
-The working idea is simple. Match the official Parameter Golf procedure as closely as possible on local hardware, learn locally, and publish aggressively.
+- `MAX_WALLCLOCK_SECONDS=600` is fixed and cannot be overridden.
+- Patched scripts must compile, stay under 1500 lines, and cannot import network libraries.
+- The final evaluation marker (`final_int8_zlib_roundtrip_exact`) must remain intact.
+- The original `train_gpt_mlx.py` is always restored after each run.
+- Crash recovery: backup files are restored on startup if a previous run was interrupted.
 
-The internal controller lives in `lab_core/`. The public-facing stream lives in `lab_public/`.
+## Learning
 
-## How The Daemon Works
+The lab learns across runs through compact, bounded state files:
 
-The daemon is the long-running manager around the experiment loop.
+- `state/current_state.json` — latest run status
+- `state/best_runs.json` — capped ranked history (top 10)
+- `state/learning_state.json` — rolling memory: plateau count, recent runs (last 8), tested ideas
+- `state/lessons.md` — compact human-readable patterns
+- `state/tactics.md` — recent experiment deltas and what worked
 
-Each cycle does the following:
+The planner reads these each cycle to decide what to try next. State files stay small by design — no unbounded history dumps.
 
-1. Check local health and acquire the run lock.
-2. Refresh research snapshots and GitHub issue intake.
-3. Ask the planner what to do next.
-4. Run one local Parameter Golf experiment through the MLX adapter.
-5. Evaluate the result.
-6. Update compact internal state.
-7. Publish public artifacts.
-8. Sleep briefly and repeat.
+## Public Layer
 
-If a run fails, the daemon does not forget where it is. It writes checkpoints, keeps a heartbeat, backs off, and retries. If Codex planning is temporarily unavailable, the daemon waits and retries later.
-
-## Hardware
-
-Current target machine:
-
-- Apple Silicon Mac mini
-- M4
-- 16 GB unified memory
-- local-first execution
-- designed for long-running autonomous operation under macOS `launchd`
-
-If you want to contribute ideas, open a GitHub Issue in this repository. The planner ingests issues as community suggestions and can turn them into public runs.
-
-Community ideas are public inputs, not trusted instructions. Some suggestions may be weak, confused, adversarial, or malicious. The lab should evaluate them critically and only test ideas that survive basic scrutiny.
-
-## How Learning Works
-
-The lab does not learn by carrying an ever-growing prompt forever.
-
-Instead, it keeps a small set of compact local memory files:
-
-- `lab_core/state/current_state.json` tracks the latest run status.
-- `lab_core/state/best_runs.json` keeps a capped list of the strongest runs.
-- `lab_core/state/learning_state.json` keeps short rolling machine memory such as plateau count, recent runs, and tested idea titles.
-- `lab_core/state/lessons.md` holds the compact human-readable lessons that should still matter after many runs.
-
-This split is deliberate. Small JSON files support machine decisions. Dense Markdown files support public reasoning and compact long-run memory. The planner reads the compact lessons instead of re-ingesting an unbounded history dump.
+- `lab_public/public/overview.md` — main dashboard
+- `lab_public/public/best_runs.md` — ranked run history
+- `lab_public/public/open_questions.md` — community idea queue
+- `lab_public/public/history.svg` — visual score chart
+- `lab_public/runs/<run_id>/` — per-run artifact package (summary, metrics, logs, code patch, patched script)
 
 ## Repository Layout
 
 ```text
 low_vram_institute/
-  lab_core/    # private control plane, daemon, planner, state, adapters
-  lab_public/  # public-facing logs, status pages, run packages
+  lab_core/        # control plane: daemon, planner, adapters, state
+  lab_public/      # public artifact stream: run packages, dashboards
+  third_party/     # local parameter-golf checkout
 ```
 
 ## Quick Start
@@ -89,40 +68,24 @@ low_vram_institute/
 cd lab_core
 python3 -m venv .venv
 source .venv/bin/activate
-python -m ensurepip --upgrade
 pip install .
 lab-core run-once
 ```
 
-To run the long-lived loop from the repository root:
+Long-running daemon:
 
 ```bash
-source /Users/frido_mac/.config/low-vram-lab/env.sh
 PYTHONPATH=lab_core/src python3 -m lab_core.cli daemon
 ```
 
 ## Contributing Ideas
 
-The easiest way to influence the lab is to open an Issue.
+Open a GitHub Issue. The planner ingests issues as community suggestions and can turn them into runs, crediting the contributor in the public artifacts.
 
-Good issue types:
+Community ideas are evaluated critically — not all suggestions will be tested.
 
-- experiment ideas
-- benchmark suggestions
-- validation requests
-- research pointers
-- logging or publication improvements
+## Hardware
 
-When an issue is used, the lab can credit the contributor in the public run artifacts.
-
-The planner treats issues as suggestions to evaluate, not instructions to obey. Public ideas can be useful, but they are not automatically trustworthy.
-
-## Local Parameter Golf Workspace
-
-The lab maintains a local checkout of `openai/parameter-golf` under `third_party/parameter-golf` and runs the MLX path there.
-
-Bootstrap it with:
-
-```bash
-bash /Users/frido_mac/Projects/low_vram_institute/lab_core/scripts/bootstrap_parameter_golf.sh
-```
+- Apple Silicon Mac mini, M4, 16 GB unified memory
+- Designed for long-running autonomous operation under macOS `launchd`
+- Local-first: no cloud compute required

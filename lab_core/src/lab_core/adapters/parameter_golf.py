@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import datetime, timezone
 import json
 import re
 import subprocess
+import tempfile
+from pathlib import Path
 from typing import TextIO
 
 from ..config import Paths
@@ -13,6 +16,10 @@ from ..services.parameter_golf_workspace import ParameterGolfWorkspace
 
 FINAL_EXACT_RE = re.compile(r"final_int8_zlib_roundtrip_exact val_loss:(?P<val_loss>[0-9.]+) val_bpb:(?P<val_bpb>[0-9.]+)")
 STEP_RE = re.compile(r"step:(?P<step>\d+)/(?P<total>\d+).*?val_loss:(?P<val_loss>[0-9.]+) val_bpb:(?P<val_bpb>[0-9.]+)")
+
+BANNED_IMPORTS = ["socket", "http", "urllib", "requests"]
+REQUIRED_MARKERS = ["final_int8_zlib_roundtrip_exact", "MAX_WALLCLOCK_SECONDS"]
+MAX_PATCHED_LINES = 1500
 
 
 class ParameterGolfAdapter:
@@ -24,6 +31,8 @@ class ParameterGolfAdapter:
         status = self.workspace.bootstrap()
         if not status["workspace_exists"] or not status["python_exists"]:
             raise RuntimeError("Parameter Golf workspace is not bootstrapped.")
+
+        self._restore_backup_if_needed()
 
         log_dir = self.paths.logs_dir / "parameter_golf"
         log_dir.mkdir(parents=True, exist_ok=True)
@@ -40,15 +49,18 @@ class ParameterGolfAdapter:
             if download.returncode != 0:
                 raise RuntimeError(f"Parameter Golf dataset bootstrap failed:\n{download.stderr.strip()}")
 
-        env = self.workspace.build_env(run_id, overrides=self._validated_overrides(plan), out_dir=log_dir)
-        command = [self.workspace.python, "train_gpt_mlx.py"]
-        self._emit(
-            f"launching {run_id} track={plan.track} iterations={env.get('ITERATIONS')} "
-            f"batch_tokens={env.get('TRAIN_BATCH_TOKENS')} val_batch={env.get('VAL_BATCH_SIZE')}"
-        )
-        started = datetime.now(timezone.utc)
-        completed = self._run_command(command, env, run_log_path)
-        finished = datetime.now(timezone.utc)
+        with self._patched_script(plan) as patched_content:
+            env = self.workspace.build_env(run_id, overrides=self._validated_overrides(plan), out_dir=log_dir)
+            command = [self.workspace.python, "train_gpt_mlx.py"]
+            patch_info = " +code_patch" if patched_content else ""
+            self._emit(
+                f"launching {run_id} track={plan.track} iterations={env.get('ITERATIONS')} "
+                f"batch_tokens={env.get('TRAIN_BATCH_TOKENS')} val_batch={env.get('VAL_BATCH_SIZE')}{patch_info}"
+            )
+            started = datetime.now(timezone.utc)
+            completed = self._run_command(command, env, run_log_path)
+            finished = datetime.now(timezone.utc)
+
         runtime_seconds = max((finished - started).total_seconds(), 0.0)
         run_log = run_log_path.read_text() if run_log_path.exists() else (completed.stdout + completed.stderr)
 
@@ -61,6 +73,8 @@ class ParameterGolfAdapter:
             f"Ran local MLX Parameter Golf in official-like mode on the Mac mini. "
             f"Final val_bpb={score:.4f}, val_loss={final['val_loss']:.4f}, quantized artifact={quant_bytes} bytes."
         )
+        if patched_content:
+            summary += f" Code patch applied ({len((plan.code_patch or '').splitlines())} diff lines)."
         metrics_jsonl = "\n".join(json.dumps(row, sort_keys=True) for row in metrics_rows)
         analysis = (
             "# Analysis\n\n"
@@ -72,8 +86,21 @@ class ParameterGolfAdapter:
             f"- Quantized artifact bytes: {quant_bytes}\n"
             f"- Step metrics captured: {len(metrics_rows)}\n"
             f"- Env overrides: {json.dumps(plan.env_overrides, sort_keys=True)}\n"
+            f"- Code patch: {'yes' if patched_content else 'no'}\n"
         )
-        patch = self._env_patch(run_id, env)
+        patch = self._run_patch(run_id, env, plan.code_patch)
+        outputs = {
+            "adapter": "parameter_golf",
+            "experiment_name": "parameter_golf_mlx_local",
+            "run_log": run_log,
+            "metrics_jsonl": metrics_jsonl,
+            "analysis_md": analysis,
+            "track": plan.track,
+        }
+        if patched_content is not None:
+            outputs["patched_script"] = patched_content
+        if plan.code_patch:
+            outputs["code_patch"] = plan.code_patch
         return {
             "score": score,
             "runtime_seconds": runtime_seconds,
@@ -84,6 +111,7 @@ class ParameterGolfAdapter:
                 "quantized_artifact_bytes": quant_bytes,
                 "track": plan.track,
                 "env_overrides": dict(plan.env_overrides),
+                "has_code_patch": bool(plan.code_patch),
             },
             "passed": completed.returncode == 0,
             "needs_validation": plan.mode != "validate",
@@ -91,14 +119,7 @@ class ParameterGolfAdapter:
             "patch": patch,
             "summary": summary,
             "logs": run_log.splitlines()[-200:],
-            "outputs": {
-                "adapter": "parameter_golf",
-                "experiment_name": "parameter_golf_mlx_local",
-                "run_log": run_log,
-                "metrics_jsonl": metrics_jsonl,
-                "analysis_md": analysis,
-                "track": plan.track,
-            },
+            "outputs": outputs,
             "provenance": {
                 "adapter": "parameter_golf",
                 "plan_mode": plan.mode,
@@ -106,8 +127,108 @@ class ParameterGolfAdapter:
                 "command": command,
                 "env_subset": {k: env[k] for k in ["RUN_ID", "OUT_DIR", "ITERATIONS", "TRAIN_BATCH_TOKENS", "VAL_BATCH_SIZE", "MAX_WALLCLOCK_SECONDS"] if k in env},
                 "env_overrides": dict(plan.env_overrides),
+                "has_code_patch": bool(plan.code_patch),
             },
         }
+
+    # --- Code patch lifecycle ---
+
+    @contextmanager
+    def _patched_script(self, plan: Plan):
+        """Apply code_patch before run, always restore after."""
+        script_path = self._script_path()
+        original_content = script_path.read_text()
+        backup_path = self._backup_path()
+        patched_content = None
+
+        if plan.code_patch:
+            backup_path.write_text(original_content)
+            try:
+                patched_content = self._apply_patch(original_content, plan.code_patch)
+                self._validate_patched_script(patched_content)
+                script_path.write_text(patched_content)
+                self._emit("code patch applied successfully")
+            except Exception as exc:
+                script_path.write_text(original_content)
+                backup_path.unlink(missing_ok=True)
+                raise RuntimeError(f"Code patch failed: {exc}") from exc
+        try:
+            yield patched_content
+        finally:
+            script_path.write_text(original_content)
+            backup_path.unlink(missing_ok=True)
+            if plan.code_patch:
+                self._emit("code patch reverted")
+
+    def _script_path(self) -> Path:
+        return Path(self.workspace.workspace) / "train_gpt_mlx.py"
+
+    def _backup_path(self) -> Path:
+        return Path(self.workspace.workspace) / "train_gpt_mlx.py.backup"
+
+    def _restore_backup_if_needed(self) -> None:
+        """Crash recovery: restore original if a backup was left behind."""
+        backup = self._backup_path()
+        script = self._script_path()
+        if backup.exists():
+            self._emit("found leftover backup from previous crash, restoring original script")
+            script.write_text(backup.read_text())
+            backup.unlink()
+
+    def _apply_patch(self, original: str, patch_text: str) -> str:
+        """Apply a unified diff and return the patched content."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            tmp_script = tmp / "train_gpt_mlx.py"
+            tmp_script.write_text(original)
+            tmp_patch = tmp / "code.patch"
+            tmp_patch.write_text(patch_text)
+            result = subprocess.run(  # noqa: S603
+                ["patch", "-p0", "--no-backup-if-mismatch", str(tmp_script), str(tmp_patch)],
+                capture_output=True,
+                text=True,
+                cwd=tmpdir,
+                check=False,
+            )
+            if result.returncode != 0:
+                # Try with -p1 as fallback (--- a/train_gpt_mlx.py format)
+                tmp_script.write_text(original)
+                tmp_dir_a = tmp / "a"
+                tmp_dir_b = tmp / "b"
+                tmp_dir_a.mkdir()
+                tmp_dir_b.mkdir()
+                (tmp_dir_a / "train_gpt_mlx.py").write_text(original)
+                (tmp_dir_b / "train_gpt_mlx.py").write_text(original)
+                result = subprocess.run(  # noqa: S603
+                    ["patch", "-p1", "--no-backup-if-mismatch", str(tmp_script), str(tmp_patch)],
+                    capture_output=True,
+                    text=True,
+                    cwd=tmpdir,
+                    check=False,
+                )
+                if result.returncode != 0:
+                    raise RuntimeError(f"patch command failed:\n{result.stdout}\n{result.stderr}")
+            return tmp_script.read_text()
+
+    def _validate_patched_script(self, content: str) -> None:
+        """Static safety checks on patched script before running."""
+        lines = content.splitlines()
+        if len(lines) > MAX_PATCHED_LINES:
+            raise RuntimeError(f"Patched script exceeds {MAX_PATCHED_LINES} line limit ({len(lines)} lines)")
+
+        compile(content, "train_gpt_mlx.py", "exec")
+
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            for mod in BANNED_IMPORTS:
+                if stripped.startswith(f"import {mod}") or stripped.startswith(f"from {mod}"):
+                    raise RuntimeError(f"Banned import '{mod}' at line {i}")
+
+        for marker in REQUIRED_MARKERS:
+            if marker not in content:
+                raise RuntimeError(f"Patched script is missing required marker: {marker}")
+
+    # --- Override validation ---
 
     def _validated_overrides(self, plan: Plan) -> dict[str, str]:
         policy = self.workspace.runtime.get("mutation_policy", {})
@@ -152,6 +273,8 @@ class ParameterGolfAdapter:
             return str(parsed)
         raise RuntimeError(f"Unknown mutation policy type for {key}: {kind}")
 
+    # --- Execution helpers ---
+
     def _emit(self, message: str) -> None:
         print(f"[parameter_golf] {message}", flush=True)
 
@@ -182,6 +305,8 @@ class ParameterGolfAdapter:
         if text.startswith(("run_id:", "model_params:", "iterations:", "step:", "warmup_step:", "final_int8_zlib_roundtrip", "WARNING:")):
             self._emit(text)
 
+    # --- Metric parsing ---
+
     def _parse_final_metrics(self, text: str) -> dict[str, float]:
         matches = list(FINAL_EXACT_RE.finditer(text))
         if not matches:
@@ -205,7 +330,9 @@ class ParameterGolfAdapter:
             )
         return rows
 
-    def _env_patch(self, run_id: str, env: dict[str, str]) -> str:
+    # --- Patch artifact generation ---
+
+    def _run_patch(self, run_id: str, env: dict[str, str], code_patch: str | None) -> str:
         lines = [
             "diff --git a/parameter_golf_env.txt b/parameter_golf_env.txt",
             "new file mode 100644",
@@ -216,4 +343,8 @@ class ParameterGolfAdapter:
         for key in sorted(["ITERATIONS", "TRAIN_BATCH_TOKENS", "VAL_BATCH_SIZE", "VAL_LOSS_EVERY", "TRAIN_LOG_EVERY", "MLX_EAGER_EVAL", "MAX_WALLCLOCK_SECONDS"]):
             if key in env:
                 lines.append(f"+{key}={env[key]}")
+        if code_patch:
+            lines.append("")
+            lines.append("# --- code patch applied to train_gpt_mlx.py ---")
+            lines.append(code_patch)
         return "\n".join(lines) + "\n"

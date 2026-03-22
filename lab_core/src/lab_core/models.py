@@ -17,6 +17,7 @@ class Plan:
     idea_source: Any = None
     idea_id: Any = None
     track: str = "mac_mini_official_like"
+    code_patch: str | None = None
 
 
 @dataclass

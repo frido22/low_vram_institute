@@ -91,7 +91,9 @@ class Supervisor:
                 self._emit(f"community ideas refreshed: {len(community)}")
 
                 plan = self.planner.plan(research_notes)
-                self.store.append_event("plan_created", {"run_id": run_id, "plan": plan.__dict__})
+                plan_summary = {k: v for k, v in plan.__dict__.items() if k != "code_patch"}
+                plan_summary["has_code_patch"] = bool(plan.code_patch)
+                self.store.append_event("plan_created", {"run_id": run_id, "plan": plan_summary})
                 self.store.write_heartbeat({"run_id": run_id, "status": "planned", "mode": plan.mode, "timestamp": datetime.now(timezone.utc).isoformat()})
                 self._emit(f"plan {plan.mode}: {plan.title}")
 

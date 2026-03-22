@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Optional
 
 from .config import load_runtime
@@ -113,8 +114,9 @@ class Planner:
         for row in recent:
             status = "improved" if row.get("improved_best") else "flat"
             needs_validation = "needs_validation" if row.get("needs_validation") else "stable"
+            patch_tag = " | code_patch" if row.get("has_code_patch") else ""
             recent_lines.append(
-                f"- {row['run_id']} | {row['score']:.4f} | {row['mode']} | {status} | {needs_validation}"
+                f"- {row['run_id']} | {row['score']:.4f} | {row['mode']} | {status} | {needs_validation}{patch_tag}"
             )
         recent_block = "\n".join(recent_lines) if recent_lines else "- none"
         tactic_block = "\n".join(f"- {label}" for label in tactics) if tactics else "- none"
@@ -248,7 +250,6 @@ class Planner:
         mode = self.choose_mode()
         idea = self._community_idea()
         learning = self.store.learning_state()
-        lessons = self.store.lessons_text()
         tactics = self._top_tactics(research_notes)
         tactic_phrase = tactics[0] if tactics else "one upstream-inspired adjustment"
         logging_focus_map = {
@@ -302,19 +303,36 @@ class Planner:
             track="mac_mini_official_like",
         )
 
+    def _training_script_content(self) -> str:
+        workspace = self.runtime.get("parameter_golf", {}).get("workspace", "")
+        script_path = Path(workspace) / "train_gpt_mlx.py"
+        if script_path.exists():
+            try:
+                return script_path.read_text()
+            except OSError:
+                return "(script could not be read)"
+        return "(script not available)"
+
     def _codex_plan(self, research_notes: Sequence[dict], model: Optional[str]) -> Plan:
+        script_content = self._training_script_content()
         prompt = (
             "You are the planner for an always-on public autonomous research lab.\n"
             "Return only JSON matching the provided schema.\n"
             "Choose exactly one mode from: explore, exploit, validate, research, community.\n"
             "Choose one adapter from: parameter_golf.\n"
-            "Also choose 1-3 logging_focus items describing what this run should emphasize publicly.\n"
+            "Choose 1-3 logging_focus items for what this run should emphasize publicly.\n"
             "Choose env_overrides only from the legal mutation space below.\n"
-            "If you do not want to set a knob, omit that key instead of using an empty value.\n"
-            "Use env_overrides aggressively when they are legal and useful. Agency matters.\n"
-            "Use the context below. Keep the plan compact, concrete, and testable.\n\n"
+            "Omit env keys you do not want to set instead of using empty values.\n\n"
+            "You may return a `code_patch` (unified diff against train_gpt_mlx.py) or null.\n"
+            "Code patches are your primary tool for architectural changes.\n"
+            "Use standard unified diff format. Prefer one concrete change per patch.\n"
+            "Study the script, research notes, and upstream tactics to decide what to try.\n"
+            "Learn from prior runs: repeat what worked, avoid what failed.\n\n"
             f"{self._rules_text()}\n\n"
-            f"{self._planner_context(research_notes)}"
+            f"{self._allowed_mutation_block()}\n\n"
+            f"{self._planner_context(research_notes)}\n\n"
+            "## Current train_gpt_mlx.py\n\n"
+            f"```python\n{script_content}\n```\n"
         )
         payload = self.codex.plan(self.store.paths.root, prompt, model=model)
         return Plan(
@@ -329,4 +347,5 @@ class Planner:
             idea_source=payload.get("idea_source"),
             idea_id=payload.get("idea_id"),
             track="mac_mini_official_like",
+            code_patch=payload.get("code_patch") or None,
         )

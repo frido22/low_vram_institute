@@ -200,6 +200,10 @@ class Publisher:
         lines.append(f"- Runtime: {result.evaluation.runtime_seconds:.2f}s")
         lines.append(f"- Passed: {result.evaluation.passed}")
         lines.append(f"- Needs validation: {result.evaluation.needs_validation}")
+        if result.plan.code_patch:
+            lines.append(f"- Code patch: yes ({len(result.plan.code_patch.splitlines())} diff lines)")
+        else:
+            lines.append("- Code patch: none (env overrides only)")
         if result.plan.logging_focus:
             lines.append(f"- Logging focus: {', '.join(result.plan.logging_focus)}")
         lines.append("")
@@ -357,6 +361,10 @@ class Publisher:
             (run_dir / "analysis.md").write_text(result.outputs["analysis_md"].rstrip() + "\n")
         (run_dir / "diff.patch").write_text(result.patch.rstrip() + "\n")
         (run_dir / "provenance.json").write_text(json.dumps(result.provenance, indent=2, sort_keys=True) + "\n")
+        if result.outputs.get("code_patch"):
+            (run_dir / "code_patch.diff").write_text(result.outputs["code_patch"].rstrip() + "\n")
+        if result.outputs.get("patched_script"):
+            (run_dir / "train_gpt_mlx.patched.py").write_text(result.outputs["patched_script"].rstrip() + "\n")
 
         ledger_row = {
             "run_id": result.run_id,
@@ -367,6 +375,7 @@ class Publisher:
             "passed": result.evaluation.passed,
             "idea_source": result.plan.idea_source,
             "track": result.plan.track,
+            "has_code_patch": bool(result.plan.code_patch),
         }
         with (self.store.paths.public_runs_dir / "ledger.jsonl").open("a") as handle:
             handle.write(json.dumps(ledger_row, sort_keys=True) + "\n")
