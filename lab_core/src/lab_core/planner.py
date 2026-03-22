@@ -106,6 +106,7 @@ class Planner:
         community = self.store.community_queue()[:5]
         tactics = self._top_tactics(research_notes)
         lessons = self.store.lessons_text().strip() or "# Lessons\n- none"
+        tactic_memory = self.store.tactics_text().strip() or "# Tactics\n- none"
         recent = learning.get("recent_runs", [])[:5]
 
         recent_lines = []
@@ -151,7 +152,9 @@ class Planner:
             "## Research Notes\n"
             f"{self._format_research_notes(research_notes)}\n\n"
             "## Compact Lessons\n"
-            f"{lessons}\n"
+            f"{lessons}\n\n"
+            "## Recent Tactic Memory\n"
+            f"{tactic_memory}\n"
         )
 
     def _allowed_mutation_block(self) -> str:

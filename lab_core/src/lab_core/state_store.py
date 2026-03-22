@@ -61,6 +61,9 @@ class StateStore:
     def lessons_text(self) -> str:
         return self._read_text(self.paths.state_dir / "lessons.md", "# Lessons\n")
 
+    def tactics_text(self) -> str:
+        return self._read_text(self.paths.state_dir / "tactics.md", "# Tactics\n")
+
     def rejected_ideas_text(self) -> str:
         return self._read_text(self.paths.state_dir / "rejected_ideas.md", "# Rejected Ideas\n")
 
@@ -137,6 +140,7 @@ class StateStore:
             "agenda": self.agenda_text(),
             "insights": self.insights_text(),
             "lessons": self.lessons_text(),
+            "tactics": self.tactics_text(),
             "community_queue": self.community_queue(),
         }
         snapshot_path = self.paths.logs_dir / f"{run_id}_state_snapshot.json"
@@ -194,6 +198,48 @@ class StateStore:
                 lines.append(f"- {title}")
         else:
             lines.append("- No tested community ideas yet.")
+        return "\n".join(lines)
+
+    def _render_tactics(self, recent_runs: list[dict[str, Any]]) -> str:
+        lines = ["# Tactics", ""]
+        if not recent_runs:
+            lines.append("- No experiment deltas yet.")
+            return "\n".join(lines)
+
+        lines.append("## Recent Experiment Deltas")
+        for row in recent_runs[:6]:
+            overrides = row.get("env_overrides") or {}
+            if overrides:
+                delta = ", ".join(f"{key}={value}" for key, value in sorted(overrides.items()))
+            else:
+                delta = "no env override"
+            outcome = "improved" if row.get("improved_best") else "flat"
+            lines.append(f"- {row['run_id']}: {delta} -> {row['score']:.4f} ({outcome})")
+
+        stats: dict[str, dict[str, int]] = {}
+        for row in recent_runs:
+            for key, value in (row.get("env_overrides") or {}).items():
+                label = f"{key}={value}"
+                entry = stats.setdefault(label, {"improved": 0, "flat": 0})
+                bucket = "improved" if row.get("improved_best") else "flat"
+                entry[bucket] += 1
+
+        lines.append("")
+        lines.append("## Repeated Signals")
+        if not stats:
+            lines.append("- No repeated env signals yet.")
+            return "\n".join(lines)
+
+        ranked = sorted(
+            stats.items(),
+            key=lambda item: (item[1]["improved"], -item[1]["flat"], item[0]),
+            reverse=True,
+        )[:8]
+        for label, counts in ranked:
+            verdict = "lean positive" if counts["improved"] > counts["flat"] else "unclear"
+            lines.append(
+                f"- {label}: improved={counts['improved']} flat={counts['flat']} -> {verdict}"
+            )
         return "\n".join(lines)
 
     def update_after_run(self, result: RunResult) -> None:
@@ -277,3 +323,4 @@ class StateStore:
         self.write_json("learning_state.json", learning)
         self.write_text("insights.md", self._render_insights(learning["recent_runs"]))
         self.write_text("lessons.md", self._render_lessons(runs, learning, len(self.community_queue())))
+        self.write_text("tactics.md", self._render_tactics(learning["recent_runs"]))
