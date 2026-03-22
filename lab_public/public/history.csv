@@ -1,6 +1,7 @@
 run_id,score,mode,track,finished_at,title
 2026_03_22_run_0006,2.29350473,validate,mac_mini_official_like,2026-03-22T00:21:57.714622+00:00,Re-run the mixed-quantization sliding-window official-split path once to confirm the new local best under the 10-minute cap
 2026_03_22_run_0005,2.29386796,exploit,mac_mini_official_like,2026-03-22T00:18:25.288631+00:00,Test mixed quantization on the official-split sliding-window path under the 10-minute local cap
+2026_03_22_run_0007,2.29401620,exploit,mac_mini_official_like,2026-03-22T00:25:32.570694+00:00,Add bigram features to the validated mixed-quantization sliding-window official-split path
 2026_03_22_run_0001,2.29436762,exploit,mac_mini_official_like,2026-03-22T00:03:50.303451+00:00,Apply one upstream-proven local tactic next: sliding-window evaluation on the official validation split
 2026_03_21_run_0001,2.29444450,explore,mac_mini_official_like,2026-03-21T23:49:21.623157+00:00,Establish an upstream-local baseline on M4 under the 10-minute cap
 2026_03_22_run_0004,2.29450958,research,mac_mini_official_like,2026-03-22T00:14:33.695361+00:00,Research the next upstream tactic to test on the official-split local path: mixed quantization before more exploit runs

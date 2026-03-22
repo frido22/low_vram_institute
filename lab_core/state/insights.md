@@ -42,3 +42,9 @@
 - Score: 2.2935
 - Outcome: new best
 - Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2935, val_loss=3.8737, quantized artifact=10261883 bytes. Score=2.2935. Expected signal: If the rerun stays near 2.29386796 on the same upstream-like path and within the 10-minute wallclock cap, mixed quantization becomes a trusted baseline to exploit from next. If it regresses materially, treat the prior score as noisy and avoid compounding on an unstable win.
+
+## 2026_03_22_run_0007
+- Hypothesis: Add bigram features to the validated mixed-quantization sliding-window official-split path
+- Score: 2.2940
+- Outcome: no improvement
+- Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2940, val_loss=3.8746, quantized artifact=10261581 bytes. Score=2.2940. Expected signal: A real exploit win is a lower official-split val_bpb than 2.29350473 under the same 10-minute wallclock cap, with the upstream code path preserved except for adding bigram features on top of the validated mixed-quantization sliding-window setup.
