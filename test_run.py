@@ -83,15 +83,19 @@ class RenderContextTests(unittest.TestCase):
 
 class CurveTests(unittest.TestCase):
     def test_no_data(self):
-        self.assertEqual(run._analyze_curve(""), "no_data")
+        self.assertEqual(run._analyze_curve("")["shape"], "no_data")
 
     def test_improving(self):
         lines = "\n".join(json.dumps({"val_bpb": 3.0 - i * 0.1}) for i in range(10))
-        self.assertEqual(run._analyze_curve(lines), "improving")
+        result = run._analyze_curve(lines)
+        self.assertEqual(result["shape"], "improving")
+        self.assertAlmostEqual(result["first_val"], 3.0)
+        self.assertAlmostEqual(result["last_val"], 2.1)
+        self.assertAlmostEqual(result["drop"], 0.9)
 
     def test_flat(self):
         lines = "\n".join(json.dumps({"val_bpb": 2.3}) for _ in range(10))
-        self.assertEqual(run._analyze_curve(lines), "flat")
+        self.assertEqual(run._analyze_curve(lines)["shape"], "flat")
 
 
 class MetricTests(unittest.TestCase):

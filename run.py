@@ -89,10 +89,11 @@ def _save_best(run_id: str, score: float, title: str, script: str, patch: str) -
 # Curve analysis
 # ---------------------------------------------------------------------------
 
-def _analyze_curve(metrics_jsonl: str) -> str:
+def _analyze_curve(metrics_jsonl: str) -> dict[str, Any]:
+    """Analyze training curve. Returns shape + trajectory details."""
     if not metrics_jsonl:
-        return "no_data"
-    scores = []
+        return {"shape": "no_data"}
+    scores: list[float] = []
     for line in metrics_jsonl.strip().splitlines():
         try:
             row = json.loads(line.strip())
@@ -100,17 +101,24 @@ def _analyze_curve(metrics_jsonl: str) -> str:
         except (json.JSONDecodeError, ValueError):
             continue
     if len(scores) < 2:
-        return "too_short"
+        return {"shape": "too_short"}
     mid = len(scores) // 2
     early = scores[0] - scores[mid]
     late = scores[mid] - scores[-1]
     if early > 0.001 and late > 0.001:
-        return "improving"
-    if early > 0.001:
-        return "plateaued"
-    if late > 0.001:
-        return "slow_start"
-    return "flat"
+        shape = "improving"
+    elif early > 0.001:
+        shape = "plateaued"
+    elif late > 0.001:
+        shape = "slow_start"
+    else:
+        shape = "flat"
+    return {
+        "shape": shape,
+        "first_val": round(scores[0], 4),
+        "last_val": round(scores[-1], 4),
+        "drop": round(scores[0] - scores[-1], 4),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +151,7 @@ def render_context() -> str:
     lines.append(f"Runs: {len(rows)} | Improvements: {len(improvements)} | Plateau streak: {plateau}")
     lines.append("")
 
-    # 2. Recent runs with diagnostics + delta
+    # 2. Recent runs with diagnostics + delta + trajectory
     lines.append("Recent runs:")
     for row in rows[-15:]:
         delta = row["score"] - best_val
@@ -159,7 +167,10 @@ def render_context() -> str:
         if row.get("peak_mb"):
             parts.append(f"{row['peak_mb']:.0f}MB")
         if row.get("curve") and row["curve"] != "no_data":
-            parts.append(row["curve"])
+            curve_str = row["curve"]
+            if row.get("first_val") and row.get("last_val"):
+                curve_str += f" {row['first_val']:.3f}→{row['last_val']:.3f}"
+            parts.append(curve_str)
         diag = f" [{', '.join(parts)}]" if parts else ""
         lines.append(f"- {row['run_id']} | {row['score']:.4f} {tag} | {mod}{diag} | {row.get('title', '')}")
     lines.append("")
@@ -204,7 +215,21 @@ def render_context() -> str:
             lines.append(f"  ... and {len(by_title) - 20} more")
         lines.append("")
 
-    # 5. Improvement path — how we got to current best
+    # 5. Speed-score insight — does more steps = better score?
+    runs_with_steps = [r for r in rows if r.get("step_count") and r.get("step_count") > 0]
+    if len(runs_with_steps) >= 3:
+        by_steps = sorted(runs_with_steps, key=lambda r: r["step_count"], reverse=True)
+        fastest = by_steps[0]
+        slowest = by_steps[-1]
+        if fastest["step_count"] != slowest["step_count"]:
+            lines.append("Speed insight:")
+            lines.append(f"- Most steps: {fastest['step_count']} → {fastest['score']:.4f} ({fastest.get('title', '')})")
+            lines.append(f"- Fewest steps: {slowest['step_count']} → {slowest['score']:.4f} ({slowest.get('title', '')})")
+            if fastest["score"] < slowest["score"]:
+                lines.append("- Pattern: more steps correlates with better scores")
+            lines.append("")
+
+    # 6. Improvement path — how we got to current best
     if improvements:
         lines.append("Improvements (path to current best):")
         for r in improvements:
@@ -247,7 +272,10 @@ def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
         "peak_mb": diag.get("peak_mb"),
         "active_mb": diag.get("active_mb"),
         "quantized_bytes": diag.get("quantized_bytes"),
-        "curve": curve,
+        "curve": curve.get("shape", "no_data"),
+        "curve_drop": curve.get("drop"),
+        "first_val": curve.get("first_val"),
+        "last_val": curve.get("last_val"),
         "track": plan_dict.get("track", ""),
     })
 
@@ -322,7 +350,7 @@ def _build_prompt(run_errors: list[str] | None = None) -> str:
     rules_path = CONFIG_DIR / "parameter_golf_rules.md"
     rules = rules_path.read_text().strip() if rules_path.exists() else ""
 
-    # Training script
+    # Training script (original)
     ws_path = runtime.get("parameter_golf", {}).get("workspace", "")
     script = "(script not available)"
     if ws_path:
@@ -333,9 +361,12 @@ def _build_prompt(run_errors: list[str] | None = None) -> str:
             except OSError:
                 pass
 
-    # Best diff
-    diff = best_diff().strip()
-    diff_section = f"## Current Best Changes\n```diff\n{diff}\n```" if diff else ""
+    # Best modified script — Codex should start from this, not from original + diff
+    best = best_script()
+    if best:
+        best_script_section = f"## Current Best Script (start from this)\n\n```python\n{best}\n```"
+    else:
+        best_script_section = ""
 
     # Errors
     errors_section = ""
@@ -347,7 +378,7 @@ def _build_prompt(run_errors: list[str] | None = None) -> str:
     return template.format(
         rules=rules,
         history=render_context(),
-        best_diff_section=diff_section,
+        best_script_section=best_script_section,
         script=script,
         errors_section=errors_section,
     )
@@ -487,7 +518,35 @@ def _render_svg() -> str:
 # Git push
 # ---------------------------------------------------------------------------
 
-def _git_push(run_id: str) -> None:
+_runs_since_push = 0
+GIT_PUSH_EVERY = 5  # batch git pushes to save time
+
+
+def _git_push(run_id: str, force: bool = False) -> None:
+    global _runs_since_push  # noqa: PLW0603
+    _runs_since_push += 1
+    if not force and _runs_since_push < GIT_PUSH_EVERY:
+        # Just commit locally, push later
+        _git_commit(run_id)
+        return
+    _runs_since_push = 0
+    _git_commit(run_id)
+    _git_remote_push()
+
+
+def _git_commit(run_id: str) -> None:
+    if not (ROOT / ".git").exists():
+        return
+    for cmd in [
+        ["git", "add", "output/reports", "output/runs"],
+        ["git", "commit", "-m", f"Publish {run_id}"],
+    ]:
+        r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=False)  # noqa: S603
+        if r.returncode != 0 and not ("commit" in cmd and "nothing to commit" in r.stdout.lower()):
+            return
+
+
+def _git_remote_push() -> None:
     if not (ROOT / ".git").exists():
         return
     runtime = _load_runtime()
@@ -507,15 +566,9 @@ def _git_push(run_id: str) -> None:
         base = ["git", "-c", "credential.helper=", "-c", "core.askPass=",
                 "-c", f"http.extraHeader=AUTHORIZATION: basic {basic}"]
 
-    for cmd in [
-        base + ["add", "output/reports", "output/runs"],
-        base + ["commit", "-m", f"Publish {run_id}"],
-        base + ["push", "origin", branch],
-    ]:
-        r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=False)  # noqa: S603
-        if r.returncode != 0 and not ("commit" in cmd and "nothing to commit" in r.stdout.lower()):
-            _emit(f"git failed: {r.stderr.strip()[:200]}")
-            return
+    r = subprocess.run(base + ["push", "origin", branch], cwd=ROOT, capture_output=True, text=True, check=False)  # noqa: S603
+    if r.returncode != 0:
+        _emit(f"git push failed: {r.stderr.strip()[:200]}")
 
 
 # ---------------------------------------------------------------------------

@@ -9,7 +9,7 @@ Return only JSON matching the provided schema.
 ## Output
 Return `modified_script`: the COMPLETE modified `train_gpt_mlx.py`.
 EVERY run must change something. Null is only acceptable for the very first baseline.
-To compound: incorporate the best diff below and add your changes.
+Start from the current best script below and make your changes on top.
 Original is always restored after each run — be fearless.
 
 {rules}
@@ -17,9 +17,9 @@ Original is always restored after each run — be fearless.
 ## Run History
 {history}
 
-{best_diff_section}
+{best_script_section}
 
-## Original train_gpt_mlx.py
+## Original train_gpt_mlx.py (baseline, unmodified)
 
 ```python
 {script}
