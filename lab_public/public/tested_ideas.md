@@ -1,5 +1,6 @@
 # Tested Ideas
 
+- Shorten warmdown to match the Mac mini's actual 10-minute step budget -> 2026_03_22_run_0022 scored 3.3581
 - Community Replay Of The Validated Tied-Embedding Bigram Residual -> 2026_03_22_run_0016 scored 5.8655
 - Replay Tied-Embedding Bigram Residual -> 2026_03_22_run_0013 scored 5.8662
 - Replay the validated tied-embedding bigram residual once more -> 2026_03_22_run_0017 scored 5.8671
@@ -9,9 +10,8 @@
 - Replay Muon Momentum 0.99 On Top Of Validated WD 0.04 -> 2026_03_22_run_0008 scored 9.2520
 - Tighten Mixed-Quantization Passthrough Threshold -> 2026_03_22_run_0020 scored 9.2520
 - Probe Lower Muon Matrix Weight Decay At 0.03 -> 2026_03_22_run_0011 scored 9.2528
-- Replay validated Muon WD 0.04 + momentum 0.99, then tighten mixed-quantization passthrough -> 2026_03_22_run_0007 scored 9.2533
 
 ## Latest Tested Idea
-- Probe decoupled weight decay on the current tied-residual MLX path
-- Result: 9.3116
-- Contributor: internal
+- Shorten warmdown to match the Mac mini's actual 10-minute step budget
+- Result: 3.3581
+- Contributor: local_m4_wallclock_analysis
