@@ -40,7 +40,7 @@ class ParameterGolfAdapter:
             if download.returncode != 0:
                 raise RuntimeError(f"Parameter Golf dataset bootstrap failed:\n{download.stderr.strip()}")
 
-        env = self.workspace.build_env(run_id, out_dir=log_dir)
+        env = self.workspace.build_env(run_id, overrides=self._validated_overrides(plan), out_dir=log_dir)
         command = [self.workspace.python, "train_gpt_mlx.py"]
         self._emit(
             f"launching {run_id} track={plan.track} iterations={env.get('ITERATIONS')} "
@@ -71,6 +71,7 @@ class ParameterGolfAdapter:
             f"- Final val_loss: {final['val_loss']:.4f}\n"
             f"- Quantized artifact bytes: {quant_bytes}\n"
             f"- Step metrics captured: {len(metrics_rows)}\n"
+            f"- Env overrides: {json.dumps(plan.env_overrides, sort_keys=True)}\n"
         )
         patch = self._env_patch(run_id, env)
         return {
@@ -82,6 +83,7 @@ class ParameterGolfAdapter:
                 "generated_at": finished.isoformat(),
                 "quantized_artifact_bytes": quant_bytes,
                 "track": plan.track,
+                "env_overrides": dict(plan.env_overrides),
             },
             "passed": completed.returncode == 0,
             "needs_validation": plan.mode != "validate",
@@ -103,8 +105,52 @@ class ParameterGolfAdapter:
                 "workspace": str(self.workspace.workspace),
                 "command": command,
                 "env_subset": {k: env[k] for k in ["RUN_ID", "OUT_DIR", "ITERATIONS", "TRAIN_BATCH_TOKENS", "VAL_BATCH_SIZE", "MAX_WALLCLOCK_SECONDS"] if k in env},
+                "env_overrides": dict(plan.env_overrides),
             },
         }
+
+    def _validated_overrides(self, plan: Plan) -> dict[str, str]:
+        policy = self.workspace.runtime.get("mutation_policy", {})
+        allowed = policy.get("allowed_env", {})
+        fixed = {str(k): str(v) for k, v in policy.get("fixed_env", {}).items()}
+        overrides = {str(k): str(v) for k, v in (plan.env_overrides or {}).items()}
+        validated: dict[str, str] = {}
+        disallowed_keys = {"DATA_PATH", "TOKENIZER_PATH", "OUT_DIR", "RUN_ID", "VOCAB_SIZE"}
+
+        for key, value in overrides.items():
+            if key in disallowed_keys:
+                raise RuntimeError(f"Illegal Parameter Golf override: {key}")
+            if key in fixed and value != fixed[key]:
+                raise RuntimeError(f"Fixed Parameter Golf constraint violated: {key} must remain {fixed[key]}")
+            spec = allowed.get(key)
+            if spec is None:
+                raise RuntimeError(f"Unsupported Parameter Golf override: {key}")
+            validated[key] = self._validate_override_value(key, value, spec)
+
+        validated.update(fixed)
+        return validated
+
+    def _validate_override_value(self, key: str, value: str, spec: dict) -> str:
+        kind = spec.get("type")
+        if kind == "choice":
+            values = [str(item) for item in spec.get("values", [])]
+            if value not in values:
+                raise RuntimeError(f"Illegal value for {key}: {value}")
+            return value
+        if kind == "int":
+            try:
+                parsed = int(value)
+            except ValueError as exc:
+                raise RuntimeError(f"Illegal integer value for {key}: {value}") from exc
+            minimum = int(spec.get("min", parsed))
+            maximum = int(spec.get("max", parsed))
+            step = int(spec.get("step", 1))
+            if parsed < minimum or parsed > maximum:
+                raise RuntimeError(f"Illegal value for {key}: {value}")
+            if (parsed - minimum) % step != 0:
+                raise RuntimeError(f"Illegal step for {key}: {value}")
+            return str(parsed)
+        raise RuntimeError(f"Unknown mutation policy type for {key}: {kind}")
 
     def _emit(self, message: str) -> None:
         print(f"[parameter_golf] {message}", flush=True)

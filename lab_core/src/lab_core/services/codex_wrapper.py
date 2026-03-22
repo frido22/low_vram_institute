@@ -41,7 +41,7 @@ class CodexWrapper:
 
         schema = {
             "type": "object",
-            "required": ["mode", "title", "rationale", "expected_signal", "public_updates", "adapter", "logging_focus", "idea_source", "idea_id"],
+            "required": ["mode", "title", "rationale", "expected_signal", "public_updates", "adapter", "logging_focus", "env_overrides", "idea_source", "idea_id"],
             "properties": {
                 "mode": {"type": "string"},
                 "title": {"type": "string"},
@@ -50,6 +50,10 @@ class CodexWrapper:
                 "public_updates": {"type": "array", "items": {"type": "string"}},
                 "adapter": {"type": "string"},
                 "logging_focus": {"type": "array", "items": {"type": "string"}},
+                "env_overrides": {
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                },
                 "idea_source": {"type": ["string", "null"]},
                 "idea_id": {"type": ["string", "null"]},
             },

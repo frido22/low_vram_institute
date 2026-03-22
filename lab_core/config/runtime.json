@@ -15,6 +15,47 @@
     "dataset_variant": "sp1024",
     "train_shards": 1,
     "local_track": "mac_mini_official_like",
+    "mutation_policy": {
+      "fixed_env": {
+        "MAX_WALLCLOCK_SECONDS": "600"
+      },
+      "allowed_env": {
+        "ITERATIONS": {
+          "type": "int",
+          "min": 100,
+          "max": 1200,
+          "step": 25
+        },
+        "TRAIN_BATCH_TOKENS": {
+          "type": "int",
+          "min": 4096,
+          "max": 32768,
+          "step": 1024
+        },
+        "VAL_BATCH_SIZE": {
+          "type": "int",
+          "min": 4096,
+          "max": 32768,
+          "step": 1024
+        },
+        "VAL_LOSS_EVERY": {
+          "type": "int",
+          "min": 0,
+          "max": 400,
+          "step": 25
+        },
+        "TRAIN_LOG_EVERY": {
+          "type": "int",
+          "min": 5,
+          "max": 100,
+          "step": 5
+        },
+        "MLX_EAGER_EVAL": {
+          "type": "choice",
+          "values": ["0", "1"]
+        }
+      }
+    },
     "default_env": {
       "ITERATIONS": "200",
       "TRAIN_BATCH_TOKENS": "8192",

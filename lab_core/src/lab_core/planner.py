@@ -154,6 +154,83 @@ class Planner:
             f"{lessons}\n"
         )
 
+    def _allowed_mutation_block(self) -> str:
+        policy = self.runtime.get("parameter_golf", {}).get("mutation_policy", {})
+        fixed = policy.get("fixed_env", {})
+        allowed = policy.get("allowed_env", {})
+        lines = ["## Allowed Env Overrides"]
+        for key, spec in allowed.items():
+            if spec.get("type") == "int":
+                lines.append(
+                    f"- {key}: int in [{spec.get('min')}, {spec.get('max')}] step {spec.get('step')}"
+                )
+            elif spec.get("type") == "choice":
+                values = ", ".join(spec.get("values", []))
+                lines.append(f"- {key}: one of [{values}]")
+        lines.append("")
+        lines.append("## Fixed Constraints")
+        for key, value in fixed.items():
+            lines.append(f"- {key}: must remain {value}")
+        lines.append("- Do not set DATA_PATH, TOKENIZER_PATH, OUT_DIR, RUN_ID, or VOCAB_SIZE")
+        lines.append("- Do not change anything that would train on validation data")
+        return "\n".join(lines)
+
+    def _rules_text(self) -> str:
+        rules_path = self.store.paths.config_dir / "parameter_golf_rules.md"
+        if rules_path.exists():
+            return rules_path.read_text().strip()
+        return self._allowed_mutation_block()
+
+    def _default_env(self) -> dict[str, str]:
+        return {
+            str(key): str(value)
+            for key, value in self.runtime.get("parameter_golf", {}).get("default_env", {}).items()
+        }
+
+    def _legal_env_overrides(self) -> dict[str, str]:
+        defaults = self._default_env()
+        learning = self.store.learning_state()
+        recent = learning.get("recent_runs", [])
+        mode = self.choose_mode()
+        overrides: dict[str, str] = {}
+        base_iterations = int(defaults.get("ITERATIONS", "200"))
+        base_val_loss_every = int(defaults.get("VAL_LOSS_EVERY", "0"))
+        base_log_every = int(defaults.get("TRAIN_LOG_EVERY", "25"))
+        base_batch = int(defaults.get("TRAIN_BATCH_TOKENS", "8192"))
+        base_val_batch = int(defaults.get("VAL_BATCH_SIZE", "8192"))
+        recent_runtime = None
+        if recent:
+            latest_id = recent[0].get("run_id")
+            latest_run_dir = self.store.paths.public_runs_dir / str(latest_id)
+            metrics_path = latest_run_dir / "metrics.json"
+            if metrics_path.exists():
+                try:
+                    payload = json.loads(metrics_path.read_text())
+                    recent_runtime = float(payload.get("runtime_seconds", 0.0))
+                except (OSError, ValueError, TypeError):
+                    recent_runtime = None
+
+        if recent_runtime and recent_runtime < 420:
+            target = int(round(base_iterations * min(600.0 / max(recent_runtime, 1.0), 2.5) / 25.0) * 25)
+            overrides["ITERATIONS"] = str(max(base_iterations, min(target, 1200)))
+        elif learning.get("plateau_count", 0) >= 2:
+            overrides["ITERATIONS"] = str(min(base_iterations + 100, 1200))
+
+        if mode == "validate":
+            overrides["VAL_LOSS_EVERY"] = "200"
+            overrides["TRAIN_LOG_EVERY"] = "20"
+        elif mode == "research":
+            overrides["TRAIN_LOG_EVERY"] = "10"
+            overrides["VAL_LOSS_EVERY"] = str(base_val_loss_every)
+        elif mode == "exploit":
+            overrides["TRAIN_BATCH_TOKENS"] = str(min(base_batch + 1024, 32768))
+            overrides["VAL_BATCH_SIZE"] = str(min(base_val_batch + 1024, 32768))
+            overrides["TRAIN_LOG_EVERY"] = str(base_log_every)
+        else:
+            overrides["TRAIN_LOG_EVERY"] = str(base_log_every)
+
+        return overrides
+
     def plan(self, research_notes: Sequence[dict]) -> Plan:
         codex_cfg = self.runtime.get("codex", {})
         if codex_cfg.get("enabled"):
@@ -202,6 +279,7 @@ class Planner:
             updates.append("contributors")
 
         adapter = "parameter_golf"
+        env_overrides = self._legal_env_overrides()
 
         return Plan(
             mode=mode,
@@ -211,6 +289,7 @@ class Planner:
             public_updates=updates,
             adapter=adapter,
             logging_focus=logging_focus_map[mode],
+            env_overrides=env_overrides,
             idea_source=idea.get("author") if idea else None,
             idea_id=idea.get("id") if idea else None,
             track="mac_mini_official_like",
@@ -223,7 +302,10 @@ class Planner:
             "Choose exactly one mode from: explore, exploit, validate, research, community.\n"
             "Choose one adapter from: parameter_golf.\n"
             "Also choose 1-3 logging_focus items describing what this run should emphasize publicly.\n"
+            "Choose env_overrides only from the legal mutation space below.\n"
+            "Use env_overrides aggressively when they are legal and useful. Agency matters.\n"
             "Use the context below. Keep the plan compact, concrete, and testable.\n\n"
+            f"{self._rules_text()}\n\n"
             f"{self._planner_context(research_notes)}"
         )
         payload = self.codex.plan(self.store.paths.root, prompt, model=model)
@@ -235,6 +317,7 @@ class Planner:
             public_updates=list(payload["public_updates"]),
             adapter=payload["adapter"],
             logging_focus=list(payload.get("logging_focus") or []),
+            env_overrides={str(k): str(v) for k, v in (payload.get("env_overrides") or {}).items()},
             idea_source=payload.get("idea_source"),
             idea_id=payload.get("idea_id"),
             track="mac_mini_official_like",
