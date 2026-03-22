@@ -184,6 +184,15 @@ class Planner:
             return rules_path.read_text().strip()
         return self._allowed_mutation_block()
 
+    def _normalize_env_overrides(self, overrides: dict[str, object] | None) -> dict[str, str]:
+        normalized: dict[str, str] = {}
+        for key, value in (overrides or {}).items():
+            text = str(value).strip()
+            if not text:
+                continue
+            normalized[str(key)] = text
+        return normalized
+
     def _default_env(self) -> dict[str, str]:
         return {
             str(key): str(value)
@@ -301,6 +310,7 @@ class Planner:
             "Choose one adapter from: parameter_golf.\n"
             "Also choose 1-3 logging_focus items describing what this run should emphasize publicly.\n"
             "Choose env_overrides only from the legal mutation space below.\n"
+            "If you do not want to set a knob, omit that key instead of using an empty value.\n"
             "Use env_overrides aggressively when they are legal and useful. Agency matters.\n"
             "Use the context below. Keep the plan compact, concrete, and testable.\n\n"
             f"{self._rules_text()}\n\n"
@@ -315,7 +325,7 @@ class Planner:
             public_updates=list(payload["public_updates"]),
             adapter=payload["adapter"],
             logging_focus=list(payload.get("logging_focus") or []),
-            env_overrides={str(k): str(v) for k, v in (payload.get("env_overrides") or {}).items()},
+            env_overrides=self._normalize_env_overrides(payload.get("env_overrides")),
             idea_source=payload.get("idea_source"),
             idea_id=payload.get("idea_id"),
             track="mac_mini_official_like",
