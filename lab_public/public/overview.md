@@ -1,14 +1,14 @@
 # Lab Overview
 
 ## Latest
-- Run: 2026_03_22_run_0019
+- Run: 2026_03_22_run_0020
 - Score: 2.2943
-- Mode: validate
-- Focus: Re-run upstream baseline twice under the official 10-minute validation path on M4
-- Runtime: 180.74s
+- Mode: research
+- Focus: Reproduce the current upstream best candidate on the official M4 validation path
+- Runtime: 180.99s
 - Passed: True
-- Needs validation: False
-- Logging focus: upstream parity, rerun stability, time-cap compliance
+- Needs validation: True
+- Logging focus: upstream parity, validation split fidelity, runtime under 10-minute cap
 
 ## Best
 - Run: 2026_03_22_run_0017
@@ -16,17 +16,17 @@
 - Title: Re-run official baseline twice on the upstream validation path
 
 ## Learning
-- Plateau count: 2
+- Plateau count: 3
 - Tested community ideas: 1
+- Recent: 2026_03_22_run_0020 -> 2.2943 (flat)
 - Recent: 2026_03_22_run_0019 -> 2.2943 (flat)
 - Recent: 2026_03_22_run_0018 -> 2.2934 (flat)
-- Recent: 2026_03_22_run_0017 -> 2.2933 (improved)
 
 ## Queue
 - Open community ideas: 2
 
 ## Details
-- Full run package: `lab_public/runs/2026_03_22_run_0019/`
+- Full run package: `lab_public/runs/2026_03_22_run_0020/`
 - Best-run table: `lab_public/public/best_runs.md`
 - History chart: `lab_public/public/history.svg`
 - Open questions: `lab_public/public/open_questions.md`

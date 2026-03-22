@@ -3,3 +3,4 @@ run_id,score,mode,track,finished_at,title
 2026_03_22_run_0017,2.29327863,validate,mac_mini_official_like,2026-03-22T01:53:35.802055+00:00,Re-run official baseline twice on the upstream validation path
 2026_03_22_run_0018,2.29340939,community,mac_mini_official_like,2026-03-22T01:56:59.141319+00:00,Queue the public validation-policy idea and test whether it improves promotion discipline without changing the upstream eval path
 2026_03_22_run_0019,2.29425641,validate,mac_mini_official_like,2026-03-22T02:00:19.690057+00:00,Re-run upstream baseline twice under the official 10-minute validation path on M4
+2026_03_22_run_0020,2.29433184,research,mac_mini_official_like,2026-03-22T02:03:40.864878+00:00,Reproduce the current upstream best candidate on the official M4 validation path
