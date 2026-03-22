@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from .config import load_runtime
-from .models import Plan
+from .models import COMMUNITY_TITLE_PREFIX, Plan
 from .services.codex_wrapper import CodexWrapper
 from .state_store import StateStore
 
@@ -253,7 +253,7 @@ class Planner:
             "exploit": f"Refine the current best direction with {tactic_phrase}",
             "validate": "Re-run the latest promising path to estimate variance",
             "research": f"Translate upstream signals into one concrete M4 test around {tactic_phrase}",
-            "community": f"Test community suggestion: {idea['title']}" if idea else "Process community suggestion queue",
+            "community": f"{COMMUNITY_TITLE_PREFIX}{idea['title']}" if idea else "Process community suggestion queue",
         }
         rationale_map = {
             "explore": "No reliable best run exists yet, so the loop should establish a baseline.",
@@ -311,9 +311,11 @@ class Planner:
             "Choose 1-3 logging_focus items for what this run should emphasize publicly.\n"
             "Choose env_overrides only from the legal mutation space below.\n"
             "Omit env keys you do not want to set instead of using empty values.\n\n"
-            "You may return a `code_patch` (unified diff against train_gpt_mlx.py) or null.\n"
+            "You may return a `code_patch` (list of search-and-replace edits to train_gpt_mlx.py) or null.\n"
             "Code patches are your primary tool for architectural changes.\n"
-            "Use standard unified diff format. Prefer one concrete change per patch.\n"
+            "Each edit is {\"old\": \"exact string from the file\", \"new\": \"replacement\"}.\n"
+            "The old string must appear exactly once in the file. Edits are applied in order.\n"
+            "Prefer one concrete change per patch. Keep edits minimal and targeted.\n"
             "Study the script, research notes, and upstream tactics to decide what to try.\n"
             "Learn from prior runs: repeat what worked, avoid what failed.\n\n"
             f"{self._rules_text()}\n\n"
@@ -335,5 +337,5 @@ class Planner:
             idea_source=payload.get("idea_source"),
             idea_id=payload.get("idea_id"),
             track=self.track,
-            code_patch=payload.get("code_patch") or None,
+            code_patch=payload.get("code_patch") or None,  # list[{old, new}] or None
         )

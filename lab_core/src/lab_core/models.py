@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+COMMUNITY_TITLE_PREFIX = "Test community suggestion: "
+
 
 @dataclass
 class Plan:
@@ -14,10 +16,10 @@ class Plan:
     adapter: str
     logging_focus: list[str] = field(default_factory=list)
     env_overrides: dict[str, str] = field(default_factory=dict)
-    idea_source: Any = None
-    idea_id: Any = None
+    idea_source: str | None = None
+    idea_id: str | None = None
     track: str = "mac_mini_official_like"
-    code_patch: str | None = None
+    code_patch: list[dict[str, str]] | None = None
 
 
 @dataclass

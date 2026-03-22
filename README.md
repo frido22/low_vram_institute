@@ -23,7 +23,7 @@ If a run fails (bad patch, OOM, Codex unavailable), the daemon restores the orig
 
 **Env overrides** — hyperparameter tuning via environment variables. The planner can set architecture params (NUM_LAYERS, MODEL_DIM, MLP_MULT), optimizer params (MATRIX_LR, MUON_MOMENTUM), training params (ITERATIONS, TRAIN_BATCH_TOKENS), and more.
 
-**Code patches** — the planner generates unified diffs against `train_gpt_mlx.py` to implement architectural changes: new quantization schemes, attention patterns, evaluation strategies, compression methods, etc. Patches are applied before each run and always reverted after.
+**Code patches** — the planner generates search-and-replace edits to `train_gpt_mlx.py` to implement architectural changes: new quantization schemes, attention patterns, evaluation strategies, compression methods, etc. Patches are applied before each run and always reverted after.
 
 ## Safety Rails
 
@@ -40,8 +40,7 @@ The lab learns across runs through compact, bounded state files:
 - `state/current_state.json` — latest run status
 - `state/best_runs.json` — capped ranked history (top 10)
 - `state/learning_state.json` — rolling memory: plateau count, recent runs (last 8), tested ideas
-- `state/lessons.md` — compact human-readable patterns
-- `state/tactics.md` — recent experiment deltas and what worked
+- `state/lessons.md` — compact human-readable patterns: experiment deltas, repeated signals, tested ideas
 
 The planner reads these each cycle to decide what to try next. State files stay small by design — no unbounded history dumps.
 
@@ -51,7 +50,7 @@ The planner reads these each cycle to decide what to try next. State files stay 
 - `lab_public/public/best_runs.md` — ranked run history
 - `lab_public/public/open_questions.md` — community idea queue
 - `lab_public/public/history.svg` — visual score chart
-- `lab_public/runs/<run_id>/` — per-run artifact package (summary, metrics, logs, code patch, patched script)
+- `lab_public/runs/<run_id>/` — per-run artifact package (summary, metrics, logs, analysis)
 
 ## Repository Layout
 

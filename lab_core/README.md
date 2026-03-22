@@ -50,8 +50,6 @@ lab_core/
   logs/
   snapshots/research/
   launchd/
-  ARCHITECTURE.md
-  MANIFESTO.md
 ```
 
 ## Run
@@ -98,12 +96,9 @@ bash /Users/frido_mac/Projects/low_vram_institute/lab_core/scripts/bootstrap_par
 
 - `state/current_state.json`
 - `state/learning_state.json`
-- `state/lessons.md`
-- `state/insights.md`
-- `state/ideas_queue.md`
-- `state/rejected_ideas.md`
 - `state/best_runs.json`
-- `state/agenda.md`
+- `state/lessons.md`
+- `state/rejected_ideas.md`
 - `state/community_queue.jsonl`
 
 ## GitHub Token Setup

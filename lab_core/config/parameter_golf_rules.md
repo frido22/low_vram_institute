@@ -12,18 +12,12 @@ Prefer one concrete experiment delta per run. Make the delta explicit.
 
 ## Code Patches
 
-You may return a `code_patch` (unified diff against `train_gpt_mlx.py`) or null.
-The patch is applied before the run and automatically reverted after.
+You may return a `code_patch` (list of search-and-replace edits to `train_gpt_mlx.py`) or null.
+Edits are applied before the run and automatically reverted after.
 
-Use standard unified diff format:
-```
---- a/train_gpt_mlx.py
-+++ b/train_gpt_mlx.py
-@@ -line,count +line,count @@
- context
--old
-+new
-```
+Each edit is `{"old": "exact string from the file", "new": "replacement"}`.
+The `old` string must appear exactly once in the file. Edits are applied in order.
+Keep edits minimal — include just enough context to be unique.
 
 ## Hard Rules
 

@@ -41,8 +41,6 @@ class SupervisorTests(unittest.TestCase):
         (root / "state" / "best_runs.json").write_text(json.dumps({"best_score": None, "runs": []}))
         (root / "state" / "community_queue.jsonl").write_text("")
         (root / "state" / "learning_state.json").write_text(json.dumps({"plateau_count": 0, "recent_runs": [], "best_score": None, "last_improving_run_id": None, "tested_idea_titles": []}))
-        (root / "state" / "agenda.md").write_text("# Agenda\n")
-        (root / "state" / "insights.md").write_text("# Insights\n")
         return root
 
     def test_run_once_returns_run_id(self) -> None:

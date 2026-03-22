@@ -56,7 +56,18 @@ class CodexWrapper:
                 },
                 "idea_source": {"type": ["string", "null"]},
                 "idea_id": {"type": ["string", "null"]},
-                "code_patch": {"type": ["string", "null"]},
+                "code_patch": {
+                    "type": ["array", "null"],
+                    "items": {
+                        "type": "object",
+                        "required": ["old", "new"],
+                        "properties": {
+                            "old": {"type": "string"},
+                            "new": {"type": "string"},
+                        },
+                        "additionalProperties": False,
+                    },
+                },
             },
             "additionalProperties": False,
         }

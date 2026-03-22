@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import Paths
-from .models import RunResult
+from .models import COMMUNITY_TITLE_PREFIX, RunResult
 
 
 class StateStore:
@@ -263,7 +263,7 @@ class StateStore:
         )
         tested_titles = list(learning.get("tested_idea_titles", []))
         if result.plan.mode == "community":
-            source_title = result.plan.title.removeprefix("Test community suggestion: ").strip()
+            source_title = result.plan.title.removeprefix(COMMUNITY_TITLE_PREFIX).strip()
             if source_title and source_title not in tested_titles:
                 tested_titles.append(source_title)
             self.mark_community_idea_tested(result.plan.idea_id, status="tested" if result.evaluation.passed else "rejected")
