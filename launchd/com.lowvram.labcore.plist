@@ -9,7 +9,7 @@
       <string>/usr/bin/env</string>
       <string>bash</string>
       <string>-lc</string>
-      <string>test -f /Users/frido_mac/.config/low-vram-lab/env.sh &amp;&amp; source /Users/frido_mac/.config/low-vram-lab/env.sh; cd /Users/frido_mac/Projects/low_vram_institute &amp;&amp; source .venv/bin/activate &amp;&amp; lab daemon</string>
+      <string>test -f /Users/frido_mac/.config/low-vram-lab/env.sh &amp;&amp; source /Users/frido_mac/.config/low-vram-lab/env.sh; cd /Users/frido_mac/Projects/low_vram_institute &amp;&amp; python3 run.py daemon</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
