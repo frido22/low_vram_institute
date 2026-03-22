@@ -17,9 +17,7 @@ from typing import Any
 
 import parameter_golf
 
-# ---------------------------------------------------------------------------
-# Paths & constants
-# ---------------------------------------------------------------------------
+#Paths & constants
 
 ROOT = Path(__file__).resolve().parent
 STATE_DIR = ROOT / "state"
@@ -44,9 +42,7 @@ def _load_runtime() -> dict[str, Any]:
     return json.loads(p.read_text()) if p.exists() else {}
 
 
-# ---------------------------------------------------------------------------
-# Ledger (state/ledger.jsonl)
-# ---------------------------------------------------------------------------
+#Ledger (state/ledger.jsonl)
 
 def ledger_rows() -> list[dict[str, Any]]:
     p = STATE_DIR / "ledger.jsonl"
@@ -85,9 +81,7 @@ def _save_best(run_id: str, score: float, title: str, script: str, patch: str) -
     (STATE_DIR / "best_diff.patch").write_text(patch.rstrip() + "\n")
 
 
-# ---------------------------------------------------------------------------
-# Curve analysis
-# ---------------------------------------------------------------------------
+#Curve analysis
 
 def _analyze_curve(metrics_jsonl: str) -> dict[str, Any]:
     """Analyze training curve. Returns shape + trajectory details."""
@@ -121,9 +115,7 @@ def _analyze_curve(metrics_jsonl: str) -> dict[str, Any]:
     }
 
 
-# ---------------------------------------------------------------------------
-# Render context for prompt (the memory system)
-# ---------------------------------------------------------------------------
+#Render context for prompt (the memory system)
 
 def render_context() -> str:
     """Render ledger into dense prompt context. Scales to 1000+ runs.
@@ -283,9 +275,7 @@ def render_context() -> str:
     return "\n".join(lines)
 
 
-# ---------------------------------------------------------------------------
-# Update state after run
-# ---------------------------------------------------------------------------
+#Update state after run
 
 def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
     rows = ledger_rows()
@@ -325,9 +315,7 @@ def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
     })
 
 
-# ---------------------------------------------------------------------------
-# Codex (planning)
-# ---------------------------------------------------------------------------
+#Codex (planning)
 
 class CodexError(RuntimeError):
     def __init__(self, msg: str, retryable: bool = True) -> None:
@@ -397,9 +385,7 @@ def _fetch_ideas(runtime: dict) -> str:
     return "\n".join(lines)
 
 
-# ---------------------------------------------------------------------------
-# Plan (prompt from config/prompt.md template)
-# ---------------------------------------------------------------------------
+#Plan (prompt from config/prompt.md template)
 
 def _build_prompt(run_errors: list[str] | None = None) -> str:
     runtime = _load_runtime()
@@ -477,9 +463,7 @@ def plan(run_errors: list[str] | None = None) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# Publish (per-run artifacts + CSV + SVG + git push)
-# ---------------------------------------------------------------------------
+#Publish (per-run artifacts + CSV + SVG + git push)
 
 def _publish(run_id: str, plan_dict: dict, raw: dict) -> None:
     run_dir = RUNS_DIR / run_id
@@ -579,9 +563,7 @@ def _render_svg() -> str:
         + dots + '</svg>\n')
 
 
-# ---------------------------------------------------------------------------
-# Git push
-# ---------------------------------------------------------------------------
+#Git push
 
 _runs_since_push = 0
 GIT_PUSH_EVERY = 5  # batch git pushes to save time
@@ -636,9 +618,7 @@ def _git_remote_push() -> None:
         _emit(f"git push failed: {r.stderr.strip()[:200]}")
 
 
-# ---------------------------------------------------------------------------
-# Core loop
-# ---------------------------------------------------------------------------
+#Core loop
 
 @contextmanager
 def _run_lock():

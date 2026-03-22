@@ -25,9 +25,7 @@ def _emit(message: str) -> None:
     print(f"[parameter_golf] {message}", flush=True)
 
 
-# ---------------------------------------------------------------------------
-# Workspace helpers (merged from parameter_golf_workspace.py)
-# ---------------------------------------------------------------------------
+#Workspace helpers (merged from parameter_golf_workspace.py)
 
 class Workspace:
     def __init__(self, pg_config: dict, logs_dir: Path) -> None:
@@ -75,9 +73,7 @@ class Workspace:
         return env
 
 
-# ---------------------------------------------------------------------------
-# Adapter
-# ---------------------------------------------------------------------------
+#Adapter
 
 def run(run_id: str, plan: dict, pg_config: dict, logs_dir: Path) -> dict:
     """Run one Parameter Golf training cycle. Returns flat result dict."""
@@ -186,9 +182,7 @@ def run(run_id: str, plan: dict, pg_config: dict, logs_dir: Path) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# Script validation
-# ---------------------------------------------------------------------------
+#Script validation
 
 def _validate_script(content: str) -> None:
     lines = content.splitlines()
@@ -205,9 +199,7 @@ def _validate_script(content: str) -> None:
             raise RuntimeError(f"Missing required marker: {marker}")
 
 
-# ---------------------------------------------------------------------------
-# Subprocess runner
-# ---------------------------------------------------------------------------
+#Subprocess runner
 
 def _run_command(command: list[str], cwd: Path, env: dict, run_log_path: Path) -> subprocess.CompletedProcess:
     stdout_lines: list[str] = []
@@ -250,9 +242,7 @@ def _sample_rss(pid: int) -> float:
         return 0.0
 
 
-# ---------------------------------------------------------------------------
-# Metric parsing
-# ---------------------------------------------------------------------------
+#Metric parsing
 
 def _parse_final_metrics(text: str) -> dict[str, float]:
     matches = list(FINAL_EXACT_RE.finditer(text))
