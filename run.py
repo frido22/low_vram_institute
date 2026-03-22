@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Low VRAM Institute — single-file autonomous Parameter Golf runner."""
+"""Low VRAM Institute — autonomous Parameter Golf runner."""
 from __future__ import annotations
 
 import argparse
@@ -14,7 +14,6 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.request import Request, urlopen
 
 import parameter_golf
 
@@ -42,11 +41,6 @@ def _emit(msg: str) -> None:
 
 def _load_runtime() -> dict[str, Any]:
     p = CONFIG_DIR / "runtime.json"
-    return json.loads(p.read_text()) if p.exists() else {}
-
-
-def _load_sources() -> dict:
-    p = CONFIG_DIR / "sources.json"
     return json.loads(p.read_text()) if p.exists() else {}
 
 
@@ -182,14 +176,14 @@ def render_context() -> str:
 # Update state after run
 # ---------------------------------------------------------------------------
 
-def _update_after_run(run_id: str, plan: dict, raw: dict) -> None:
+def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
     rows = ledger_rows()
     prior_best = min((r["score"] for r in rows), default=None)
     score = raw["score"]
     improved = prior_best is None or score < prior_best
 
-    if improved and plan.get("modified_script"):
-        _save_best(run_id, score, plan.get("title", ""), plan["modified_script"], raw["patch"])
+    if improved and plan_dict.get("modified_script"):
+        _save_best(run_id, score, plan_dict.get("title", ""), plan_dict["modified_script"], raw["patch"])
 
     diag = raw.get("diagnostics", {})
     curve = _analyze_curve(raw.get("metrics_jsonl", ""))
@@ -197,11 +191,11 @@ def _update_after_run(run_id: str, plan: dict, raw: dict) -> None:
     _append_ledger({
         "run_id": run_id,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "mode": plan.get("mode", ""),
-        "title": plan.get("title", ""),
+        "mode": plan_dict.get("mode", ""),
+        "title": plan_dict.get("title", ""),
         "score": score,
         "passed": raw["passed"],
-        "has_modified_script": bool(plan.get("modified_script")),
+        "has_modified_script": bool(plan_dict.get("modified_script")),
         "improved_best": improved,
         "runtime_seconds": raw["runtime_seconds"],
         "step_count": diag.get("step_count", 0),
@@ -210,95 +204,8 @@ def _update_after_run(run_id: str, plan: dict, raw: dict) -> None:
         "active_mb": diag.get("active_mb"),
         "quantized_bytes": diag.get("quantized_bytes"),
         "curve": curve,
-        "track": plan.get("track", ""),
+        "track": plan_dict.get("track", ""),
     })
-
-    (STATE_DIR / "current_state.json").write_text(json.dumps({
-        "last_run_id": run_id,
-        "last_score": score,
-        "last_status": "passed" if raw["passed"] else "failed",
-        "last_title": plan.get("title", ""),
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-    }, indent=2, sort_keys=True) + "\n")
-
-
-# ---------------------------------------------------------------------------
-# Intake (community ideas + research)
-# ---------------------------------------------------------------------------
-
-def _load_intake() -> tuple[list[dict], list[dict]]:
-    sources = _load_sources()
-    community = _load_community(sources.get("github_sources", []))
-    research = _load_research(sources.get("research_sources", []))
-    return community, research
-
-
-def _load_community(sources: list[dict]) -> list[dict]:
-    rows: list[dict] = []
-    for src in sources:
-        if src.get("kind") == "file":
-            path = (ROOT / src["path"]).resolve()
-            if path.exists():
-                payload = json.loads(path.read_text())
-                entries = payload if isinstance(payload, list) else payload.get("items", [])
-                rows.extend({
-                    "id": f"github:{e['id']}", "title": e["title"],
-                    "body": e.get("body", "")[:500], "author": e.get("author", "unknown"),
-                } for e in entries)
-        elif src.get("kind") == "github_issues":
-            rows.extend(_fetch_github_issues(src))
-    return rows
-
-
-def _fetch_github_issues(src: dict) -> list[dict]:
-    token = os.environ.get("GITHUB_TOKEN")
-    if not token:
-        return []
-    runtime = _load_runtime()
-    gh = runtime.get("github", {})
-    owner = src.get("owner") or gh.get("owner", "")
-    repo = src.get("repo") or gh.get("repo", "")
-    if not owner or not repo:
-        return []
-    url = f"https://api.github.com/repos/{owner}/{repo}/issues?state=open&per_page=10"
-    try:
-        req = Request(url, headers={
-            "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {token}",
-            "User-Agent": "low-vram-institute",
-        })
-        with urlopen(req, timeout=15) as resp:  # noqa: S310
-            items = json.loads(resp.read().decode("utf-8"))
-    except Exception:
-        return []
-    return [{
-        "id": f"github:{it['id']}", "title": it["title"],
-        "body": (it.get("body") or "")[:500],
-        "author": (it.get("user") or {}).get("login", "unknown"),
-    } for it in items if "pull_request" not in it]
-
-
-def _load_research(sources: list[dict]) -> list[dict]:
-    notes: list[dict] = []
-    for src in sources:
-        text = ""
-        if src.get("kind") == "file":
-            p = (ROOT / src["path"]).resolve()
-            text = p.read_text() if p.exists() else ""
-        if text.strip():
-            notes.append({"title": src.get("title", src["id"]), "body": text[:3000]})
-    # Upstream records
-    records = ROOT / "third_party" / "parameter-golf" / "records"
-    if records.exists():
-        for track_dir in sorted(records.iterdir()):
-            if not track_dir.is_dir():
-                continue
-            for readme in sorted(track_dir.glob("*/README.md")):
-                try:
-                    notes.append({"title": f"Upstream: {readme.parent.name}", "body": readme.read_text()[:2000]})
-                except OSError:
-                    continue
-    return notes[:10]
 
 
 # ---------------------------------------------------------------------------
@@ -318,18 +225,12 @@ def _call_codex(prompt: str, model: str | None = None) -> dict:
 
     schema = {
         "type": "object",
-        "required": ["mode", "title", "rationale", "expected_signal", "public_updates",
-                      "adapter", "logging_focus", "idea_source", "idea_id", "modified_script"],
+        "required": ["mode", "title", "rationale", "expected_signal", "modified_script"],
         "properties": {
             "mode": {"type": "string"},
             "title": {"type": "string"},
             "rationale": {"type": "string"},
             "expected_signal": {"type": "string"},
-            "public_updates": {"type": "array", "items": {"type": "string"}},
-            "adapter": {"type": "string", "enum": ["parameter_golf"]},
-            "logging_focus": {"type": "array", "items": {"type": "string"}},
-            "idea_source": {"type": ["string", "null"]},
-            "idea_id": {"type": ["string", "null"]},
             "modified_script": {"type": ["string", "null"]},
         },
         "additionalProperties": False,
@@ -363,12 +264,15 @@ def _call_codex(prompt: str, model: str | None = None) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Plan
+# Plan (prompt from config/prompt.md template)
 # ---------------------------------------------------------------------------
 
-def _build_prompt(research: list[dict], community: list[dict], run_errors: list[str] | None = None) -> str:
+def _build_prompt(run_errors: list[str] | None = None) -> str:
     runtime = _load_runtime()
-    track = runtime.get("parameter_golf", {}).get("local_track", "mac_mini_official_like")
+
+    # Template
+    template_path = CONFIG_DIR / "prompt.md"
+    template = template_path.read_text() if template_path.exists() else "Return a plan as JSON.\n{rules}\n{history}\n{script}\n"
 
     # Rules
     rules_path = CONFIG_DIR / "parameter_golf_rules.md"
@@ -376,73 +280,42 @@ def _build_prompt(research: list[dict], community: list[dict], run_errors: list[
 
     # Training script
     ws_path = runtime.get("parameter_golf", {}).get("workspace", "")
-    script_path = Path(ws_path) / "train_gpt_mlx.py" if ws_path else None
     script = "(script not available)"
-    if script_path and script_path.exists():
-        try:
-            script = script_path.read_text()
-        except OSError:
-            pass
+    if ws_path:
+        sp = Path(ws_path) / "train_gpt_mlx.py"
+        if sp.exists():
+            try:
+                script = sp.read_text()
+            except OSError:
+                pass
 
-    ctx = render_context()
+    # Best diff
     diff = best_diff().strip()
-    diff_section = f"## Current Best Changes\n```diff\n{diff}\n```\n\n" if diff else ""
+    diff_section = f"## Current Best Changes\n```diff\n{diff}\n```" if diff else ""
 
-    # Format helpers
-    def fmt_community(items: list[dict]) -> str:
-        if not items:
-            return "- none"
-        return "\n".join(f"- @{it.get('author', '?')}: {it.get('title', 'untitled')}" for it in items[:5])
-
-    def fmt_research(items: list[dict]) -> str:
-        if not items:
-            return "- none"
-        lines = []
-        for n in items[:3]:
-            body = " ".join(str(n.get("body", "")).split())
-            if len(body) > 400:
-                body = body[:397] + "..."
-            lines.append(f"- {n.get('title', 'untitled')}: {body}")
-        return "\n".join(lines)
-
-    prompt = (
-        "You are the autonomous planner for a public research lab on a Mac mini M4 (16GB).\n"
-        "Return only JSON matching the provided schema.\n\n"
-        "## Modes\n"
-        "- explore: baselines (only when no data exists)\n"
-        "- exploit: compound on current best\n"
-        "- research: try something new\n"
-        "- community: test an external suggestion\n\n"
-        "## Output\n"
-        "Return `modified_script`: the COMPLETE modified `train_gpt_mlx.py`.\n"
-        "EVERY run must change something. Null is only acceptable for the very first baseline.\n"
-        "To compound: incorporate the best diff below and add your changes.\n"
-        "Original is always restored after each run — be fearless.\n\n"
-        f"{rules}\n\n"
-        "## Run History\n"
-        f"{ctx}\n\n"
-        f"{diff_section}"
-        "## Community Ideas\n"
-        f"{fmt_community(community)}\n\n"
-        "## Research Notes\n"
-        f"{fmt_research(research)}\n\n"
-        "## Original train_gpt_mlx.py\n\n"
-        f"```python\n{script}\n```\n"
-    )
+    # Errors
+    errors_section = ""
     if run_errors:
-        prompt += "\n## Previous Run Errors\n\nFix the issue or try a different approach.\n\n"
+        errors_section = "## Previous Run Errors\n\nFix the issue or try a different approach.\n\n"
         for i, err in enumerate(run_errors):
-            prompt += f"- Attempt {i + 1}: {err}\n"
-    return prompt
+            errors_section += f"- Attempt {i + 1}: {err}\n"
+
+    return template.format(
+        rules=rules,
+        history=render_context(),
+        best_diff_section=diff_section,
+        script=script,
+        errors_section=errors_section,
+    )
 
 
-def plan(research: list[dict], community: list[dict], run_errors: list[str] | None = None) -> dict:
+def plan(run_errors: list[str] | None = None) -> dict:
     runtime = _load_runtime()
     codex_cfg = runtime.get("codex", {})
     track = runtime.get("parameter_golf", {}).get("local_track", "mac_mini_official_like")
 
     if codex_cfg.get("enabled"):
-        prompt = _build_prompt(research, community, run_errors)
+        prompt = _build_prompt(run_errors)
         payload = _call_codex(prompt, model=codex_cfg.get("model"))
         return {
             "mode": payload["mode"],
@@ -451,8 +324,6 @@ def plan(research: list[dict], community: list[dict], run_errors: list[str] | No
             "expected_signal": payload["expected_signal"],
             "modified_script": payload.get("modified_script") or None,
             "track": track,
-            "idea_source": payload.get("idea_source"),
-            "idea_id": payload.get("idea_id"),
         }
 
     # Heuristic fallback
@@ -468,103 +339,42 @@ def plan(research: list[dict], community: list[dict], run_errors: list[str] | No
 
 
 # ---------------------------------------------------------------------------
-# Publishing (CSV, SVG, run artifacts, git push)
+# Publish (per-run artifacts + CSV + SVG + git push)
 # ---------------------------------------------------------------------------
 
 def _publish(run_id: str, plan_dict: dict, raw: dict) -> None:
     run_dir = RUNS_DIR / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    # Run artifacts
+    # Per-run artifacts
     (run_dir / "diff.patch").write_text((raw.get("patch") or "").rstrip() + "\n")
     if raw.get("run_log"):
         (run_dir / "run.log").write_text(raw["run_log"].rstrip() + "\n")
-    if raw.get("train_script"):
-        (run_dir / "train_gpt.py").write_text(raw["train_script"])
     if raw.get("metrics_jsonl"):
         (run_dir / "metrics.jsonl").write_text(raw["metrics_jsonl"].rstrip() + "\n")
-    if raw.get("provenance"):
-        (run_dir / "provenance.json").write_text(json.dumps(raw["provenance"], indent=2, sort_keys=True) + "\n")
 
-    # Submission JSON
+    # Submission JSON (Parameter Golf format)
     runtime = _load_runtime()
     owner = runtime.get("github", {}).get("owner", "low-vram-institute")
     (run_dir / "submission.json").write_text(json.dumps({
-        "submitter": owner, "github_id": owner,
-        "val_bpb": raw["score"], "run_id": run_id,
-        "hardware": "Apple Silicon Mac mini M4 16GB",
-        "track": plan_dict.get("track", ""),
+        "submitter": owner, "val_bpb": raw["score"], "run_id": run_id,
+        "hardware": "Mac mini M4 16GB", "track": plan_dict.get("track", ""),
         "runtime_seconds": raw["runtime_seconds"],
-        "quantized_artifact_bytes": raw.get("diagnostics", {}).get("quantized_bytes", 0),
         "has_modified_script": bool(plan_dict.get("modified_script")),
-        "mode": plan_dict.get("mode", ""),
         "title": plan_dict.get("title", ""),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
     }, indent=2, sort_keys=True) + "\n")
-
-    # Metrics JSON
-    (run_dir / "metrics.json").write_text(json.dumps({
-        "score": raw["score"], "runtime_seconds": raw["runtime_seconds"],
-        "passed": raw["passed"],
-    }, indent=2, sort_keys=True) + "\n")
-
-    # README
-    patch = (raw.get("patch") or "").strip()
-    diff_section = f"\n## Changes\n\n```diff\n{patch}\n```\n" if patch else ""
-    (run_dir / "README.md").write_text(
-        f"# {plan_dict.get('title', run_id)}\n\n"
-        f"**Score:** {raw['score']:.6f} val_bpb\n"
-        f"**Hardware:** Apple Silicon Mac mini M4 16GB (600s wallclock)\n"
-        f"**Runtime:** {raw['runtime_seconds']:.0f}s\n\n"
-        f"## Approach\n\n{plan_dict.get('rationale', '')}\n"
-        f"{diff_section}\n"
-        f"## Result\n\n{raw['summary']}\n"
-    )
 
     # Reports
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    _write_report("overview.md", _render_overview(run_id, plan_dict, raw))
-    _write_report("history.csv", _render_history_csv())
-    _write_report("history.svg", _render_history_svg())
-    _write_report("best_score.md", _render_best_score())
+    (REPORTS_DIR / "history.csv").write_text(_render_csv())
+    (REPORTS_DIR / "history.svg").write_text(_render_svg())
 
     _git_push(run_id)
 
 
-def _write_report(name: str, content: str) -> None:
-    (REPORTS_DIR / name).write_text(content.rstrip() + "\n")
-
-
-def _render_overview(run_id: str, plan_dict: dict, raw: dict) -> str:
+def _render_csv() -> str:
     rows = ledger_rows()
-    best = min(rows, key=lambda r: r["score"]) if rows else None
-    improvements = [r for r in rows if r.get("improved_best")]
-    lines = [
-        "# Low VRAM Institute", "",
-        "Autonomous research lab for Parameter Golf on Mac mini M4 (16GB).", "",
-        "## Latest Run",
-        f"- **{run_id}**: {raw['score']:.4f} ({plan_dict.get('mode', '')})",
-        f"- {plan_dict.get('title', '')}",
-        f"- Runtime: {raw['runtime_seconds']:.0f}s | Passed: {raw['passed']}",
-    ]
-    if plan_dict.get("modified_script"):
-        lines.append("- Modified training script")
-    lines.append("")
-    lines.append("## Best")
-    if best:
-        lines.append(f"- **{best['score']:.4f}** ({best['run_id']}): {best.get('title', '')}")
-    lines.append("")
-    lines.append(f"## Progress ({len(rows)} runs)")
-    lines.append(f"- Improvements: {len(improvements)}")
-    lines.append("")
-    lines.append("## Links")
-    lines.append("- [Score history](history.csv)")
-    return "\n".join(lines)
-
-
-def _render_history_csv() -> str:
-    rows = ledger_rows()
-    lines = ["run_id,score,mode,has_modified_script,improved_best,title"]
+    lines = ["run_id,score,mode,modified,improved,title"]
     best_so_far: float | None = None
     for row in rows:
         score = row.get("score")
@@ -574,50 +384,29 @@ def _render_history_csv() -> str:
         if improved:
             best_so_far = score
         title = str(row.get("title", "")).replace(",", " ")
-        lines.append(f"{row.get('run_id', '')},{score:.8f},{row.get('mode', '')},{row.get('has_modified_script', False)},{improved},{title}")
+        lines.append(f"{row.get('run_id', '')},{score:.6f},{row.get('mode', '')},{row.get('has_modified_script', False)},{improved},{title}")
     return "\n".join(lines) + "\n"
 
 
-def _render_best_score() -> str:
-    rows = ledger_rows()
-    if not rows:
-        return "# Best Score\n\nNo runs yet.\n"
-    best = min(rows, key=lambda r: r["score"])
-    improvements = [r for r in rows if r.get("improved_best")]
-    lines = [
-        "# Best Score", "",
-        f"**{best['score']:.6f}** val_bpb", "",
-        f"- Run: {best['run_id']}",
-        f"- Title: {best.get('title', '')}",
-        f"- Modified: {best.get('has_modified_script', False)}",
-        f"- Total runs: {len(rows)}",
-        f"- Improvements: {len(improvements)}",
-        "", "## All Improvements", "",
-    ]
-    for r in improvements:
-        lines.append(f"- {r['run_id']} | {r['score']:.4f} | {r.get('title', '')}")
-    return "\n".join(lines)
-
-
-def _render_history_svg() -> str:
+def _render_svg() -> str:
     rows = ledger_rows()
     best_so_far: float | None = None
-    pts_data: list[dict] = []
+    pts: list[dict] = []
     for row in rows:
-        score = row.get("score")
-        if score is None:
+        s = row.get("score")
+        if s is None:
             continue
-        if best_so_far is None or score < best_so_far:
-            best_so_far = score
-            pts_data.append(row)
+        if best_so_far is None or s < best_so_far:
+            best_so_far = s
+            pts.append(row)
 
     w, h = 760, 280
     lm, rm, tm, bm = 70, 20, 36, 56
-    if not pts_data:
+    if not pts:
         return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}">'
-                '<text x="20" y="40" font-family="monospace" font-size="16">No history yet.</text></svg>')
+                '<text x="20" y="40" font-family="monospace" font-size="16">No history yet.</text></svg>\n')
 
-    scores = [r["score"] for r in pts_data]
+    scores = [r["score"] for r in pts]
     mn, mx = min(scores), max(scores)
     if mx == mn:
         mx = mn + 0.01
@@ -625,30 +414,29 @@ def _render_history_svg() -> str:
     mn_a, mx_a = mn - pad, mx + pad
 
     def xf(i: int) -> float:
-        return w / 2 if len(pts_data) == 1 else lm + i * ((w - lm - rm) / (len(pts_data) - 1))
+        return w / 2 if len(pts) == 1 else lm + i * ((w - lm - rm) / (len(pts) - 1))
 
-    def yf(s: float) -> float:
-        return h - bm - ((s - mn_a) / (mx_a - mn_a)) * (h - tm - bm)
+    def yf(v: float) -> float:
+        return h - bm - ((v - mn_a) / (mx_a - mn_a)) * (h - tm - bm)
 
-    pts = " ".join(f"{xf(i):.1f},{yf(r['score']):.1f}" for i, r in enumerate(pts_data))
+    polyline = " ".join(f"{xf(i):.1f},{yf(r['score']):.1f}" for i, r in enumerate(pts))
     dots = "".join(
-        f'<circle cx="{xf(i):.1f}" cy="{yf(r["score"]):.1f}" r="4" fill="#0f766e" />'
-        f'<text x="{xf(i):.1f}" y="{h - 28}" text-anchor="middle" font-family="monospace" font-size="10">{r["run_id"].split("_")[-1]}</text>'
-        for i, r in enumerate(pts_data)
-    )
+        f'<circle cx="{xf(i):.1f}" cy="{yf(r["score"]):.1f}" r="4" fill="#0f766e"/>'
+        f'<text x="{xf(i):.1f}" y="{h-28}" text-anchor="middle" font-family="monospace" font-size="10">'
+        f'{r["run_id"].split("_")[-1]}</text>'
+        for i, r in enumerate(pts))
     ticks = "".join(
-        f'<line x1="{lm}" y1="{tm + j * (h - tm - bm) / 4:.1f}" x2="{w - rm}" y2="{tm + j * (h - tm - bm) / 4:.1f}" stroke="#e2e8f0" />'
-        f'<text x="{lm - 8}" y="{tm + j * (h - tm - bm) / 4 + 4:.1f}" text-anchor="end" font-family="monospace" font-size="10" fill="#475569">{mx_a - j * (mx_a - mn_a) / 4:.4f}</text>'
-        for j in range(5)
-    )
+        f'<line x1="{lm}" y1="{tm+j*(h-tm-bm)/4:.1f}" x2="{w-rm}" y2="{tm+j*(h-tm-bm)/4:.1f}" stroke="#e2e8f0"/>'
+        f'<text x="{lm-8}" y="{tm+j*(h-tm-bm)/4+4:.1f}" text-anchor="end" font-family="monospace" font-size="10" fill="#475569">'
+        f'{mx_a-j*(mx_a-mn_a)/4:.4f}</text>'
+        for j in range(5))
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}">'
-        '<rect width="100%" height="100%" fill="#f8fafc" />'
-        f'<text x="20" y="24" font-family="monospace" font-size="16">Best Score By Run (lower is better)</text>'
+        '<rect width="100%" height="100%" fill="#f8fafc"/>'
+        f'<text x="20" y="24" font-family="monospace" font-size="16">Best Score By Run</text>'
         + ticks
-        + f'<polyline fill="none" stroke="#0f766e" stroke-width="3" points="{pts}" />'
-        + dots + '</svg>'
-    )
+        + f'<polyline fill="none" stroke="#0f766e" stroke-width="3" points="{polyline}"/>'
+        + dots + '</svg>\n')
 
 
 # ---------------------------------------------------------------------------
@@ -682,12 +470,12 @@ def _git_push(run_id: str) -> None:
     ]:
         r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=False)  # noqa: S603
         if r.returncode != 0 and not ("commit" in cmd and "nothing to commit" in r.stdout.lower()):
-            _emit(f"git push failed: {r.stderr.strip()[:200]}")
+            _emit(f"git failed: {r.stderr.strip()[:200]}")
             return
 
 
 # ---------------------------------------------------------------------------
-# Run lock
+# Core loop
 # ---------------------------------------------------------------------------
 
 @contextmanager
@@ -710,23 +498,14 @@ def _run_lock():
             lock.unlink()
 
 
-# ---------------------------------------------------------------------------
-# Run ID
-# ---------------------------------------------------------------------------
-
 def _next_run_id() -> str:
     prefix = datetime.now(timezone.utc).strftime("%Y_%m_%d_run_")
     existing = [p.name for p in RUNS_DIR.iterdir() if p.is_dir() and p.name.startswith(prefix)] if RUNS_DIR.exists() else []
     return prefix + f"{len(existing) + 1:04d}"
 
 
-# ---------------------------------------------------------------------------
-# Core loop
-# ---------------------------------------------------------------------------
-
 def run_once() -> str:
-    usage = shutil.disk_usage(ROOT)
-    if usage.free < MIN_FREE_DISK:
+    if shutil.disk_usage(ROOT).free < MIN_FREE_DISK:
         raise RuntimeError("Low disk space.")
 
     runtime = _load_runtime()
@@ -736,12 +515,9 @@ def run_once() -> str:
         run_id = _next_run_id()
         _emit(f"starting {run_id}")
 
-        community, research = _load_intake()
-        _emit(f"intake: {len(community)} community, {len(research)} research")
-
         run_errors: list[str] = []
         for attempt in range(3):
-            p = plan(research, community, run_errors=run_errors or None)
+            p = plan(run_errors=run_errors or None)
             _emit(f"plan {p.get('mode', '?')}: {p.get('title', '?')}")
 
             try:
@@ -791,24 +567,20 @@ def daemon(max_cycles: int | None = None) -> None:
             time.sleep(delay)
 
 
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Low VRAM Institute runner")
-    sub = parser.add_subparsers(dest="command")
-    sub.add_parser("run-once", help="Run a single cycle")
-    d = sub.add_parser("daemon", help="Run continuously")
+    parser = argparse.ArgumentParser(description="Low VRAM Institute")
+    sub = parser.add_subparsers(dest="cmd")
+    sub.add_parser("run-once")
+    d = sub.add_parser("daemon")
     d.add_argument("--max-cycles", type=int, default=None)
     args = parser.parse_args()
 
     for d in [STATE_DIR, LOGS_DIR, RUNS_DIR, REPORTS_DIR]:
         d.mkdir(parents=True, exist_ok=True)
 
-    if args.command == "run-once":
+    if args.cmd == "run-once":
         run_once()
-    elif args.command == "daemon":
+    elif args.cmd == "daemon":
         daemon(max_cycles=args.max_cycles)
     else:
         parser.print_help()
