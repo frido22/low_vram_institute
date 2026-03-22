@@ -1,0 +1,8 @@
+run_id=2026_03_22_run_0017
+
+# edit 0: replace 107 chars -> 169 chars
+{"old": "        self.skip_weights = mx.ones((self.num_skip_weights, dim), dtype=mx.float32)\n        self.blocks = [", "new": "        self.skip_weights = mx.ones((self.num_skip_weights, dim), dtype=mx.float32)\n        self.bigram_scale = mx.ones((dim,), dtype=mx.float32)\n        self.blocks = ["}
+# edit 1: replace 117 chars -> 277 chars
+{"old": "        x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))\n        x0 = x\n        skips: list[mx.array] = []", "new": "        x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))\n        x0 = x\n        bigram = mx.concatenate([mx.zeros_like(x0[:, :1, :]), x0[:, :-1, :]], axis=1)\n        x = x + self.bigram_scale.astype(x.dtype)[None, None, :] * bigram\n        skips: list[mx.array] = []"}
+# edit 2: replace 145 chars -> 168 chars
+{"old": "            if k == \"skip_weights\" or (k.startswith(\"blocks.\") and (p.ndim < 2 or any(pattern in k for pattern in CONTROL_TENSOR_NAME_PATTERNS)))", "new": "            if k == \"skip_weights\" or k == \"bigram_scale\" or (k.startswith(\"blocks.\") and (p.ndim < 2 or any(pattern in k for pattern in CONTROL_TENSOR_NAME_PATTERNS)))"}
