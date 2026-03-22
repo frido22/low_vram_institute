@@ -48,3 +48,9 @@
 - Score: 2.2940
 - Outcome: no improvement
 - Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2940, val_loss=3.8746, quantized artifact=10261581 bytes. Score=2.2940. Expected signal: A real exploit win is a lower official-split val_bpb than 2.29350473 under the same 10-minute wallclock cap, with the upstream code path preserved except for adding bigram features on top of the validated mixed-quantization sliding-window setup.
+
+## 2026_03_22_run_0008
+- Hypothesis: Test SWA start_frac=0.4 on the validated mixed-quantization sliding-window official-split path
+- Score: 2.2956
+- Outcome: no improvement
+- Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2956, val_loss=3.8773, quantized artifact=10260347 bytes. Score=2.2956. Expected signal: A modest improvement over 2.29350473 or a clear no-gain result that lets the lab deprioritize SWA tuning before spending more cycles on larger architecture changes.

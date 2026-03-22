@@ -65,6 +65,14 @@
       "score": 2.29474478,
       "title": "Apply one upstream-proven local tactic next: quantization-focused weight decay on the current sliding-window official-split path",
       "track": "mac_mini_official_like"
+    },
+    {
+      "finished_at": "2026-03-22T00:29:07.759626+00:00",
+      "mode": "exploit",
+      "run_id": "2026_03_22_run_0008",
+      "score": 2.29561606,
+      "title": "Test SWA start_frac=0.4 on the validated mixed-quantization sliding-window official-split path",
+      "track": "mac_mini_official_like"
     }
   ]
 }

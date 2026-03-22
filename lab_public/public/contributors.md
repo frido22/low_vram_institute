@@ -1,3 +1,3 @@
 # Contributors
 
-- Credited idea source in latest run: mixed quantization + sliding window eval + bigram features
+- Credited idea source in latest run: github:4114281267
