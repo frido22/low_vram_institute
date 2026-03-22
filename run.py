@@ -259,7 +259,6 @@ def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
     _append_ledger({
         "run_id": run_id,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "mode": plan_dict.get("mode", ""),
         "title": plan_dict.get("title", ""),
         "rationale": plan_dict.get("rationale", ""),
         "score": score,
@@ -297,12 +296,10 @@ def _call_codex(prompt: str, model: str | None = None) -> dict:
 
     schema = {
         "type": "object",
-        "required": ["mode", "title", "rationale", "expected_signal", "modified_script"],
+        "required": ["title", "rationale", "modified_script"],
         "properties": {
-            "mode": {"type": "string"},
             "title": {"type": "string"},
             "rationale": {"type": "string"},
-            "expected_signal": {"type": "string"},
             "modified_script": {"type": ["string", "null"]},
         },
         "additionalProperties": False,
@@ -393,22 +390,18 @@ def plan(run_errors: list[str] | None = None) -> dict:
         prompt = _build_prompt(run_errors)
         payload = _call_codex(prompt, model=codex_cfg.get("model"))
         return {
-            "mode": payload["mode"],
             "title": payload["title"],
             "rationale": payload["rationale"],
-            "expected_signal": payload["expected_signal"],
             "modified_script": payload.get("modified_script") or None,
             "track": track,
         }
 
-    # Heuristic fallback
-    mode = "explore" if best_score() is None else "exploit"
+    # Heuristic fallback (codex disabled)
+    has_runs = best_score() is not None
     return {
-        "mode": mode,
-        "title": "Establish baseline" if mode == "explore" else "Refine current best",
-        "rationale": "Baseline needed." if mode == "explore" else "Exploiting current best.",
-        "expected_signal": "First score." if mode == "explore" else "Score delta.",
-        "modified_script": best_script() if mode == "exploit" else None,
+        "title": "Establish baseline" if not has_runs else "Refine current best",
+        "rationale": "Baseline needed." if not has_runs else "Exploiting current best.",
+        "modified_script": best_script() if has_runs else None,
         "track": track,
     }
 
@@ -437,6 +430,7 @@ def _publish(run_id: str, plan_dict: dict, raw: dict) -> None:
         "runtime_seconds": raw["runtime_seconds"],
         "has_modified_script": bool(plan_dict.get("modified_script")),
         "title": plan_dict.get("title", ""),
+        "rationale": plan_dict.get("rationale", ""),
     }, indent=2, sort_keys=True) + "\n")
 
     # Reports
@@ -449,7 +443,7 @@ def _publish(run_id: str, plan_dict: dict, raw: dict) -> None:
 
 def _render_csv() -> str:
     rows = ledger_rows()
-    lines = ["run_id,score,mode,modified,improved,title"]
+    lines = ["run_id,score,modified,improved,title"]
     best_so_far: float | None = None
     for row in rows:
         score = row.get("score")
@@ -459,7 +453,7 @@ def _render_csv() -> str:
         if improved:
             best_so_far = score
         title = str(row.get("title", "")).replace(",", " ")
-        lines.append(f"{row.get('run_id', '')},{score:.6f},{row.get('mode', '')},{row.get('has_modified_script', False)},{improved},{title}")
+        lines.append(f"{row.get('run_id', '')},{score:.6f},{row.get('has_modified_script', False)},{improved},{title}")
     return "\n".join(lines) + "\n"
 
 
@@ -615,7 +609,7 @@ def run_once() -> str:
         run_errors: list[str] = []
         for attempt in range(3):
             p = plan(run_errors=run_errors or None)
-            _emit(f"plan {p.get('mode', '?')}: {p.get('title', '?')}")
+            _emit(f"plan: {p.get('title', '?')}")
 
             try:
                 raw = parameter_golf.run(run_id, p, pg_config, LOGS_DIR)

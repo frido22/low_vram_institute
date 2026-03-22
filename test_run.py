@@ -154,12 +154,14 @@ class PlanTests(unittest.TestCase):
         run.STATE_DIR = self._orig_state
         run.CONFIG_DIR = self._orig_config
 
-    def test_heuristic_explore(self):
-        self.assertEqual(run.plan()["mode"], "explore")
+    def test_heuristic_no_runs(self):
+        p = run.plan()
+        self.assertIsNone(p["modified_script"])
 
-    def test_heuristic_exploit(self):
+    def test_heuristic_with_runs(self):
         run._append_ledger({"run_id": "r1", "score": 2.3})
-        self.assertEqual(run.plan()["mode"], "exploit")
+        p = run.plan()
+        self.assertIn("Refine", p["title"])
 
 
 if __name__ == "__main__":
