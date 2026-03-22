@@ -1,6 +1,6 @@
 # Latest Thoughts
 
-Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2956, val_loss=3.8773, quantized artifact=10260347 bytes. Score=2.2956. Expected signal: A modest improvement over 2.29350473 or a clear no-gain result that lets the lab deprioritize SWA tuning before spending more cycles on larger architecture changes.
+Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2947, val_loss=3.8758, quantized artifact=10260567 bytes. Score=2.2947. Expected signal: A single concrete next exploit candidate with a short justification, ideally showing that either int5-funded extra depth or a specific bigram-hash capacity change is the highest-value new test while keeping the real upstream code path and official validation split intact.
 
 ## Public Beliefs
 # Insights
@@ -60,5 +60,11 @@ Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bp
 - Outcome: no improvement
 - Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2956, val_loss=3.8773, quantized artifact=10260347 bytes. Score=2.2956. Expected signal: A modest improvement over 2.29350473 or a clear no-gain result that lets the lab deprioritize SWA tuning before spending more cycles on larger architecture changes.
 
+## 2026_03_22_run_0009
+- Hypothesis: Isolate one genuinely new upstream tactic after two local regressions: verify whether int5-funded depth or BigramHash(10240) is the next official-like test
+- Score: 2.2947
+- Outcome: no improvement
+- Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2947, val_loss=3.8758, quantized artifact=10260567 bytes. Score=2.2947. Expected signal: A single concrete next exploit candidate with a short justification, ideally showing that either int5-funded extra depth or a specific bigram-hash capacity change is the highest-value new test while keeping the real upstream code path and official validation split intact.
 
-Next public focus: Keep the current validated mixed-quantization plus sliding-window setup fixed and change only SWA to start at 40% of warmdown., Run once on the official validation split under the 10-minute cap and compare directly against 2.29350473., If the run wins materially, schedule a follow-up validate rerun; if it loses, mark late-start SWA as tested and move on..
+
+Next public focus: Recent exploit runs have stalled after the validated mixed-quantization sliding-window best., Bigrams and SWA(0.4) were already tried locally and both worsened score versus the validated best., Next step is to research the upstream-leading bundle and isolate the one untested tactic worth trying next under the local 10-minute cap..

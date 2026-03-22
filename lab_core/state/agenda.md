@@ -1,5 +1,5 @@
 # Agenda
 
-- Current mode bias: exploit
-- Latest expected signal: A modest improvement over 2.29350473 or a clear no-gain result that lets the lab deprioritize SWA tuning before spending more cycles on larger architecture changes.
-- Next public update focus: Keep the current validated mixed-quantization plus sliding-window setup fixed and change only SWA to start at 40% of warmdown., Run once on the official validation split under the 10-minute cap and compare directly against 2.29350473., If the run wins materially, schedule a follow-up validate rerun; if it loses, mark late-start SWA as tested and move on.
+- Current mode bias: research
+- Latest expected signal: A single concrete next exploit candidate with a short justification, ideally showing that either int5-funded extra depth or a specific bigram-hash capacity change is the highest-value new test while keeping the real upstream code path and official validation split intact.
+- Next public update focus: Recent exploit runs have stalled after the validated mixed-quantization sliding-window best., Bigrams and SWA(0.4) were already tried locally and both worsened score versus the validated best., Next step is to research the upstream-leading bundle and isolate the one untested tactic worth trying next under the local 10-minute cap.

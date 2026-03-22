@@ -1,8 +1,16 @@
 {
   "best_score": 2.29350473,
   "last_improving_run_id": "2026_03_22_run_0006",
-  "plateau_count": 2,
+  "plateau_count": 3,
   "recent_runs": [
+    {
+      "improved_best": false,
+      "mode": "research",
+      "needs_validation": true,
+      "run_id": "2026_03_22_run_0009",
+      "score": 2.29472786,
+      "title": "Isolate one genuinely new upstream tactic after two local regressions: verify whether int5-funded depth or BigramHash(10240) is the next official-like test"
+    },
     {
       "improved_best": false,
       "mode": "exploit",
@@ -58,14 +66,6 @@
       "run_id": "2026_03_22_run_0002",
       "score": 2.29455078,
       "title": "Re-run sliding-window evaluation once on the official validation split under the 10-minute local cap"
-    },
-    {
-      "improved_best": true,
-      "mode": "exploit",
-      "needs_validation": true,
-      "run_id": "2026_03_22_run_0001",
-      "score": 2.29436762,
-      "title": "Apply one upstream-proven local tactic next: sliding-window evaluation on the official validation split"
     }
   ],
   "tested_idea_titles": []

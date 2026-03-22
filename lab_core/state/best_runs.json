@@ -59,6 +59,14 @@
       "track": "mac_mini_official_like"
     },
     {
+      "finished_at": "2026-03-22T00:32:53.989358+00:00",
+      "mode": "research",
+      "run_id": "2026_03_22_run_0009",
+      "score": 2.29472786,
+      "title": "Isolate one genuinely new upstream tactic after two local regressions: verify whether int5-funded depth or BigramHash(10240) is the next official-like test",
+      "track": "mac_mini_official_like"
+    },
+    {
       "finished_at": "2026-03-22T00:10:58.541889+00:00",
       "mode": "exploit",
       "run_id": "2026_03_22_run_0003",

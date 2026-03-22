@@ -1,9 +1,9 @@
 {
-  "last_mode": "exploit",
-  "last_run_id": "2026_03_22_run_0008",
-  "last_score": 2.29561606,
+  "last_mode": "research",
+  "last_run_id": "2026_03_22_run_0009",
+  "last_score": 2.29472786,
   "last_status": "passed",
-  "last_title": "Test SWA start_frac=0.4 on the validated mixed-quantization sliding-window official-split path",
-  "plateau_count": 2,
-  "updated_at": "2026-03-22T00:29:07.759626+00:00"
+  "last_title": "Isolate one genuinely new upstream tactic after two local regressions: verify whether int5-funded depth or BigramHash(10240) is the next official-like test",
+  "plateau_count": 3,
+  "updated_at": "2026-03-22T00:32:53.989358+00:00"
 }

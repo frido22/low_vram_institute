@@ -6,5 +6,6 @@ run_id,score,mode,track,finished_at,title
 2026_03_21_run_0001,2.29444450,explore,mac_mini_official_like,2026-03-21T23:49:21.623157+00:00,Establish an upstream-local baseline on M4 under the 10-minute cap
 2026_03_22_run_0004,2.29450958,research,mac_mini_official_like,2026-03-22T00:14:33.695361+00:00,Research the next upstream tactic to test on the official-split local path: mixed quantization before more exploit runs
 2026_03_22_run_0002,2.29455078,validate,mac_mini_official_like,2026-03-22T00:07:23.997778+00:00,Re-run sliding-window evaluation once on the official validation split under the 10-minute local cap
+2026_03_22_run_0009,2.29472786,research,mac_mini_official_like,2026-03-22T00:32:53.989358+00:00,Isolate one genuinely new upstream tactic after two local regressions: verify whether int5-funded depth or BigramHash(10240) is the next official-like test
 2026_03_22_run_0003,2.29474478,exploit,mac_mini_official_like,2026-03-22T00:10:58.541889+00:00,Apply one upstream-proven local tactic next: quantization-focused weight decay on the current sliding-window official-split path
 2026_03_22_run_0008,2.29561606,exploit,mac_mini_official_like,2026-03-22T00:29:07.759626+00:00,Test SWA start_frac=0.4 on the validated mixed-quantization sliding-window official-split path

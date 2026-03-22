@@ -54,3 +54,9 @@
 - Score: 2.2956
 - Outcome: no improvement
 - Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2956, val_loss=3.8773, quantized artifact=10260347 bytes. Score=2.2956. Expected signal: A modest improvement over 2.29350473 or a clear no-gain result that lets the lab deprioritize SWA tuning before spending more cycles on larger architecture changes.
+
+## 2026_03_22_run_0009
+- Hypothesis: Isolate one genuinely new upstream tactic after two local regressions: verify whether int5-funded depth or BigramHash(10240) is the next official-like test
+- Score: 2.2947
+- Outcome: no improvement
+- Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2947, val_loss=3.8758, quantized artifact=10260567 bytes. Score=2.2947. Expected signal: A single concrete next exploit candidate with a short justification, ideally showing that either int5-funded extra depth or a specific bigram-hash capacity change is the highest-value new test while keeping the real upstream code path and official validation split intact.
