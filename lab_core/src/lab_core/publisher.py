@@ -30,36 +30,6 @@ class Publisher:
             lines.append("- No best runs yet.")
         return "\n".join(lines)
 
-    def _render_best_summary(self) -> str:
-        best_runs = self.store.best_runs().get("runs", [])
-        lines = ["# Current Best", ""]
-        if not best_runs:
-            lines.append("- No scored runs yet.")
-            return "\n".join(lines)
-        best = best_runs[0]
-        lines.extend(
-            [
-                f"- Run: {best['run_id']}",
-                f"- Score: {best['score']:.4f}",
-                f"- Mode: {best['mode']}",
-                f"- Track: {best.get('track', 'unknown')}",
-                f"- Title: {best.get('title', 'untitled')}",
-                f"- Finished: {best.get('finished_at', 'unknown')}",
-            ]
-        )
-        return "\n".join(lines)
-
-    def _render_pointer_page(self, title: str, target: str, note: str) -> str:
-        return "\n".join(
-            [
-                f"# {title}",
-                "",
-                note,
-                "",
-                f"- Primary file: `{target}`",
-            ]
-        )
-
     def _history_rows(self) -> list[dict]:
         rows = list(self.store.best_runs().get("runs", []))
         rows.sort(key=lambda row: row.get("finished_at", ""))
@@ -166,7 +136,10 @@ class Publisher:
         lines.append("## Latest Tested Idea")
         lines.append(f"- {result.plan.title}")
         lines.append(f"- Result: {result.evaluation.score:.4f}")
-        lines.append(f"- Contributor: {result.plan.idea_source or 'internal'}")
+        if result.plan.idea_source:
+            lines.append(f"- Contributor: {result.plan.idea_source}")
+        else:
+            lines.append("- Contributor: internal")
         return "\n".join(lines)
 
     def _render_overview(self, result: RunResult) -> str:
@@ -361,17 +334,9 @@ class Publisher:
         self._write_public_page("leaderboard.md", "\n".join(leaderboard_lines))
         self._write_public_page("overview.md", self._render_overview(result))
         self._write_public_page("best_runs.md", self._render_best_runs())
-        self._write_public_page("current_best.md", self._render_best_summary())
         self._write_public_page("open_questions.md", self._render_open_questions())
         self._write_public_page("tested_ideas.md", self._render_tested_ideas(result))
         self._write_public_page("rejected_ideas.md", self.store.rejected_ideas_text())
         self._write_public_page("history.csv", self._render_history_csv())
         self._write_public_page("history.svg", self._render_history_svg())
-
-        self._write_public_page("current_status.md", self._render_pointer_page("Current Status", "lab_public/public/overview.md", "This file is kept for compatibility. Use the overview as the primary dashboard."))
-        self._write_public_page("current_best.md", self._render_pointer_page("Current Best", "lab_public/public/overview.md", "This file is kept for compatibility. The overview and best-runs page hold the primary current-best view."))
-        self._write_public_page("leaderboard.md", self._render_pointer_page("Leaderboard", "lab_public/public/best_runs.md", "This file is kept for compatibility. Use best_runs.md as the compact ranked view."))
-        self._write_public_page("agenda.md", self.store.agenda_text())
-        self._write_public_page("latest_thoughts.md", self._render_pointer_page("Latest Thoughts", "lab_public/runs/<run_id>/summary.md", "This file is kept for compatibility. The latest run summary is the primary source of narrative detail."))
-        self._write_public_page("contributors.md", self._render_pointer_page("Contributors", "lab_public/public/tested_ideas.md", "This file is kept for compatibility. Credited idea sources appear in tested ideas and run summaries."))
         self._git_publish(result.run_id)
