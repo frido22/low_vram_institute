@@ -6,3 +6,4 @@ run_id,run_number,score,mode,track,finished_at,title
 2026_03_22_run_0005,5,9.25437759,exploit,mac_mini_official_like,2026-03-22T06:24:03.637409+00:00,Pair validated Muon WD 0.04 with upstream Muon momentum 0.99
 2026_03_22_run_0006,6,9.25053552,validate,mac_mini_official_like,2026-03-22T06:48:08.821912+00:00,Replay Muon WD 0.04 With Momentum 0.99
 2026_03_22_run_0007,7,9.25053552,validate,mac_mini_official_like,2026-03-22T07:12:54.336709+00:00,Replay Muon WD 0.04 With Momentum 0.99
+2026_03_22_run_0008,8,9.25053552,validate,mac_mini_official_like,2026-03-22T07:36:53.380364+00:00,Replay Muon WD 0.04 With Momentum 0.99
