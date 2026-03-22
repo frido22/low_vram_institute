@@ -30,7 +30,7 @@ class Paths:
             research_dir=base / "snapshots" / "research",
             public_root=output_root,
             public_runs_dir=output_root / "runs",
-            public_pages_dir=output_root / "public",
+            public_pages_dir=output_root / "reports",
             config_dir=base / "config",
         )
 

@@ -204,9 +204,9 @@ class StateStore:
 
         # Hardware context
         lines.append("## Hardware Reality")
-        lines.append("- Mac mini M4 16GB does ~15 training steps in 10 minutes")
-        lines.append("- Every technique must be evaluated through the lens of: does this help with only 15 gradient updates?")
-        lines.append("- Upstream H100 techniques may not transfer — always ask why before trying")
+        lines.append("- Mac mini M4 16GB, 600s wallclock limit")
+        lines.append("- Faster code = more training steps = potentially better score")
+        lines.append("- Reason about whether a technique helps given the actual step count from recent runs")
         lines.append("")
 
         # Best diff reference

@@ -4,7 +4,6 @@
 
 Minimize the Parameter Golf score on an Apple Silicon Mac mini (M4, 16 GB RAM).
 Real upstream code path, official validation split, `MAX_WALLCLOCK_SECONDS=600`.
-Hardware is the main intentional mismatch — you get ~15 training steps, not 20,000.
 
 ## Agency
 
@@ -15,12 +14,12 @@ The original is always restored after each run — be fearless.
 - A single hyperparameter tweak can be the winning move (warmdown_iters 1200→15 was a 2.5x improvement)
 - But you can also rewrite entire functions, add new classes, or replace the architecture wholesale
 - There is NO limit on ambition — let the hypothesis determine the scope
-- Think like a researcher who only gets 15 gradient steps — what matters most with so few updates?
+- You can also optimize the code itself to run faster — more training steps in 600s = better results
 
 ## Decision Priorities
 
 1. COMPOUND: Build on the current best changes (see the diff). Don't start from scratch.
-2. REASON: Think about why a technique would help with only ~15 gradient updates.
+2. REASON: Think about why a technique would help given the limited step budget on this hardware.
 3. DIVERSIFY: Check idea categories in lessons. Don't repeat exhausted categories.
 4. LEARN: Study what worked and what failed. Form hypotheses, not just random trials.
 5. VALIDATE SPARINGLY: Only validate when the improvement is large (>0.01) and the run was truly novel.
@@ -39,8 +38,10 @@ The original is always restored after each run — be fearless.
 
 ## Mac Mini Reality
 
-- ~15 training steps in 10 minutes (vs ~20,000 on H100)
+- The baseline gets ~15 training steps in 10 minutes — but this is NOT a fixed limit
+- Optimizing code speed (faster forward/backward, less overhead) means more steps in the same 600s
+- More steps = more gradient updates = potentially better final score
 - 16GB unified memory — cannot run models that need >14GB
-- Throughput: ~524K tokens per step, ~40 seconds per step
-- Learning rate schedule, initialization, and per-step efficiency matter enormously
-- Techniques that improve final loss after 20K steps may be irrelevant with 15 steps
+- Throughput and step count are reported per run — use them to track optimization impact
+- Learning rate schedule, initialization, and per-step efficiency all matter
+- Techniques that need thousands of steps to pay off may not transfer — reason about step budget

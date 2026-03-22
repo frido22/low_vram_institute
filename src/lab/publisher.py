@@ -182,7 +182,7 @@ class Publisher:
             ]
 
         commands = [
-            base_git + ["add", "output/public", "output/runs"],
+            base_git + ["add", "output/reports", "output/runs"],
             base_git + ["commit", "-m", f"Publish {run_id}"],
             base_git + ["push", "origin", branch],
         ]
