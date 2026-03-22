@@ -1,6 +1,6 @@
 # Latest Thoughts
 
-Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2947, val_loss=3.8758, quantized artifact=10260567 bytes. Score=2.2947. Expected signal: A single concrete next exploit candidate with a short justification, ideally showing that either int5-funded extra depth or a specific bigram-hash capacity change is the highest-value new test while keeping the real upstream code path and official validation split intact.
+Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2923, val_loss=3.8717, quantized artifact=10261989 bytes. Score=2.2923. Expected signal: Positive signal is a pass within the 10-minute wallclock and a score at or below the current best 2.29350473, especially if the 10-layer int5-funded path recovers the regressions seen from bigram-only and SWA-only probes. Negative signal is another regression or budget/time failure, which would falsify the combined public recipe on M4 hardware and justify switching back to research.
 
 ## Public Beliefs
 # Insights
@@ -66,5 +66,11 @@ Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bp
 - Outcome: no improvement
 - Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2947, val_loss=3.8758, quantized artifact=10260567 bytes. Score=2.2947. Expected signal: A single concrete next exploit candidate with a short justification, ideally showing that either int5-funded extra depth or a specific bigram-hash capacity change is the highest-value new test while keeping the real upstream code path and official validation split intact.
 
+## 2026_03_22_run_0010
+- Hypothesis: Test the queued official-best recipe as one bounded local reproduction: int5-funded 10th layer plus BigramHash(10240) on the official-split mixed-quant path under the 10-minute cap
+- Score: 2.2923
+- Outcome: new best
+- Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2923, val_loss=3.8717, quantized artifact=10261989 bytes. Score=2.2923. Expected signal: Positive signal is a pass within the 10-minute wallclock and a score at or below the current best 2.29350473, especially if the 10-layer int5-funded path recovers the regressions seen from bigram-only and SWA-only probes. Negative signal is another regression or budget/time failure, which would falsify the combined public recipe on M4 hardware and justify switching back to research.
 
-Next public focus: Recent exploit runs have stalled after the validated mixed-quantization sliding-window best., Bigrams and SWA(0.4) were already tried locally and both worsened score versus the validated best., Next step is to research the upstream-leading bundle and isolate the one untested tactic worth trying next under the local 10-minute cap..
+
+Next public focus: Queued community idea is specific enough to test now: reproduce the upstream-style combined recipe, not another isolated micro-ablation., Use the official local path only: upstream code path, official validation split, 10-minute cap; hardware remains the only intentional mismatch., Main hypothesis: the missing ingredient is not bigram or SWA in isolation, but int5-funded extra depth combined with BigramHash(10240) on the validated mixed-quant base., If this run wins suspiciously or narrowly, schedule immediate validate next; if it fails on time or size, record that the community recipe does not transfer cleanly to the Mac mini track..

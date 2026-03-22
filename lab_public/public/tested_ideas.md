@@ -1,5 +1,6 @@
 # Tested Ideas
 
+- Test the queued official-best recipe as one bounded local reproduction: int5-funded 10th layer plus BigramHash(10240) on the official-split mixed-quant path under the 10-minute cap -> 2026_03_22_run_0010 scored 2.2923
 - Re-run the mixed-quantization sliding-window official-split path once to confirm the new local best under the 10-minute cap -> 2026_03_22_run_0006 scored 2.2935
 - Test mixed quantization on the official-split sliding-window path under the 10-minute local cap -> 2026_03_22_run_0005 scored 2.2939
 - Add bigram features to the validated mixed-quantization sliding-window official-split path -> 2026_03_22_run_0007 scored 2.2940
@@ -9,9 +10,8 @@
 - Re-run sliding-window evaluation once on the official validation split under the 10-minute local cap -> 2026_03_22_run_0002 scored 2.2946
 - Isolate one genuinely new upstream tactic after two local regressions: verify whether int5-funded depth or BigramHash(10240) is the next official-like test -> 2026_03_22_run_0009 scored 2.2947
 - Apply one upstream-proven local tactic next: quantization-focused weight decay on the current sliding-window official-split path -> 2026_03_22_run_0003 scored 2.2947
-- Test SWA start_frac=0.4 on the validated mixed-quantization sliding-window official-split path -> 2026_03_22_run_0008 scored 2.2956
 
 ## Latest Tested Idea
-- Isolate one genuinely new upstream tactic after two local regressions: verify whether int5-funded depth or BigramHash(10240) is the next official-like test
-- Result: 2.2947
+- Test the queued official-best recipe as one bounded local reproduction: int5-funded 10th layer plus BigramHash(10240) on the official-split mixed-quant path under the 10-minute cap
+- Result: 2.2923
 - Contributor: github:4114281267

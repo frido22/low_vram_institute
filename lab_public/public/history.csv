@@ -1,4 +1,5 @@
 run_id,score,mode,track,finished_at,title
+2026_03_22_run_0010,2.29234832,community,mac_mini_official_like,2026-03-22T00:36:30.659192+00:00,Test the queued official-best recipe as one bounded local reproduction: int5-funded 10th layer plus BigramHash(10240) on the official-split mixed-quant path under the 10-minute cap
 2026_03_22_run_0006,2.29350473,validate,mac_mini_official_like,2026-03-22T00:21:57.714622+00:00,Re-run the mixed-quantization sliding-window official-split path once to confirm the new local best under the 10-minute cap
 2026_03_22_run_0005,2.29386796,exploit,mac_mini_official_like,2026-03-22T00:18:25.288631+00:00,Test mixed quantization on the official-split sliding-window path under the 10-minute local cap
 2026_03_22_run_0007,2.29401620,exploit,mac_mini_official_like,2026-03-22T00:25:32.570694+00:00,Add bigram features to the validated mixed-quantization sliding-window official-split path
@@ -8,4 +9,3 @@ run_id,score,mode,track,finished_at,title
 2026_03_22_run_0002,2.29455078,validate,mac_mini_official_like,2026-03-22T00:07:23.997778+00:00,Re-run sliding-window evaluation once on the official validation split under the 10-minute local cap
 2026_03_22_run_0009,2.29472786,research,mac_mini_official_like,2026-03-22T00:32:53.989358+00:00,Isolate one genuinely new upstream tactic after two local regressions: verify whether int5-funded depth or BigramHash(10240) is the next official-like test
 2026_03_22_run_0003,2.29474478,exploit,mac_mini_official_like,2026-03-22T00:10:58.541889+00:00,Apply one upstream-proven local tactic next: quantization-focused weight decay on the current sliding-window official-split path
-2026_03_22_run_0008,2.29561606,exploit,mac_mini_official_like,2026-03-22T00:29:07.759626+00:00,Test SWA start_frac=0.4 on the validated mixed-quantization sliding-window official-split path

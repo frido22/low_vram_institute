@@ -1,7 +1,15 @@
 {
-  "best_score": 2.29350473,
+  "best_score": 2.29234832,
   "higher_is_better": false,
   "runs": [
+    {
+      "finished_at": "2026-03-22T00:36:30.659192+00:00",
+      "mode": "community",
+      "run_id": "2026_03_22_run_0010",
+      "score": 2.29234832,
+      "title": "Test the queued official-best recipe as one bounded local reproduction: int5-funded 10th layer plus BigramHash(10240) on the official-split mixed-quant path under the 10-minute cap",
+      "track": "mac_mini_official_like"
+    },
     {
       "finished_at": "2026-03-22T00:21:57.714622+00:00",
       "mode": "validate",
@@ -72,14 +80,6 @@
       "run_id": "2026_03_22_run_0003",
       "score": 2.29474478,
       "title": "Apply one upstream-proven local tactic next: quantization-focused weight decay on the current sliding-window official-split path",
-      "track": "mac_mini_official_like"
-    },
-    {
-      "finished_at": "2026-03-22T00:29:07.759626+00:00",
-      "mode": "exploit",
-      "run_id": "2026_03_22_run_0008",
-      "score": 2.29561606,
-      "title": "Test SWA start_frac=0.4 on the validated mixed-quantization sliding-window official-split path",
       "track": "mac_mini_official_like"
     }
   ]

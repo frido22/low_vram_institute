@@ -1,8 +1,16 @@
 {
-  "best_score": 2.29350473,
-  "last_improving_run_id": "2026_03_22_run_0006",
-  "plateau_count": 3,
+  "best_score": 2.29234832,
+  "last_improving_run_id": "2026_03_22_run_0010",
+  "plateau_count": 0,
   "recent_runs": [
+    {
+      "improved_best": true,
+      "mode": "community",
+      "needs_validation": true,
+      "run_id": "2026_03_22_run_0010",
+      "score": 2.29234832,
+      "title": "Test the queued official-best recipe as one bounded local reproduction: int5-funded 10th layer plus BigramHash(10240) on the official-split mixed-quant path under the 10-minute cap"
+    },
     {
       "improved_best": false,
       "mode": "research",
@@ -58,15 +66,9 @@
       "run_id": "2026_03_22_run_0003",
       "score": 2.29474478,
       "title": "Apply one upstream-proven local tactic next: quantization-focused weight decay on the current sliding-window official-split path"
-    },
-    {
-      "improved_best": false,
-      "mode": "validate",
-      "needs_validation": false,
-      "run_id": "2026_03_22_run_0002",
-      "score": 2.29455078,
-      "title": "Re-run sliding-window evaluation once on the official validation split under the 10-minute local cap"
     }
   ],
-  "tested_idea_titles": []
+  "tested_idea_titles": [
+    "Test the queued official-best recipe as one bounded local reproduction: int5-funded 10th layer plus BigramHash(10240) on the official-split mixed-quant path under the 10-minute cap"
+  ]
 }
