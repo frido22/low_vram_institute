@@ -12,6 +12,6 @@
 - Validate Muon Matrix Weight Decay 0.04 with a second official-like replay -> 2026_03_22_run_0003 scored 9.2585
 
 ## Latest Tested Idea
-- Replay Tied-Embedding Bigram Residual
-- Result: 5.8662
-- Contributor: prior_run_2026_03_22_run_0012 + upstream_bigram_features
+- Reapply Muon Matrix Weight Decay 0.04 On Top Of The Validated Bigram-Residual Scaffold
+- Result: 9.2585
+- Contributor: upstream_tactics
