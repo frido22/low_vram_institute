@@ -1,3 +1,4 @@
 run_id,run_number,score,mode,track,finished_at,title
 2026_03_22_run_0001,1,9.26395018,explore,mac_mini_official_like,2026-03-22T04:44:18.970666+00:00,Muon Weight Decay 0.04
 2026_03_22_run_0002,2,9.25997764,exploit,mac_mini_official_like,2026-03-22T05:08:23.564808+00:00,Reapply Muon Matrix Weight Decay 0.04
+2026_03_22_run_0003,3,9.25851437,validate,mac_mini_official_like,2026-03-22T05:33:12.922766+00:00,Validate Muon Matrix Weight Decay 0.04 with a second official-like replay
