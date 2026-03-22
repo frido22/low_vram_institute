@@ -1,0 +1,14 @@
+{
+  "github_id": "frido22",
+  "hardware": "Apple Silicon Mac mini M4 16GB",
+  "has_modified_script": true,
+  "mode": "research",
+  "quantized_artifact_bytes": 8964863,
+  "run_id": "2026_03_22_run_0006",
+  "runtime_seconds": 207.114419,
+  "submitter": "frido22",
+  "timestamp": "2026-03-22T20:38:33.343618+00:00",
+  "title": "Faster Muon Orthogonalization While Preserving the Best Eval Path",
+  "track": "mac_mini_official_like",
+  "val_bpb": 2.37334336
+}
