@@ -293,7 +293,7 @@ class Publisher:
         readme = (
             f"# {result.plan.title}\n\n"
             f"**Score:** {result.evaluation.score:.6f} val_bpb\n"
-            f"**Hardware:** Apple Silicon Mac mini M4 16GB (~15 training steps in 10 min)\n"
+            f"**Hardware:** Apple Silicon Mac mini M4 16GB (600s wallclock cap; step count depends on the script)\n"
             f"**Runtime:** {result.evaluation.runtime_seconds:.0f}s\n\n"
             f"## Approach\n\n{result.plan.rationale}\n"
             f"{diff_section}\n"

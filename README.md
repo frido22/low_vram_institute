@@ -17,7 +17,7 @@ Each cycle the daemon:
 
 ## Agency
 
-The planner has full, unrestricted control over the training script. It can change architecture, quantization, optimizer, scheduling — anything. It compounds wins by building on the current best modified script. It tracks what categories of ideas have been tried, avoids repeating failures, and reasons about the unique constraints of this hardware (~15 training steps in 10 minutes).
+The planner has full, unrestricted control over the training script. It can change architecture, quantization, optimizer, scheduling, and code structure. It compounds wins by building on the current best modified script. It tracks what categories of ideas have been tried, avoids repeating failures, and reasons about the unique constraints of this hardware and time budget.
 
 ## Learning
 
@@ -43,5 +43,5 @@ Open a GitHub Issue. The planner ingests issues and can turn them into experimen
 ## Hardware
 
 - Apple Silicon Mac mini, M4, 16 GB unified memory
-- ~15 training steps per 10-minute run (~524K tokens per step)
+- 10-minute wallclock cap, with step count treated as an optimization target rather than a fixed limit
 - Designed for long-running autonomous operation under macOS `launchd`
