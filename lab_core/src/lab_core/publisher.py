@@ -203,7 +203,7 @@ class Publisher:
         if result.plan.code_patch:
             lines.append(f"- Code patch: yes ({len(result.plan.code_patch)} edits)")
         else:
-            lines.append("- Code patch: none (env overrides only)")
+            lines.append("- Code patch: none (baseline script)")
         if result.plan.logging_focus:
             lines.append(f"- Logging focus: {', '.join(result.plan.logging_focus)}")
         lines.append("")

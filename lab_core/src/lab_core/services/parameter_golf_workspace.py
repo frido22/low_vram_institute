@@ -49,11 +49,8 @@ class ParameterGolfWorkspace:
             check=False,
         )
 
-    def build_env(self, run_id: str, overrides: Optional[dict[str, str]] = None, out_dir: Optional[Path] = None) -> dict[str, str]:
+    def build_env(self, run_id: str, out_dir: Optional[Path] = None) -> dict[str, str]:
         env = os.environ.copy()
-        env.update({str(k): str(v) for k, v in self.runtime.get("default_env", {}).items()})
-        if overrides:
-            env.update({str(k): str(v) for k, v in overrides.items()})
         env["RUN_ID"] = run_id
         env["OUT_DIR"] = str(out_dir or (self.paths.logs_dir / "parameter_golf"))
         env.setdefault("DATA_PATH", str(self.workspace / "data" / "datasets" / f"fineweb10B_{self.runtime.get('dataset_variant', 'sp1024')}"))

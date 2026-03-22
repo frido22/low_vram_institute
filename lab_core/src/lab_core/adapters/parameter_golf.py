@@ -54,13 +54,10 @@ class ParameterGolfAdapter:
                 raise RuntimeError(f"Parameter Golf dataset bootstrap failed:\n{download.stderr.strip()}")
 
         with self._patched_script(plan) as patched_content:
-            env = self.workspace.build_env(run_id, overrides=self._validated_overrides(plan), out_dir=log_dir)
+            env = self.workspace.build_env(run_id, out_dir=log_dir)
             command = [self.workspace.python, "train_gpt_mlx.py"]
             patch_info = " +code_patch" if patched_content else ""
-            self._emit(
-                f"launching {run_id} track={plan.track} iterations={env.get('ITERATIONS')} "
-                f"batch_tokens={env.get('TRAIN_BATCH_TOKENS')} val_batch={env.get('VAL_BATCH_SIZE')}{patch_info}"
-            )
+            self._emit(f"launching {run_id} track={plan.track}{patch_info}")
             started = datetime.now(timezone.utc)
             completed = self._run_command(command, env, run_log_path)
             finished = datetime.now(timezone.utc)
@@ -94,14 +91,13 @@ class ParameterGolfAdapter:
             f"- Final val_loss: {final['val_loss']:.4f}\n"
             f"- Quantized artifact bytes: {quant_bytes}\n"
             f"- Step metrics captured: {len(metrics_rows)}\n"
-            f"- Env overrides: {json.dumps(plan.env_overrides, sort_keys=True)}\n"
             f"- Code patch: {'yes' if patched_content else 'no'}\n"
         )
         if diagnostics.get("avg_tok_s"):
             analysis += f"- Throughput: {diagnostics['avg_tok_s']:.0f} tok/s ({diagnostics.get('total_tokens', 0)} total tokens)\n"
         if diagnostics.get("peak_mb"):
             analysis += f"- Memory: {diagnostics['peak_mb']:.0f}MB peak, {diagnostics.get('active_mb', 0):.0f}MB active\n"
-        patch = self._run_patch(run_id, env, plan.code_patch)
+        patch = self._run_patch(run_id, plan.code_patch)
         outputs = {
             "adapter": "parameter_golf",
             "experiment_name": "parameter_golf_mlx_local",
@@ -119,7 +115,6 @@ class ParameterGolfAdapter:
                 "generated_at": finished.isoformat(),
                 "quantized_artifact_bytes": quant_bytes,
                 "track": plan.track,
-                "env_overrides": dict(plan.env_overrides),
                 "has_code_patch": bool(plan.code_patch),
             },
             "passed": completed.returncode == 0,
@@ -134,8 +129,6 @@ class ParameterGolfAdapter:
                 "plan_mode": plan.mode,
                 "workspace": str(self.workspace.workspace),
                 "command": command,
-                "env_subset": {k: env[k] for k in ["RUN_ID", "OUT_DIR", "ITERATIONS", "TRAIN_BATCH_TOKENS", "VAL_BATCH_SIZE", "MAX_WALLCLOCK_SECONDS"] if k in env},
-                "env_overrides": dict(plan.env_overrides),
                 "has_code_patch": bool(plan.code_patch),
             },
         }
@@ -218,51 +211,6 @@ class ParameterGolfAdapter:
             if marker not in content:
                 raise RuntimeError(f"Patched script is missing required marker: {marker}")
 
-    # --- Override validation ---
-
-    def _validated_overrides(self, plan: Plan) -> dict[str, str]:
-        policy = self.workspace.runtime.get("mutation_policy", {})
-        allowed = policy.get("allowed_env", {})
-        fixed = {str(k): str(v) for k, v in policy.get("fixed_env", {}).items()}
-        overrides = {str(k): str(v) for k, v in (plan.env_overrides or {}).items()}
-        validated: dict[str, str] = {}
-        disallowed_keys = {"DATA_PATH", "TOKENIZER_PATH", "OUT_DIR", "RUN_ID", "VOCAB_SIZE"}
-
-        for key, value in overrides.items():
-            if key in disallowed_keys:
-                raise RuntimeError(f"Illegal Parameter Golf override: {key}")
-            if key in fixed and value != fixed[key]:
-                raise RuntimeError(f"Fixed Parameter Golf constraint violated: {key} must remain {fixed[key]}")
-            spec = allowed.get(key)
-            if spec is None:
-                raise RuntimeError(f"Unsupported Parameter Golf override: {key}")
-            validated[key] = self._validate_override_value(key, value, spec)
-
-        validated.update(fixed)
-        return validated
-
-    def _validate_override_value(self, key: str, value: str, spec: dict) -> str:
-        kind = spec.get("type")
-        if kind == "choice":
-            values = [str(item) for item in spec.get("values", [])]
-            if value not in values:
-                raise RuntimeError(f"Illegal value for {key}: {value}")
-            return value
-        if kind == "int":
-            try:
-                parsed = int(value)
-            except ValueError as exc:
-                raise RuntimeError(f"Illegal integer value for {key}: {value}") from exc
-            minimum = int(spec.get("min", parsed))
-            maximum = int(spec.get("max", parsed))
-            step = int(spec.get("step", 1))
-            if parsed < minimum or parsed > maximum:
-                raise RuntimeError(f"Illegal value for {key}: {value}")
-            if (parsed - minimum) % step != 0:
-                raise RuntimeError(f"Illegal step for {key}: {value}")
-            return str(parsed)
-        raise RuntimeError(f"Unknown mutation policy type for {key}: {kind}")
-
     # --- Execution helpers ---
 
     def _emit(self, message: str) -> None:
@@ -334,20 +282,10 @@ class ParameterGolfAdapter:
 
     # --- Patch artifact generation ---
 
-    def _run_patch(self, run_id: str, env: dict[str, str], code_patch: list[dict[str, str]] | None) -> str:
-        lines = [
-            "diff --git a/parameter_golf_env.txt b/parameter_golf_env.txt",
-            "new file mode 100644",
-            "--- /dev/null",
-            "+++ b/parameter_golf_env.txt",
-            f"+run_id={run_id}",
-        ]
-        for key in sorted(["ITERATIONS", "TRAIN_BATCH_TOKENS", "VAL_BATCH_SIZE", "VAL_LOSS_EVERY", "TRAIN_LOG_EVERY", "MLX_EAGER_EVAL", "MAX_WALLCLOCK_SECONDS"]):
-            if key in env:
-                lines.append(f"+{key}={env[key]}")
+    def _run_patch(self, run_id: str, code_patch: list[dict[str, str]] | None) -> str:
+        lines = [f"run_id={run_id}"]
         if code_patch:
             lines.append("")
-            lines.append("# --- code patch applied to train_gpt_mlx.py ---")
             for i, edit in enumerate(code_patch):
                 lines.append(f"# edit {i}: replace {len(edit.get('old', ''))} chars -> {len(edit.get('new', ''))} chars")
                 lines.append(json.dumps(edit, ensure_ascii=False))

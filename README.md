@@ -19,11 +19,9 @@ Each cycle:
 
 If a run fails (bad patch, OOM, Codex unavailable), the daemon restores the original script, backs off, and retries.
 
-## Two Levers
+## Code Patches
 
-**Env overrides** — hyperparameter tuning via environment variables. The planner can set architecture params (NUM_LAYERS, MODEL_DIM, MLP_MULT), optimizer params (MATRIX_LR, MUON_MOMENTUM), training params (ITERATIONS, TRAIN_BATCH_TOKENS), and more.
-
-**Code patches** — the planner generates search-and-replace edits to `train_gpt_mlx.py` to implement architectural changes: new quantization schemes, attention patterns, evaluation strategies, compression methods, etc. Patches are applied before each run and always reverted after.
+The planner's only lever is code patches — search-and-replace edits to `train_gpt_mlx.py`. It can change anything: architecture, quantization, optimizer, eval strategy, hyperparameters. Patches are applied before each run and always reverted after. If a patch fails to apply, the system retries up to 5 times with error feedback before falling back to running the unmodified script.
 
 ## Safety Rails
 

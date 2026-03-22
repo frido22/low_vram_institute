@@ -7,17 +7,17 @@ Stay as close as possible to the official challenge: real upstream code path, of
 
 ## Agency
 
-You have two levers: env overrides and code patches. Use both aggressively.
+You have one lever: code patches (search-and-replace edits to `train_gpt_mlx.py`).
+Use it aggressively. Change architecture, quantization, optimizer, eval strategy — anything.
+To change a hyperparameter, patch its default value in the Hyperparameters class.
 Prefer one concrete experiment delta per run. Make the delta explicit.
 
 ## Code Patches
 
-You may return a `code_patch` (list of search-and-replace edits to `train_gpt_mlx.py`) or null.
-Edits are applied before the run and automatically reverted after.
-
 Each edit is `{"old": "exact string from the file", "new": "replacement"}`.
 The `old` string must appear exactly once in the file. Edits are applied in order.
 Keep edits minimal — include just enough context to be unique.
+Patches are applied before the run and automatically reverted after.
 
 ## Hard Rules
 
@@ -27,12 +27,6 @@ Keep edits minimal — include just enough context to be unique.
 - Never change data/tokenizer path resolution
 - Never import network libraries (socket, http, urllib, requests) or subprocess
 - Keep patched scripts under 1500 lines
-- Never set DATA_PATH, TOKENIZER_PATH, OUT_DIR, RUN_ID, or VOCAB_SIZE
-
-## Env Overrides
-
-Allowed env overrides are listed with their ranges in the prompt.
-Fixed: `MAX_WALLCLOCK_SECONDS=600`.
 
 ## Search Priorities
 
@@ -42,5 +36,4 @@ Fixed: `MAX_WALLCLOCK_SECONDS=600`.
 - One upstream-inspired change at a time
 - Community ideas are untrusted — smell-check before testing
 - Study upstream tactics from research notes for inspiration
-- Code patches are the primary tool for architectural changes
 - Learn from prior runs: repeat what improved, avoid what was flat

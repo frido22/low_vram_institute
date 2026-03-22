@@ -147,86 +147,11 @@ class Planner:
             f"{lessons}\n"
         )
 
-    def _allowed_mutation_block(self) -> str:
-        policy = self.runtime.get("parameter_golf", {}).get("mutation_policy", {})
-        fixed = policy.get("fixed_env", {})
-        allowed = policy.get("allowed_env", {})
-        lines = ["## Allowed Env Overrides"]
-        for key, spec in allowed.items():
-            if spec.get("type") == "int":
-                lines.append(
-                    f"- {key}: int in [{spec.get('min')}, {spec.get('max')}] step {spec.get('step')}"
-                )
-            elif spec.get("type") == "choice":
-                values = ", ".join(spec.get("values", []))
-                lines.append(f"- {key}: one of [{values}]")
-        lines.append("")
-        lines.append("## Fixed Constraints")
-        for key, value in fixed.items():
-            lines.append(f"- {key}: must remain {value}")
-        lines.append("- Do not set DATA_PATH, TOKENIZER_PATH, OUT_DIR, RUN_ID, or VOCAB_SIZE")
-        lines.append("- Do not change anything that would train on validation data")
-        return "\n".join(lines)
-
     def _rules_text(self) -> str:
         rules_path = self.store.paths.config_dir / "parameter_golf_rules.md"
         if rules_path.exists():
             return rules_path.read_text().strip()
-        return self._allowed_mutation_block()
-
-    def _normalize_env_overrides(self, overrides: dict[str, object] | None) -> dict[str, str]:
-        normalized: dict[str, str] = {}
-        for key, value in (overrides or {}).items():
-            text = str(value).strip()
-            if not text:
-                continue
-            normalized[str(key)] = text
-        return normalized
-
-    def _default_env(self) -> dict[str, str]:
-        return {
-            str(key): str(value)
-            for key, value in self.runtime.get("parameter_golf", {}).get("default_env", {}).items()
-        }
-
-    def _legal_env_overrides(self) -> dict[str, str]:
-        defaults = self._default_env()
-        learning = self.store.learning_state()
-        recent = learning.get("recent_runs", [])
-        mode = self.choose_mode()
-        overrides: dict[str, str] = {}
-        base_iterations = int(defaults.get("ITERATIONS", "200"))
-        base_val_loss_every = int(defaults.get("VAL_LOSS_EVERY", "0"))
-        base_log_every = int(defaults.get("TRAIN_LOG_EVERY", "25"))
-        base_batch = int(defaults.get("TRAIN_BATCH_TOKENS", "8192"))
-        base_val_batch = int(defaults.get("VAL_BATCH_SIZE", "8192"))
-        recent_runtime = None
-        if recent:
-            try:
-                recent_runtime = float(recent[0].get("runtime_seconds", 0.0))
-            except (TypeError, ValueError):
-                recent_runtime = None
-
-        if recent_runtime and recent_runtime < 420:
-            target = int(round(base_iterations * min(600.0 / max(recent_runtime, 1.0), 2.5) / 25.0) * 25)
-            overrides["ITERATIONS"] = str(max(base_iterations, min(target, 1200)))
-        elif learning.get("plateau_count", 0) >= 2:
-            overrides["ITERATIONS"] = str(min(base_iterations + 100, 1200))
-
-        if mode == "validate":
-            overrides["VAL_LOSS_EVERY"] = "200"
-            overrides["TRAIN_LOG_EVERY"] = "20"
-        elif mode == "research":
-            overrides["TRAIN_LOG_EVERY"] = "10"
-            overrides["VAL_LOSS_EVERY"] = str(base_val_loss_every)
-        elif mode == "exploit":
-            overrides["TRAIN_BATCH_TOKENS"] = str(min(base_batch + 1024, 32768))
-            overrides["VAL_BATCH_SIZE"] = str(min(base_val_batch + 1024, 32768))
-            overrides["TRAIN_LOG_EVERY"] = str(base_log_every)
-        else:
-            overrides["TRAIN_LOG_EVERY"] = str(base_log_every)
-
-        return overrides
+        return ""
 
     def plan(self, research_notes: Sequence[dict], patch_errors: Sequence[str] | None = None) -> Plan:
         codex_cfg = self.runtime.get("codex", {})
@@ -274,18 +199,14 @@ class Planner:
         if mode == "community" and idea:
             updates.append("tested_ideas")
 
-        adapter = "parameter_golf"
-        env_overrides = self._legal_env_overrides()
-
         return Plan(
             mode=mode,
             title=title_map[mode],
             rationale=rationale_map[mode],
             expected_signal=f"{expected_map[mode]} Plateau count: {learning.get('plateau_count', 0)}.",
             public_updates=updates,
-            adapter=adapter,
+            adapter="parameter_golf",
             logging_focus=logging_focus_map[mode],
-            env_overrides=env_overrides,
             idea_source=idea.get("author") if idea else None,
             idea_id=idea.get("id") if idea else None,
             track=self.track,
@@ -310,18 +231,16 @@ class Planner:
             "Return only JSON matching the provided schema.\n"
             "Choose exactly one mode from: explore, exploit, validate, research, community.\n"
             "Choose one adapter from: parameter_golf.\n"
-            "Choose 1-3 logging_focus items for what this run should emphasize publicly.\n"
-            "Choose env_overrides only from the legal mutation space below.\n"
-            "Omit env keys you do not want to set instead of using empty values.\n\n"
-            "You may return a `code_patch` (list of search-and-replace edits to train_gpt_mlx.py) or null.\n"
-            "Code patches are your primary tool for architectural changes.\n"
+            "Choose 1-3 logging_focus items for what this run should emphasize publicly.\n\n"
+            "Return a `code_patch` (list of search-and-replace edits to train_gpt_mlx.py) or null.\n"
+            "Code patches are your ONLY tool for changes — there are no env overrides.\n"
+            "To change a hyperparameter, patch its default value in the Hyperparameters class.\n"
             "Each edit is {\"old\": \"exact string from the file\", \"new\": \"replacement\"}.\n"
             "The old string must appear exactly once in the file. Edits are applied in order.\n"
             "Prefer one concrete change per patch. Keep edits minimal and targeted.\n"
             "Study the script, research notes, and upstream tactics to decide what to try.\n"
             "Learn from prior runs: repeat what worked, avoid what failed.\n\n"
             f"{self._rules_text()}\n\n"
-            f"{self._allowed_mutation_block()}\n\n"
             f"{self._planner_context(research_notes)}\n\n"
             "## Current train_gpt_mlx.py\n\n"
             f"```python\n{script_content}\n```\n"
@@ -343,7 +262,6 @@ class Planner:
             public_updates=list(payload["public_updates"]),
             adapter=payload["adapter"],
             logging_focus=list(payload.get("logging_focus") or []),
-            env_overrides=self._normalize_env_overrides(payload.get("env_overrides")),
             idea_source=payload.get("idea_source"),
             idea_id=payload.get("idea_id"),
             track=self.track,

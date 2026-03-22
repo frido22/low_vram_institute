@@ -15,7 +15,6 @@ class Plan:
     public_updates: list[str]
     adapter: str
     logging_focus: list[str] = field(default_factory=list)
-    env_overrides: dict[str, str] = field(default_factory=dict)
     idea_source: str | None = None
     idea_id: str | None = None
     track: str = "mac_mini_official_like"

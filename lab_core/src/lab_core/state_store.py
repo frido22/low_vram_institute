@@ -151,42 +151,16 @@ class StateStore:
             lines.append("Best: none yet")
         lines.append("")
 
-        # Recent experiment deltas — what changed and whether it helped
-        lines.append("## Recent Deltas")
+        # Recent experiment deltas
+        lines.append("## Recent Runs")
         if recent_runs:
             for row in recent_runs[:6]:
-                overrides = row.get("env_overrides") or {}
-                if overrides:
-                    delta = ", ".join(f"{key}={value}" for key, value in sorted(overrides.items()))
-                else:
-                    delta = "no env override"
-                if row.get("has_code_patch"):
-                    delta += " + code patch"
+                patch_tag = "code_patch" if row.get("has_code_patch") else "no_patch"
                 outcome = "improved" if row.get("improved_best") else "flat"
-                lines.append(f"- {row['run_id']}: {delta} -> {row['score']:.4f} ({outcome})")
+                lines.append(f"- {row['run_id']}: {row['score']:.4f} ({outcome}) [{patch_tag}] {row.get('title', '')}")
         else:
             lines.append("- none")
         lines.append("")
-
-        # Repeated signals — which settings correlate with improvement
-        stats: dict[str, dict[str, int]] = {}
-        for row in recent_runs:
-            for key, value in (row.get("env_overrides") or {}).items():
-                label = f"{key}={value}"
-                entry = stats.setdefault(label, {"improved": 0, "flat": 0})
-                bucket = "improved" if row.get("improved_best") else "flat"
-                entry[bucket] += 1
-        if stats:
-            lines.append("## Repeated Signals")
-            ranked = sorted(
-                stats.items(),
-                key=lambda item: (item[1]["improved"], -item[1]["flat"], item[0]),
-                reverse=True,
-            )[:8]
-            for label, counts in ranked:
-                verdict = "positive" if counts["improved"] > counts["flat"] else "unclear"
-                lines.append(f"- {label}: improved={counts['improved']} flat={counts['flat']} -> {verdict}")
-            lines.append("")
 
         # Avoid repeating tested community ideas
         tested = learning.get("tested_idea_titles", [])[-5:]
@@ -209,7 +183,6 @@ class StateStore:
             "finished_at": result.finished_at,
             "track": result.plan.track,
             "runtime_seconds": result.evaluation.runtime_seconds,
-            "env_overrides": dict(result.plan.env_overrides),
         }
         runs = [
             entry
@@ -249,7 +222,6 @@ class StateStore:
                 "improved_best": improved_best,
                 "needs_validation": result.evaluation.needs_validation,
                 "runtime_seconds": result.evaluation.runtime_seconds,
-                "env_overrides": dict(result.plan.env_overrides),
                 "has_code_patch": bool(result.plan.code_patch),
             }
         ] + [row for row in learning.get("recent_runs", []) if row.get("run_id") != result.run_id]
