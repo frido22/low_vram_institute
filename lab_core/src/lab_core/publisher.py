@@ -327,11 +327,6 @@ class Publisher:
         with (self.store.paths.public_runs_dir / "ledger.jsonl").open("a") as handle:
             handle.write(json.dumps(ledger_row, sort_keys=True) + "\n")
 
-        best_runs = self.store.best_runs()
-        leaderboard_lines = ["# Leaderboard", ""]
-        for row in best_runs.get("runs", []):
-            leaderboard_lines.append(f"- {row['run_id']}: {row['score']:.4f} ({row['mode']})")
-        self._write_public_page("leaderboard.md", "\n".join(leaderboard_lines))
         self._write_public_page("overview.md", self._render_overview(result))
         self._write_public_page("best_runs.md", self._render_best_runs())
         self._write_public_page("open_questions.md", self._render_open_questions())

@@ -17,7 +17,7 @@ The system is split into two domains:
 4. Planner selects one mode and one action.
 5. Executor snapshots state, runs the chosen adapter, captures logs, and evaluates the outcome.
 6. State store updates local memory and checkpoints each stage.
-7. Publisher appends a ledger row, writes a run package, updates public status pages, and records contributor credit when relevant.
+7. Publisher appends a ledger row, writes a run package, updates the lean public overview pages, and records contributor credit when relevant.
 8. Supervisor clears transient state, updates heartbeats, and schedules the next cycle with backoff on failure.
 
 ## Reliability Model
@@ -40,12 +40,17 @@ Every cycle updates:
 
 - `lab_public/runs/<run_id>/summary.md`
 - `lab_public/runs/<run_id>/metrics.json`
+- `lab_public/runs/<run_id>/metrics.jsonl`
+- `lab_public/runs/<run_id>/run.log`
+- `lab_public/runs/<run_id>/analysis.md`
 - `lab_public/runs/<run_id>/diff.patch`
 - `lab_public/runs/<run_id>/provenance.json`
 - `lab_public/runs/ledger.jsonl`
-- `lab_public/public/current_status.md`
-- `lab_public/public/agenda.md`
-- `lab_public/public/latest_thoughts.md`
-- `lab_public/public/leaderboard.md`
+- `lab_public/public/overview.md`
+- `lab_public/public/best_runs.md`
+- `lab_public/public/open_questions.md`
+- `lab_public/public/history.svg`
+- `lab_public/public/tested_ideas.md`
+- `lab_public/public/rejected_ideas.md`
 
-The public repo is intended to feel alive. The README stays high-level; the narrative lives in the rolling run packages and status pages.
+The public repo is intended to feel alive without becoming noisy. The README stays high-level. The lean overview pages point to the rolling run packages where the full narrative lives.

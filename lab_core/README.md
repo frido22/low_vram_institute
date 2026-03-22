@@ -6,7 +6,7 @@
 
 - Always on through a local supervisor, checkpoints, lock files, retries, and resume state.
 - High agency through a planner that chooses between `explore`, `exploit`, `validate`, `research`, and `community` in service of local Parameter Golf progress.
-- Public by default through a publisher that emits one run package per cycle plus updated public status pages.
+- Public by default through a publisher that emits one run package per cycle plus a compact public overview layer.
 - Deterministic state through small append-only files in `state/`, `logs/`, and `snapshots/`.
 - One-model backend in v1: Codex authenticated locally via ChatGPT. The service wrapper is intentionally local and replaceable, but no alternative providers are wired in.
 
@@ -17,7 +17,7 @@ This project is designed to publish aggressively.
 The machine runs locally, but the results are pushed here:
 
 - public run packages in `../lab_public/runs/`
-- public status pages in `../lab_public/public/`
+- lean public overview pages in `../lab_public/public/`
 - contributor credit when outside ideas are tested
 
 Community members should submit ideas through GitHub Issues. Those issues are normalized into the intake queue and can be selected by the planner for public experiments.
