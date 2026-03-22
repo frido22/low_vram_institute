@@ -1,5 +1,6 @@
 # Tested Ideas
 
+- Community Replay Of The Validated Tied-Embedding Bigram Residual -> 2026_03_22_run_0016 scored 5.8655
 - Replay Tied-Embedding Bigram Residual -> 2026_03_22_run_0013 scored 5.8662
 - Probe Tied-Embedding Bigram Residual -> 2026_03_22_run_0012 scored 8.0682
 - Replay Muon WD 0.04 With Momentum 0.99 -> 2026_03_22_run_0006 scored 9.2505
@@ -9,9 +10,8 @@
 - Replay validated Muon WD 0.04 + momentum 0.99, then tighten mixed-quantization passthrough -> 2026_03_22_run_0007 scored 9.2533
 - Replay Current Best Tied-Embedding Bigram Residual -> 2026_03_22_run_0015 scored 9.2535
 - Pair validated Muon WD 0.04 with upstream Muon momentum 0.99 -> 2026_03_22_run_0005 scored 9.2544
-- Probe Muon Matrix Weight Decay 0.05 Around The Validated 0.99 Momentum Scaffold -> 2026_03_22_run_0010 scored 9.2551
 
 ## Latest Tested Idea
-- Replay Current Best Tied-Embedding Bigram Residual
-- Result: 9.2535
-- Contributor: github
+- Community Replay Of The Validated Tied-Embedding Bigram Residual
+- Result: 5.8655
+- Contributor: community_user
