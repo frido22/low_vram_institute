@@ -12,6 +12,7 @@ class Plan:
     expected_signal: str
     public_updates: list[str]
     adapter: str
+    logging_focus: list[str] = field(default_factory=list)
     idea_source: Any = None
     track: str = "mac_mini_official_like"
 

@@ -49,21 +49,36 @@ class Publisher:
         )
         return "\n".join(lines)
 
+    def _history_rows(self) -> list[dict]:
+        ledger_path = self.store.paths.public_runs_dir / "ledger.jsonl"
+        if not ledger_path.exists():
+            return []
+        rows: list[dict] = []
+        for line in ledger_path.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            rows.append(json.loads(line))
+        return rows
+
     def _render_history_csv(self) -> str:
-        best_runs = self.store.best_runs().get("runs", [])
+        best_runs = self._history_rows()
         lines = ["run_id,score,mode,track,finished_at,title"]
         for row in best_runs:
             title = str(row.get("title", "")).replace(",", " ")
             lines.append(
-                f"{row['run_id']},{row['score']:.8f},{row.get('mode','')},{row.get('track','')},{row.get('finished_at','')},{title}"
+                f"{row['run_id']},{row['score']:.8f},{row.get('mode','')},{row.get('track','')},{row.get('timestamp','')},{title}"
             )
         return "\n".join(lines) + "\n"
 
     def _render_history_svg(self) -> str:
-        runs = list(reversed(self.store.best_runs().get("runs", [])))
+        runs = self._history_rows()
         width = 760
-        height = 240
-        margin = 30
+        height = 280
+        left_margin = 70
+        right_margin = 20
+        top_margin = 36
+        bottom_margin = 56
         if not runs:
             return (
                 f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">'
@@ -73,34 +88,48 @@ class Publisher:
         min_score = min(scores)
         max_score = max(scores)
         if max_score == min_score:
-            max_score = min_score + 1.0
+            max_score = min_score + 0.01
+        padding = max((max_score - min_score) * 0.15, 0.001)
+        min_axis = min_score - padding
+        max_axis = max_score + padding
 
         def x_for(index: int) -> float:
             if len(runs) == 1:
                 return width / 2
-            return margin + index * ((width - 2 * margin) / (len(runs) - 1))
+            return left_margin + index * ((width - left_margin - right_margin) / (len(runs) - 1))
 
         def y_for(score: float) -> float:
-            ratio = (score - min_score) / (max_score - min_score)
-            return height - margin - ratio * (height - 2 * margin)
+            ratio = (score - min_axis) / (max_axis - min_axis)
+            return height - bottom_margin - ratio * (height - top_margin - bottom_margin)
 
         points = " ".join(f"{x_for(i):.1f},{y_for(row['score']):.1f}" for i, row in enumerate(runs))
         labels = []
         for i, row in enumerate(runs):
+            run_label = row["run_id"].split("_")[-1]
             labels.append(
                 f'<circle cx="{x_for(i):.1f}" cy="{y_for(row["score"]):.1f}" r="4" fill="#0f766e" />'
-                f'<text x="{x_for(i):.1f}" y="{height - 10}" text-anchor="middle" font-family="monospace" font-size="10">{row["run_id"].split("_")[-1]}</text>'
+                f'<text x="{x_for(i):.1f}" y="{height - 28}" text-anchor="middle" font-family="monospace" font-size="10" fill="#334155">{run_label}</text>'
+            )
+        y_ticks = []
+        for index in range(5):
+            ratio = index / 4
+            score = max_axis - ratio * (max_axis - min_axis)
+            y = top_margin + ratio * (height - top_margin - bottom_margin)
+            y_ticks.append(
+                f'<line x1="{left_margin}" y1="{y:.1f}" x2="{width - right_margin}" y2="{y:.1f}" stroke="#e2e8f0" />'
+                f'<text x="{left_margin - 8}" y="{y + 4:.1f}" text-anchor="end" font-family="monospace" font-size="10" fill="#475569">{score:.4f}</text>'
             )
         return (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
             '<rect width="100%" height="100%" fill="#f8fafc" />'
             f'<text x="20" y="24" font-family="monospace" font-size="16" fill="#0f172a">Best Run History (lower is better)</text>'
-            f'<line x1="{margin}" y1="{height - margin}" x2="{width - margin}" y2="{height - margin}" stroke="#94a3b8" />'
-            f'<line x1="{margin}" y1="{margin}" x2="{margin}" y2="{height - margin}" stroke="#94a3b8" />'
+            + "".join(y_ticks)
+            + f'<line x1="{left_margin}" y1="{height - bottom_margin}" x2="{width - right_margin}" y2="{height - bottom_margin}" stroke="#94a3b8" />'
+            + f'<line x1="{left_margin}" y1="{top_margin}" x2="{left_margin}" y2="{height - bottom_margin}" stroke="#94a3b8" />'
             f'<polyline fill="none" stroke="#0f766e" stroke-width="3" points="{points}" />'
             + "".join(labels)
-            + f'<text x="{margin}" y="{margin - 8}" font-family="monospace" font-size="10">{max(scores):.4f}</text>'
-            + f'<text x="{margin}" y="{height - margin + 16}" font-family="monospace" font-size="10">{min(scores):.4f}</text>'
+            + f'<text x="{width / 2:.1f}" y="{height - 8}" text-anchor="middle" font-family="monospace" font-size="11" fill="#334155">Run Number</text>'
+            + f'<text x="16" y="{height / 2:.1f}" text-anchor="middle" font-family="monospace" font-size="11" fill="#334155" transform="rotate(-90 16 {height / 2:.1f})">Score</text>'
             + "</svg>"
         )
 
@@ -167,6 +196,13 @@ class Publisher:
         lines.append("")
         lines.append("## Queue")
         lines.append(f"- Open community ideas: {len(queue)}")
+        lines.append("")
+        lines.append("## Logging Focus")
+        if result.plan.logging_focus:
+            for item in result.plan.logging_focus:
+                lines.append(f"- {item}")
+        else:
+            lines.append("- score")
         lines.append("")
         lines.append("## Details")
         lines.append(f"- Full run package: `lab_public/runs/{result.run_id}/`")
@@ -273,6 +309,8 @@ class Publisher:
             f"- Runtime: {result.evaluation.runtime_seconds:.2f}s\n"
             f"- Passed: {result.evaluation.passed}\n"
             f"- Needs validation: {result.evaluation.needs_validation}\n\n"
+            f"## Logging focus\n"
+            + "".join(f"- {item}\n" for item in (result.plan.logging_focus or ["score"])) + "\n"
             f"## What changed\n`{result.plan.adapter}` adapter run for mode `{result.plan.mode}`.\n\n"
             f"## Belief update\n{result.summary}\n\n"
             f"## What next\n{result.plan.expected_signal}\n"

@@ -78,6 +78,13 @@ class Planner:
         learning = self.store.learning_state()
         tactics = self._top_tactics(research_notes)
         tactic_phrase = tactics[0] if tactics else "one upstream-inspired adjustment"
+        logging_focus_map = {
+            "explore": ["baseline score", "runtime", "artifact size"],
+            "exploit": ["score delta", "runtime", "quantization effect"],
+            "validate": ["repeatability", "score variance", "validation confidence"],
+            "research": ["upstream tactic tested", "score delta", "what changed"],
+            "community": ["community idea outcome", "score delta", "why accepted or rejected"],
+        }
 
         title_map = {
             "explore": f"Establish an upstream-local baseline on M4 under the 10-minute cap",
@@ -114,6 +121,7 @@ class Planner:
             expected_signal=f"{expected_map[mode]} Plateau count: {learning.get('plateau_count', 0)}.",
             public_updates=updates,
             adapter=adapter,
+            logging_focus=logging_focus_map[mode],
             idea_source=idea.get("author") if idea else None,
             track="mac_mini_official_like",
         )
@@ -133,6 +141,7 @@ class Planner:
             "Return only JSON matching the provided schema.\n"
             "Choose exactly one mode from: explore, exploit, validate, research, community.\n"
             "Choose one adapter from: parameter_golf.\n"
+            "Also choose 1-3 logging_focus items describing what this run should emphasize publicly.\n"
             "Prefer community mode only when a queued idea should actually be tested now and has passed basic smell checks.\n"
             "Prefer validate after a suspicious win, research after a plateau, and exploit when one concrete next tactic is already visible.\n"
             "Prefer parameter_golf for nearly all plans, since this lab is now dedicated to Parameter Golf.\n\n"
@@ -151,6 +160,7 @@ class Planner:
             expected_signal=payload["expected_signal"],
             public_updates=list(payload["public_updates"]),
             adapter=payload["adapter"],
+            logging_focus=list(payload.get("logging_focus") or []),
             idea_source=payload.get("idea_source"),
             track="mac_mini_official_like",
         )

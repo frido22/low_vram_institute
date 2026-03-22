@@ -49,6 +49,7 @@ class CodexWrapper:
                 "expected_signal": {"type": "string"},
                 "public_updates": {"type": "array", "items": {"type": "string"}},
                 "adapter": {"type": "string"},
+                "logging_focus": {"type": "array", "items": {"type": "string"}},
                 "idea_source": {"type": ["string", "null"]},
             },
             "additionalProperties": False,

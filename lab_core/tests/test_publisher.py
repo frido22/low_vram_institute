@@ -39,6 +39,7 @@ class PublisherTests(unittest.TestCase):
                 expected_signal="signal",
                 public_updates=["current_status"],
                 adapter="parameter_golf",
+                logging_focus=["baseline score"],
             ),
             evaluation=Evaluation(score=0.7, runtime_seconds=1.0, passed=True, artifact_stats={}, needs_validation=False),
             patch="diff --git a/x b/x",
