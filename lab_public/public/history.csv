@@ -16,3 +16,4 @@ run_id,run_number,score,mode,track,finished_at,title
 2026_03_22_run_0015,15,5.86622822,validate,mac_mini_official_like,2026-03-22T10:29:27.491780+00:00,Replay Tied-Embedding Bigram Residual
 2026_03_22_run_0016,16,5.86552997,community,mac_mini_official_like,2026-03-22T10:55:08.703435+00:00,Community Replay Of The Validated Tied-Embedding Bigram Residual
 2026_03_22_run_0017,17,5.86552997,community,mac_mini_official_like,2026-03-22T11:20:21.296208+00:00,Community Replay Of The Validated Tied-Embedding Bigram Residual
+2026_03_22_run_0018,18,5.86552997,community,mac_mini_official_like,2026-03-22T11:46:25.812843+00:00,Community Replay Of The Validated Tied-Embedding Bigram Residual

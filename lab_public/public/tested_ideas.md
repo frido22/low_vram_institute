@@ -12,6 +12,6 @@
 - Replay Current Best Tied-Embedding Bigram Residual -> 2026_03_22_run_0015 scored 9.2535
 
 ## Latest Tested Idea
-- Replay the validated tied-embedding bigram residual once more
-- Result: 5.8671
-- Contributor: community_user
+- Probe Offset-Averaged Sliding Validation
+- Result: 9.2565
+- Contributor: upstream_tactics
