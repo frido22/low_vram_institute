@@ -69,10 +69,6 @@ def best_script() -> str | None:
     return data.get("modified_script") if isinstance(data, dict) else None
 
 
-def best_diff() -> str:
-    p = STATE_DIR / "best_diff.patch"
-    return p.read_text() if p.exists() else ""
-
 
 def _save_best(run_id: str, score: float, title: str, script: str, patch: str) -> None:
     (STATE_DIR / "best_script.json").write_text(json.dumps({
