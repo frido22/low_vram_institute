@@ -1,0 +1,6 @@
+run_id=2026_03_22_run_0010
+
+# edit 0: replace 71 chars -> 71 chars
+{"old": "    muon_momentum: float = float(os.environ.get(\"MUON_MOMENTUM\", 0.95))", "new": "    muon_momentum: float = float(os.environ.get(\"MUON_MOMENTUM\", 0.99))"}
+# edit 1: replace 63 chars -> 83 chars
+{"old": "            out[k] = p - lr * (g_ortho * scale).astype(p.dtype)", "new": "            out[k] = p * (1.0 - lr * 0.05) - lr * (g_ortho * scale).astype(p.dtype)"}
