@@ -5,13 +5,13 @@
 - Test mixed quantization on the official-split sliding-window path under the 10-minute local cap -> 2026_03_22_run_0005 scored 2.2939
 - Re-run the new local best once on the official-like M4 path to confirm the int5-funded 10th-layer plus BigramHash(10240) gain under the 10-minute cap -> 2026_03_22_run_0011 scored 2.2939
 - Add bigram features to the validated mixed-quantization sliding-window official-split path -> 2026_03_22_run_0007 scored 2.2940
+- Isolate the next untested upstream tactic on top of the validated 10L int5-MLP + BigramHash(10240) local winner before more exploit runs -> 2026_03_22_run_0013 scored 2.2941
 - Apply one upstream-proven local tactic next: sliding-window evaluation on the official validation split -> 2026_03_22_run_0001 scored 2.2944
 - Establish an upstream-local baseline on M4 under the 10-minute cap -> 2026_03_21_run_0001 scored 2.2944
 - Research the next upstream tactic to test on the official-split local path: mixed quantization before more exploit runs -> 2026_03_22_run_0004 scored 2.2945
 - Re-run sliding-window evaluation once on the official validation split under the 10-minute local cap -> 2026_03_22_run_0002 scored 2.2946
-- Isolate one genuinely new upstream tactic after two local regressions: verify whether int5-funded depth or BigramHash(10240) is the next official-like test -> 2026_03_22_run_0009 scored 2.2947
 
 ## Latest Tested Idea
-- Test the remaining smell-checked official-best deltas on top of the validated local winner: add SWA start_frac=0.4 and WD=0.04 to the int5-funded 10th-layer plus BigramHash(10240) official-split path under the 10-minute M4 cap
-- Result: 2.2966
-- Contributor: https://github.com/frido22/low_vram_institute/issues/1
+- Isolate the next untested upstream tactic on top of the validated 10L int5-MLP + BigramHash(10240) local winner before more exploit runs
+- Result: 2.2941
+- Contributor: internal
