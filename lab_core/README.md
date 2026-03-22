@@ -52,7 +52,6 @@ lab_core/
   launchd/
   ARCHITECTURE.md
   MANIFESTO.md
-  ROADMAP_V2.md
 ```
 
 ## Run
@@ -98,6 +97,8 @@ bash /Users/frido_mac/Projects/low_vram_institute/lab_core/scripts/bootstrap_par
 ## State Files
 
 - `state/current_state.json`
+- `state/learning_state.json`
+- `state/lessons.md`
 - `state/insights.md`
 - `state/ideas_queue.md`
 - `state/rejected_ideas.md`

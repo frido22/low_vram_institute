@@ -126,17 +126,3 @@ Bootstrap it with:
 ```bash
 bash /Users/frido_mac/Projects/low_vram_institute/lab_core/scripts/bootstrap_parameter_golf.sh
 ```
-
-## Token Model
-
-Use a GitHub fine-grained personal access token restricted to this repository only.
-
-Recommended repository permissions:
-
-- `Contents`: `Read and write`
-- `Issues`: `Read-only` for intake, or `Read and write` only if you want the lab to respond or label issues
-- `Metadata`: `Read-only`
-- `Pull requests`: `Read-only` only if you later ingest PRs
-- `Discussions`: enable only if you later wire discussion ingestion
-
-Keep the token out of tracked files. Export it in the shell or from `launchd`.
