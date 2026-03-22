@@ -21,8 +21,9 @@ lab_core/logs/parameter_golf/*.txt
 lab_core/logs/parameter_golf/*.npz
 lab_core/logs/parameter_golf/*.ptz
 
-lab_core/state/checkpoint.json
-lab_core/state/run.lock
+lab_core/state/*
+!lab_core/state/.gitkeep
+!lab_core/state/README.md
 
 lab_core/snapshots/research/live_*.json
 
