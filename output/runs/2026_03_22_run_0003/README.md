@@ -1,0 +1,93 @@
+# Adam Matrix Path for More Steps
+
+**Score:** 3.225503 val_bpb
+**Hardware:** Apple Silicon Mac mini M4 16GB (600s wallclock cap; step count depends on the script)
+**Runtime:** 194s
+
+## Approach
+
+The Mac mini baseline is extremely step-budgeted, so optimizer overhead is likely more important than asymptotic optimizer quality. This keeps the best-known MLX baseline architecture and evaluation path intact, but replaces Muon's expensive per-matrix Newton-Schulz orthogonalization with Adam for matrix params by default. The hypothesis is simple: materially cheaper updates buy more steps inside 600s, and in this regime extra updates may beat Muon's higher-quality but slower steps.
+
+## Changes
+
+```diff
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -77,13 +77,14 @@
+     eval_doc_isolated: bool = bool(int(os.environ.get("EVAL_DOC_ISOLATED", "1")))
+     rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
+     qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 1.5))
+-    # Optimizer. We keep the same per-group defaults as train_gpt.py.
++    # Optimizer. Default matrix path uses Adam to reduce per-step overhead on tiny-step Mac runs.
+     beta1: float = float(os.environ.get("BETA1", 0.9))
+     beta2: float = float(os.environ.get("BETA2", 0.95))
+     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
+     tied_embed_lr: float = float(os.environ.get("TIED_EMBED_LR", 0.03))
+     matrix_lr: float = float(os.environ.get("MATRIX_LR", 0.02))
+     scalar_lr: float = float(os.environ.get("SCALAR_LR", 0.02))
++    matrix_opt: str = os.environ.get("MATRIX_OPT", "adam").strip().lower()
+     muon_momentum: float = float(os.environ.get("MUON_MOMENTUM", 0.95))
+     muon_backend_steps: int = int(os.environ.get("MUON_BACKEND_STEPS", 5))
+     muon_momentum_warmup_start: float = float(os.environ.get("MUON_MOMENTUM_WARMUP_START", 0.85))
+@@ -451,9 +452,8 @@
+         return out
+ class SplitOptimizers:
+     # - embeddings: Adam with the tied-embedding LR
+-    # - block matrices (2D): Muon
++    # - block matrices (2D): Adam by default on MLX tiny-step runs, optionally Muon
+     # - block scalars + skip weights: Adam
+-    # This preserves the high-level optimization behavior even though MLX internals differ.
+     def __init__(self, model: GPT, args: Hyperparameters):
+         self.args = args
+         params = dict(tree_flatten(model.parameters()))
+@@ -468,7 +468,19 @@
+             for k, p in params.items()
+             if k == "skip_weights" or (k.startswith("blocks.") and (p.ndim < 2 or any(pattern in k for pattern in CONTROL_TENSOR_NAME_PATTERNS)))
+         ]
+-        self.muon = Muon(self.matrix_keys, params, args)
++        self.muon = None
++        self.adam_matrix = None
++        if args.matrix_opt == "muon":
++            self.muon = Muon(self.matrix_keys, params, args)
++        elif args.matrix_opt == "adam":
++            self.adam_matrix = optim.Adam(
++                learning_rate=args.matrix_lr,
++                betas=[args.beta1, args.beta2],
++                eps=args.adam_eps,
++                bias_correction=True,
++            )
++        else:
++            raise ValueError(f"Unsupported MATRIX_OPT={args.matrix_opt}; expected 'adam' or 'muon'")
+         self.adam_embed = optim.Adam(
+             learning_rate=args.tied_embed_lr,
+             betas=[args.beta1, args.beta2],
+@@ -485,7 +497,14 @@
+         params = dict(tree_flatten(model.parameters()))
+         grads = dict(tree_flatten(grads_tree))
+         updated = dict(params)
+-        updated.update(self.muon.step(params, grads, step=step, lr_mul=lr_mul))
++        if self.matrix_keys:
++            if self.muon is not None:
++                updated.update(self.muon.step(params, grads, step=step, lr_mul=lr_mul))
++            else:
++                self.adam_matrix.learning_rate = self.args.matrix_lr * lr_mul
++                matrix_grads = {k: grads[k] for k in self.matrix_keys}
++                matrix_params = {k: params[k] for k in self.matrix_keys}
++                updated.update(self.adam_matrix.apply_gradients(matrix_grads, matrix_params))
+         self.adam_embed.learning_rate = self.args.tied_embed_lr * lr_mul
+         updated.update(
+             self.adam_embed.apply_gradients(
+@@ -1279,7 +1298,7 @@
+     )
+     log(f"mlx_max_microbatch_tokens:{args.mlx_max_microbatch_tokens}")
+     log(
+-        f"optimizer:muon+adam muon_matrix_params:{len(opt.matrix_keys)} scalar_params:{len(opt.scalar_keys)} "
++        f"optimizer:{args.matrix_opt}+adam muon_matrix_params:{len(opt.matrix_keys)} scalar_params:{len(opt.scalar_keys)} "
+         f"embed_lr:{args.tied_embed_lr} "
+         f"matrix_lr:{args.matrix_lr} scalar_lr:{args.scalar_lr} "
+         f"muon_momentum:{args.muon_momentum} muon_steps:{args.muon_backend_steps}"
+```
+
+## Result
+
+Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=3.2255, val_loss=5.4527, quantized artifact=13177595 bytes. Modified script used. Throughput: 12818 tok/s. Memory: 316MB peak, 316MB active. Score=3.2255. Expected signal: `step_avg` should drop noticeably and `throughput:avg_tok_s` should rise without changing artifact size behavior. If `final_int8_zlib_roundtrip_exact val_bpb` improves, the machine is optimizer-overhead bound and speed-first training is the better direction.
