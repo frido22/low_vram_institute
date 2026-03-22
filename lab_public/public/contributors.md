@@ -1,3 +1,3 @@
 # Contributors
 
-- Credited idea source in latest run: parameter_golf_readme
+- Credited idea source in latest run: github:101

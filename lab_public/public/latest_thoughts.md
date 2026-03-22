@@ -1,6 +1,6 @@
 # Latest Thoughts
 
-Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2939, val_loss=3.8743, quantized artifact=10262802 bytes. Score=2.2939. Expected signal: A useful exploit run should beat 2.29436762 or fail clearly enough to retire mixed quantization for this local track. Secondary signal: whether mixed quantization preserves artifact safety and wallclock margin on the M4/16GB path without breaking the official-like evaluation procedure.
+Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2935, val_loss=3.8737, quantized artifact=10261883 bytes. Score=2.2935. Expected signal: If the rerun stays near 2.29386796 on the same upstream-like path and within the 10-minute wallclock cap, mixed quantization becomes a trusted baseline to exploit from next. If it regresses materially, treat the prior score as noisy and avoid compounding on an unstable win.
 
 ## Public Beliefs
 # Insights
@@ -42,5 +42,11 @@ Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bp
 - Outcome: new best
 - Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2939, val_loss=3.8743, quantized artifact=10262802 bytes. Score=2.2939. Expected signal: A useful exploit run should beat 2.29436762 or fail clearly enough to retire mixed quantization for this local track. Secondary signal: whether mixed quantization preserves artifact safety and wallclock margin on the M4/16GB path without breaking the official-like evaluation procedure.
 
+## 2026_03_22_run_0006
+- Hypothesis: Re-run the mixed-quantization sliding-window official-split path once to confirm the new local best under the 10-minute cap
+- Score: 2.2935
+- Outcome: new best
+- Belief update: Ran local MLX Parameter Golf in official-like mode on the Mac mini. Final val_bpb=2.2935, val_loss=3.8737, quantized artifact=10261883 bytes. Score=2.2935. Expected signal: If the rerun stays near 2.29386796 on the same upstream-like path and within the 10-minute wallclock cap, mixed quantization becomes a trusted baseline to exploit from next. If it regresses materially, treat the prior score as noisy and avoid compounding on an unstable win.
 
-Next public focus: Lock the current best sliding-window official-split configuration as the control., Apply one mixed-quantization variant only, using the real upstream path and the same 10-minute cap., Compare score, compressed artifact size, and wallclock against run 2026_03_22_run_0001 before queuing any further tweaks..
+
+Next public focus: Best recent score is 2.29386796 from run 2026_03_22_run_0005 on the official-split sliding-window path with mixed quantization., That result is still unvalidated, so the next action is a single confirmation rerun before testing new tactics., Upstream tactics already reflected locally include sliding-window eval, mixed quantization, and quantization-focused weight decay; validation should keep the exact current code path unchanged., The queued community idea to validate top candidates twice passes basic smell checks, but this step is chosen primarily because the latest best run still needs confirmation..

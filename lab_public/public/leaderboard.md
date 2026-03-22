@@ -1,5 +1,6 @@
 # Leaderboard
 
+- 2026_03_22_run_0006: 2.2935 (validate)
 - 2026_03_22_run_0005: 2.2939 (exploit)
 - 2026_03_22_run_0001: 2.2944 (exploit)
 - 2026_03_21_run_0001: 2.2944 (explore)

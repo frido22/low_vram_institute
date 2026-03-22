@@ -1,8 +1,16 @@
 {
-  "best_score": 2.29386796,
-  "last_improving_run_id": "2026_03_22_run_0005",
+  "best_score": 2.29350473,
+  "last_improving_run_id": "2026_03_22_run_0006",
   "plateau_count": 0,
   "recent_runs": [
+    {
+      "improved_best": true,
+      "mode": "validate",
+      "needs_validation": false,
+      "run_id": "2026_03_22_run_0006",
+      "score": 2.29350473,
+      "title": "Re-run the mixed-quantization sliding-window official-split path once to confirm the new local best under the 10-minute cap"
+    },
     {
       "improved_best": true,
       "mode": "exploit",
