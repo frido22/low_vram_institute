@@ -5,27 +5,24 @@ __pycache__/
 *.pyo
 *.pyd
 
-lab_core/.venv/
-lab_core/.venv_verify/
-lab_core/*.egg-info/
-lab_core/UNKNOWN.egg-info/
-lab_core/src/*.egg-info/
-lab_core/build/
-lab_core/dist/
+.venv/
+*.egg-info/
+build/
+dist/
 
-lab_core/logs/*.log
-lab_core/logs/*.json
-lab_core/logs/*.jsonl
-lab_core/logs/*_state_snapshot.json
-lab_core/logs/parameter_golf/*.txt
-lab_core/logs/parameter_golf/*.npz
-lab_core/logs/parameter_golf/*.ptz
+logs/*.log
+logs/*.json
+logs/*.jsonl
+logs/*_state_snapshot.json
+logs/parameter_golf/*.txt
+logs/parameter_golf/*.npz
+logs/parameter_golf/*.ptz
 
-lab_core/state/*
-!lab_core/state/.gitkeep
-!lab_core/state/README.md
+state/*
+!state/.gitkeep
+!state/README.md
 
-lab_core/snapshots/research/live_*.json
+snapshots/research/live_*.json
 
 .env
 
