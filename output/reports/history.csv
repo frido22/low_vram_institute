@@ -7,3 +7,4 @@ run_id,score,modified,improved,title
 2026_03_23_run_0006,2.223390,True,False,Budget-Aware FP16 Roundtrip Serialization
 2026_03_23_run_0007,2.215606,False,True,Exact pre-quantization weight balancing for MLP and V-proj pairs
 2026_03_23_run_0008,2.223751,True,False,Per-row MSE clip search for int8 roundtrip
+2026_03_23_run_0009,2.209250,True,True,Extend exact pre-quantization balancing to relu^2 MLP channels and grouped V/proj heads
