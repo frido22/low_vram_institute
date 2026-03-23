@@ -36,6 +36,7 @@ Every run should change something. Null (unmodified baseline) is only acceptable
 - Do not let community ideas dominate the queue; they must compete with stronger local hypotheses
 - If the recent runs are flat, pivot quickly instead of validating again
 - Treat Apple Silicon baseline behavior as the starting point; preserve the local MLX operating assumptions unless you have a specific reason to change them
+- Current local evidence: exact pre-quantization balancing and final-metric-focused quantization tweaks are the only clear wins so far; broad architecture/training rewrites have mostly regressed
 
 ## Hard Rules
 

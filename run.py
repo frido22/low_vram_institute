@@ -14,6 +14,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.request import Request, urlopen
 
 import parameter_golf
 
@@ -367,23 +368,33 @@ def _call_codex(prompt: str, model: str | None = None, reasoning_effort: str | N
 
 
 def _fetch_ideas(runtime: dict) -> str:
-    if not shutil.which("gh"):
-        return ""
     repo = runtime.get("github", {})
-    slug = f"{repo.get('owner', '')}/{repo.get('repo', '')}"
-    if not slug.strip("/"):
+    if not repo.get("issues_enabled", True):
         return ""
-    r = subprocess.run(["gh", "issue", "list", "-R", slug, "--json", "title,body", "--limit", "10"],
-                       capture_output=True, text=True, check=False)
-    if r.returncode != 0:
+    owner = repo.get("owner", "")
+    name = repo.get("repo", "")
+    token = os.environ.get("GITHUB_TOKEN")
+    if not owner or not name or not token:
         return ""
-    issues = json.loads(r.stdout) if r.stdout.strip() else []
+    url = f"https://api.github.com/repos/{owner}/{name}/issues?state=open&per_page=10"
+    req = Request(url, headers={
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "User-Agent": "low-vram-institute",
+    })
+    try:
+        with urlopen(req, timeout=15) as resp:  # noqa: S310
+            issues = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return ""
     if not issues:
         return ""
     lines = ["## Community Ideas (GitHub Issues)"]
     for iss in issues:
+        if "pull_request" in iss:
+            continue
         body = (iss.get("body") or "").replace("\n", " ").strip()[:120]
-        lines.append(f"- {iss['title']}: {body}" if body else f"- {iss['title']}")
+        lines.append(f"- {iss.get('title', '')}: {body}" if body else f"- {iss.get('title', '')}")
     return "\n".join(lines)
 
 
