@@ -289,166 +289,64 @@ def _analyze_curve(metrics_jsonl: str) -> dict[str, Any]:
 #Render context for prompt (the memory system)
 
 def render_context() -> str:
-    """Render ledger into dense prompt context. Scales to 1000+ runs.
-
-    Sections:
-    1. Scoreboard — best score, run count, plateau streak
-    2. Recent 15 — full diagnostics + score delta from best
-    3. Near-misses — within 3% of best, with rationale (worth refining)
-    4. Failures — deduplicated, sorted by delta (disasters last)
-    5. Improvements — the compound path to current best
-    """
+    """Render a bounded summary for the planner."""
     rows = ledger_rows()
     if not rows:
         return "No runs yet."
+
     best_row = _best_valid_row(rows) or min(rows, key=lambda r: r["score"])
     best_val = best_row["score"]
     improvement_ids = _valid_improvement_run_ids(rows)
     improvements = [r for r in rows if str(r.get("run_id", "")) in improvement_ids]
-    last_imp_idx = max((i for i, r in enumerate(rows) if str(r.get("run_id", "")) in improvement_ids), default=0)
+    last_imp_idx = max(
+        (i for i, r in enumerate(rows) if str(r.get("run_id", "")) in improvement_ids),
+        default=0,
+    )
     plateau = len(rows) - last_imp_idx - 1
 
     lines: list[str] = []
-
-    # 1. Scoreboard
     lines.append(f"Best valid: {best_val:.4f} ({best_row['run_id']}) | {best_row.get('title', '')}")
     lines.append(f"Runs: {len(rows)} | Improvements: {len(improvements)} | Plateau streak: {plateau}")
     lines.append("")
 
-    # 2. Recent runs with diagnostics + delta + trajectory
     lines.append("Recent runs:")
-    for row in rows[-15:]:
+    for row in rows[-8:]:
         delta = row["score"] - best_val
         run_id = str(row.get("run_id", ""))
-        tag = "WIN" if run_id in improvement_ids else f"+{delta:.4f}"
-        mod = "mod" if row.get("has_modified_script") else "base"
+        tag = "WIN" if run_id in improvement_ids else f"{delta:+.4f}"
         parts = []
-        if row.get("total_steps"):
-            parts.append(f"{row['total_steps']}steps")
-        elif row.get("step_count"):
-            parts.append(f"{row['step_count']}steps")
-        if row.get("total_tokens"):
-            parts.append(f"{row['total_tokens']/1e6:.1f}Mtok")
-        if row.get("runtime_seconds"):
-            parts.append(f"{row['runtime_seconds']:.0f}s")
+        parts.append("mod" if row.get("has_modified_script") else "base")
+        parts.append("valid" if row.get("under_16mb", True) else "oversize")
         if row.get("avg_tok_s"):
             parts.append(f"{row['avg_tok_s']:.0f}tok/s")
-        if row.get("peak_mb"):
-            parts.append(f"{row['peak_mb']:.0f}MB")
-        if row.get("under_16mb") is False:
-            parts.append("oversize")
-        if row.get("curve") and row["curve"] != "no_data":
-            curve_str = row["curve"]
-            if row.get("first_val") and row.get("last_val"):
-                curve_str += f" {row['first_val']:.3f}→{row['last_val']:.3f}"
-            parts.append(curve_str)
-        diag = f" [{', '.join(parts)}]" if parts else ""
-        lines.append(f"- {row['run_id']} | {row['score']:.4f} {tag} | {mod}{diag} | {row.get('title', '')}")
+        lines.append(f"- {row['run_id']} | {row['score']:.4f} {tag} | {', '.join(parts)} | {row.get('title', '')}")
     lines.append("")
 
-    # Collect all non-improving modified runs
-    failed = [
+    if improvements:
+        lines.append("Best path:")
+        for row in improvements[-6:]:
+            mod = "base" if not row.get("has_modified_script") else "mod"
+            lines.append(f"- {row['run_id']} | {row['score']:.4f} | {mod} | {row.get('title', '')}")
+        lines.append("")
+
+    misses = [
         r for r in rows
         if r.get("has_modified_script")
         and (str(r.get("run_id", "")) not in improvement_ids or not r.get("under_16mb"))
     ]
-
-    # 3. Near-misses (within 3% of best) — promising, worth refining
-    near = [r for r in failed if r["score"] < best_val * 1.03]
-    if near:
-        near.sort(key=lambda r: r["score"])
-        lines.append("Near-misses (within 3% of best — promising, try refining):")
+    if misses:
+        lines.append("Closest misses:")
         seen: set[str] = set()
-        diffs_shown = 0
-        for r in near:
-            t = r.get("title", "")
-            if t in seen:
+        for row in sorted(misses, key=lambda r: r["score"]):
+            title = row.get("title", "")
+            if title in seen:
                 continue
-            seen.add(t)
-            delta = r["score"] - best_val
-            rationale = r.get("rationale", "")
-            if len(rationale) > 80:
-                rationale = rationale[:77] + "..."
-            hint = f" — {rationale}" if rationale else ""
-            lines.append(f"- {t} (+{delta:.4f}){hint}")
-            # Include abbreviated diff for top 3 near-misses
-            if diffs_shown < 3:
-                diff_path = RUNS_DIR / r["run_id"] / "diff.patch"
-                if diff_path.exists():
-                    diff_lines = diff_path.read_text().strip().splitlines()
-                    # Show only changed lines (max 15 lines)
-                    key_lines = [l for l in diff_lines if l.startswith(("+", "-")) and not l.startswith(("+++", "---"))][:15]
-                    if key_lines:
-                        lines.append("  diff: " + " | ".join(key_lines[:8]))
-                        diffs_shown += 1
-            if len(seen) >= 10:
+            seen.add(title)
+            status = "oversize" if row.get("under_16mb") is False else "valid"
+            lines.append(f"- {title} | {row['score'] - best_val:+.4f} | {status}")
+            if len(seen) == 5:
                 break
         lines.append("")
-
-    # 4. Failures — deduplicated, sorted by how bad (delta ascending)
-    if failed:
-        by_title: dict[str, dict] = {}
-        for r in failed:
-            t = r.get("title", "")
-            if t not in by_title or r["score"] < by_title[t]["score"]:
-                by_title[t] = r
-        sorted_fails = sorted(by_title.values(), key=lambda r: r["score"])
-        lines.append(f"Failed ideas ({len(by_title)} unique, don't repeat):")
-        for r in sorted_fails[:20]:
-            delta = r["score"] - best_val
-            lines.append(f"- {r.get('title', '')} (+{delta:.4f})")
-        if len(by_title) > 20:
-            lines.append(f"  ... and {len(by_title) - 20} more")
-        lines.append("")
-
-    # 5. Speed-score insight — does more steps = better score?
-    runs_with_steps = [r for r in rows if r.get("step_count") and r.get("step_count") > 0]
-    if len(runs_with_steps) >= 3:
-        by_steps = sorted(runs_with_steps, key=lambda r: r["step_count"], reverse=True)
-        fastest = by_steps[0]
-        slowest = by_steps[-1]
-        if fastest["step_count"] != slowest["step_count"]:
-            lines.append("Speed insight:")
-            lines.append(f"- Most steps: {fastest['step_count']} → {fastest['score']:.4f} ({fastest.get('title', '')})")
-            lines.append(f"- Fewest steps: {slowest['step_count']} → {slowest['score']:.4f} ({slowest.get('title', '')})")
-            if fastest["score"] < slowest["score"]:
-                lines.append("- Pattern: more steps correlates with better scores")
-            lines.append("")
-
-    # 6. Improvement path — how we got to current best (last 30)
-    if improvements:
-        lines.append("Improvements (path to current best):")
-        shown = improvements[-30:]
-        if len(improvements) > 30:
-            lines.append(f"  ({len(improvements) - 30} earlier improvements omitted)")
-        for r in shown:
-            mod = "+script" if r.get("has_modified_script") else "baseline"
-            lines.append(f"- {r['run_id']} {r['score']:.4f} [{mod}] {r.get('title', '')}")
-        lines.append("")
-
-    # 7. Last run's training curve excerpt (last 5 steps) — helps spot cutoff issues
-    if rows:
-        last = rows[-1]
-        metrics_path = RUNS_DIR / last["run_id"] / "metrics.jsonl"
-        if metrics_path.exists():
-            try:
-                mlines = metrics_path.read_text().strip().splitlines()
-                tail = mlines[-5:] if len(mlines) >= 5 else mlines
-                vals = []
-                for ml in tail:
-                    try:
-                        m = json.loads(ml)
-                        step = m.get("step", "?")
-                        vbpb = m.get("val_bpb", m.get("val_loss", "?"))
-                        vals.append(f"step {step}: {vbpb}")
-                    except (json.JSONDecodeError, ValueError):
-                        continue
-                if vals:
-                    lines.append(f"Last run curve tail ({last['run_id']}):")
-                    lines.append("  " + " → ".join(vals))
-                    lines.append("")
-            except OSError:
-                pass
 
     return "\n".join(lines)
 
