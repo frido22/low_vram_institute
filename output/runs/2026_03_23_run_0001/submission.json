@@ -1,0 +1,15 @@
+{
+  "artifact_bytes": 14581562,
+  "code_bytes": 67982,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 14513580,
+  "rationale": "The recent runs look architecture-limited and nearly flat under training, so I kept the winning 9x544 backbone and added a cheap token-level residual head that can learn fast within the short step budget. A learned unigram bias plus a full vocab-sized bigram table directly targets next-token statistics, adds little compute relative to the existing output projection, and is explicitly preserved as fp16 in the final artifact so the new signal survives the int8+zlib roundtrip that actually determines score.",
+  "run_id": "2026_03_23_run_0001",
+  "runtime_seconds": 610.726296,
+  "submitter": "frido22",
+  "title": "Residual bigram/unigram logit head kept fp16 under quantization",
+  "track": "mac_mini_official_like",
+  "under_16mb": true,
+  "val_bpb": 2.26721979
+}
