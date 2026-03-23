@@ -364,6 +364,8 @@ def _call_codex(prompt: str, model: str | None = None, reasoning_effort: str | N
 
 
 def _fetch_ideas(runtime: dict) -> str:
+    if not shutil.which("gh"):
+        return ""
     repo = runtime.get("github", {})
     slug = f"{repo.get('owner', '')}/{repo.get('repo', '')}"
     if not slug.strip("/"):
