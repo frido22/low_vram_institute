@@ -1,0 +1,15 @@
+{
+  "artifact_bytes": 12918898,
+  "code_bytes": 71583,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12847315,
+  "rationale": "The current best run already improved the endgame by snapping weights through the final int8 roundtrip. This change attacks the same objective more directly by reducing quantization error itself: large 2D tensors now use per-row grouped scales across columns instead of a single scale for the whole row. That should preserve more post-training signal after the exact int8+zlib roundtrip, while the extra scale metadata stays well within the current 16MB artifact headroom. The late quant-aware roundtrips automatically become more faithful because they now use the stronger grouped quantizer too.",
+  "run_id": "2026_03_23_run_0005",
+  "runtime_seconds": 599.713507,
+  "submitter": "frido22",
+  "title": "Row-Group Int8 Quantization Alignment",
+  "track": "mac_mini_official_like",
+  "under_16mb": true,
+  "val_bpb": 1.63198831
+}
