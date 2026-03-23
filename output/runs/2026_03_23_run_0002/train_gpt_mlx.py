@@ -29,7 +29,7 @@ COMPUTE_DTYPE = mx.bfloat16
 # HYPERPARAMETERS
 # ==============================================================================
 # Default Simple Baseline run:
-# - 9 transformer blocks at width 544
+# - 8 transformer blocks at width 576
 # - 8 attention heads with 4 KV heads (GQA) and 2x MLP expansion
 # - vocab size 1024, sequence length 1024, tied embeddings
 # - default local runs are wallclock-limited; iterations is a high safety ceiling
@@ -65,8 +65,8 @@ class Hyperparameters:
     final_eval_serialization_seconds: float = float(os.environ.get("FINAL_EVAL_SERIALIZATION_SECONDS", 5.0))
     # Model (defaults match the current baseline setup).
     vocab_size: int = int(os.environ.get("VOCAB_SIZE", 1024))
-    num_layers: int = int(os.environ.get("NUM_LAYERS", 9))
-    model_dim: int = int(os.environ.get("MODEL_DIM", 544))
+    num_layers: int = int(os.environ.get("NUM_LAYERS", 8))
+    model_dim: int = int(os.environ.get("MODEL_DIM", 576))
     num_heads: int = int(os.environ.get("NUM_HEADS", 8))
     num_kv_heads: int = int(os.environ.get("NUM_KV_HEADS", 4))
     mlp_mult: int = int(os.environ.get("MLP_MULT", 2))
@@ -516,7 +516,7 @@ INT8_KEEP_FLOAT_STORE_DTYPE = np.float16
 INT8_PER_ROW_SCALE_DTYPE = np.float16
 INT8_CLIP_PERCENTILE = 99.99984
 INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
-INT8_GROUP_SIZE = int(os.environ.get("INT8_GROUP_SIZE", 64))
+INT8_GROUP_SIZE = int(os.environ.get("INT8_GROUP_SIZE", 32))
 INT8_GROUP_MIN_COLS = int(os.environ.get("INT8_GROUP_MIN_COLS", 128))
 INT8_FP16_KEEP_NAMES = tuple(
     name
