@@ -30,7 +30,6 @@ parameter_golf.py   — runs training, parses final score, validates scripts
 ```
 state/ledger.jsonl      — append-only run history
 state/best_script.py    — the current best valid train_gpt_mlx.py
-state/best_diff.patch   — unified diff of current best vs original
 state/next_plan.md      — next planned experiment when ready
 state/pending_plan.md   — current run plan, used for restart safety
 ```

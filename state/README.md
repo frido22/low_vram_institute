@@ -4,7 +4,6 @@ Tracked state:
 
 - `ledger.jsonl` — append-only run history
 - `best_script.py` — current best valid script
-- `best_diff.patch` — diff for the current best script
 
 Transient state:
 

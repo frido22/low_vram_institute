@@ -23,7 +23,6 @@ state/*
 !state/README.md
 !state/ledger.jsonl
 !state/best_script.py
-!state/best_diff.patch
 
 snapshots/research/live_*.json
 

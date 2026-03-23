@@ -118,12 +118,11 @@ def best_script() -> str | None:
 
 
 
-def _save_best(run_id: str, score: float, title: str, script: str, patch: str) -> None:
+def _save_best(script: str) -> None:
     _best_script_path().write_text(script.rstrip() + "\n")
     legacy = STATE_DIR / "best_script.json"
     if legacy.exists():
         legacy.unlink()
-    (STATE_DIR / "best_diff.patch").write_text(patch.rstrip() + "\n")
 
 
 def _next_plan_path() -> Path:
@@ -332,7 +331,7 @@ def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
     improved = valid_run and (prior_best is None or score < prior_best)
 
     if improved and plan_dict.get("modified_script"):
-        _save_best(run_id, score, plan_dict.get("title", ""), plan_dict["modified_script"], raw["patch"])
+        _save_best(plan_dict["modified_script"])
 
     _append_ledger({
         "run_id": run_id,
@@ -689,7 +688,7 @@ def _git_commit(run_id: str) -> None:
         return
     for cmd in [
         ["git", "add", "output/reports", "output/runs",
-         "state/README.md", "state/ledger.jsonl", "state/best_script.py", "state/best_diff.patch"],
+         "state/README.md", "state/ledger.jsonl", "state/best_script.py"],
         ["git", "commit", "-m", f"Publish {run_id}"],
     ]:
         r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=False)  # noqa: S603
