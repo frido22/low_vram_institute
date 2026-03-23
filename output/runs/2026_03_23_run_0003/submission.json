@@ -1,0 +1,15 @@
+{
+  "artifact_bytes": 12922663,
+  "code_bytes": 74010,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12848653,
+  "rationale": "Build on the current single-microbatch win by turning unused wallclock slack into more optimizer updates. The last run finished around 579.5s with a 90s reserve, so the script is leaving training time on the table. Dropping the default reserve to 72s should reclaim roughly 15-20s without crowding final serialization/eval, and shrinking `TRAIN_BATCH_TOKENS` from 8192 to 6144 should raise update count materially while staying on the fast single-microbatch path. `TRAIN_LOG_EVERY` is relaxed to 50 to avoid spending the extra steps on logging overhead.",
+  "run_id": "2026_03_23_run_0003",
+  "runtime_seconds": 600.149269,
+  "submitter": "frido22",
+  "title": "Smaller Batch And Tighter Reserve",
+  "track": "mac_mini_official_like",
+  "under_16mb": true,
+  "val_bpb": 1.63441895
+}

@@ -1,3 +1,4 @@
 run_id,score,modified,improved,title
 2026_03_23_run_0001,2.226923,False,True,Establish baseline
 2026_03_23_run_0002,1.635226,True,True,Single-Microbatch Sync Cleanup
+2026_03_23_run_0003,1.634419,True,True,Smaller Batch And Tighter Reserve
