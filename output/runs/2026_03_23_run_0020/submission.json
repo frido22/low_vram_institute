@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15924199,
+  "code_bytes": 73878,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15850321,
+  "rationale": "Build on the winning row-offset quantizer, but stop paying offset metadata unless it materially lowers actual roundtrip error. For each 2D tensor, this version compares plain per-row int8 against the centered row-offset variant and keeps offsets only when the centered reconstruction cuts MSE by at least 8%. That is a size-aware fidelity gate aligned with the final int8 zlib roundtrip objective, and it should also avoid weak offset insertions that the previous mean-vs-residual heuristic could admit.",
+  "run_id": "2026_03_23_run_0020",
+  "runtime_seconds": 600.89976,
+  "submitter": "frido22",
+  "title": "MSE-Gated Adaptive Row-Offset Int8",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534284,
+  "under_16mb": true,
+  "val_bpb": 1.58561311,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
