@@ -1,0 +1,15 @@
+{
+  "artifact_bytes": 18004110,
+  "code_bytes": 72536,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 17931574,
+  "rationale": "The strongest path so far is late quant-aware tuning plus selective late-decoder FP16 rescue. This run keeps compounding that: it resets Muon and Adam exactly when the first quant-aware roundtrip starts so stale optimizer state does not fight the quantized basin, and it spends a bit more size budget on the most quantization-sensitive tail blocks by default. The change is cheap in wallclock, directly targets final_int8_zlib_roundtrip_exact val_bpb, and stays under the 1500-line limit.",
+  "run_id": "2026_03_23_run_0010",
+  "runtime_seconds": 599.060377,
+  "submitter": "frido22",
+  "title": "Quant-Aware Phase Reset With Deeper Tail FP16 Rescue",
+  "track": "mac_mini_official_like",
+  "under_16mb": false,
+  "val_bpb": 1.57840742
+}
