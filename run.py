@@ -99,6 +99,78 @@ def _save_best(run_id: str, score: float, title: str, script: str, patch: str) -
     (STATE_DIR / "best_diff.patch").write_text(patch.rstrip() + "\n")
 
 
+def _pending_plan_path() -> Path:
+    return STATE_DIR / "pending_run.json"
+
+
+def _load_pending_plan() -> dict[str, Any] | None:
+    path = _pending_plan_path()
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text())
+    except json.JSONDecodeError:
+        path.unlink()
+        return None
+
+    run_id = data.get("run_id")
+    if not isinstance(run_id, str) or not run_id:
+        path.unlink()
+        return None
+    if (RUNS_DIR / run_id).exists():
+        path.unlink()
+        return None
+
+    title = data.get("title")
+    rationale = data.get("rationale")
+    modified_script = data.get("modified_script")
+    track = data.get("track", "")
+    if not isinstance(title, str) or not isinstance(rationale, str):
+        path.unlink()
+        return None
+    if modified_script is not None and not isinstance(modified_script, str):
+        path.unlink()
+        return None
+    if not isinstance(track, str):
+        track = ""
+
+    return {
+        "run_id": run_id,
+        "plan": {
+            "title": title,
+            "rationale": rationale,
+            "modified_script": modified_script,
+            "track": track,
+        },
+    }
+
+
+def _save_pending_plan(run_id: str, plan_dict: dict[str, Any]) -> None:
+    _pending_plan_path().write_text(json.dumps({
+        "run_id": run_id,
+        "title": plan_dict.get("title", ""),
+        "rationale": plan_dict.get("rationale", ""),
+        "modified_script": plan_dict.get("modified_script"),
+        "track": plan_dict.get("track", ""),
+    }, indent=2, sort_keys=True) + "\n")
+
+
+def _clear_pending_plan(run_id: str | None = None) -> None:
+    path = _pending_plan_path()
+    if not path.exists():
+        return
+    if run_id is None:
+        path.unlink()
+        return
+    try:
+        data = json.loads(path.read_text())
+    except json.JSONDecodeError:
+        path.unlink()
+        return
+    if data.get("run_id") == run_id:
+        path.unlink()
+
+
 #Curve analysis
 
 def _analyze_curve(metrics_jsonl: str) -> dict[str, Any]:
@@ -770,18 +842,24 @@ def run_once() -> str:
     pg_config = runtime.get("parameter_golf", {})
 
     with _run_lock():
-        run_id = _next_run_id()
+        pending = _load_pending_plan()
+        run_id = pending["run_id"] if pending else _next_run_id()
         _emit(f"starting {run_id}")
 
         run_errors: list[str] = []
+        p: dict[str, Any] | None = pending["plan"] if pending else None
         for attempt in range(3):
-            p = plan(run_errors=run_errors or None)
-            _emit(f"plan: {p.get('title', '?')}")
+            if attempt > 0 or p is None:
+                p = plan(run_errors=run_errors or None)
+                _save_pending_plan(run_id, p)
+            suffix = " [pending]" if attempt == 0 and pending else ""
+            _emit(f"plan: {p.get('title', '?')}{suffix}")
 
             try:
                 raw = parameter_golf.run(run_id, p, pg_config, LOGS_DIR)
                 break
             except Exception as exc:
+                _clear_pending_plan(run_id)
                 run_errors.append(str(exc))
                 _emit(f"attempt {attempt + 1}/3 failed: {exc}")
                 if attempt == 2:
@@ -790,6 +868,7 @@ def run_once() -> str:
         _emit(f"score={raw['score']:.4f} passed={raw['passed']}")
         _update_after_run(run_id, p, raw)
         _publish(run_id, p, raw)
+        _clear_pending_plan(run_id)
         _emit(f"published {run_id}")
         return run_id
 

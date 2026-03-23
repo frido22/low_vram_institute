@@ -137,5 +137,49 @@ class BestStateTests(unittest.TestCase):
             self.assertEqual(saved["modified_script"], "valid script")
 
 
+class PendingPlanTests(unittest.TestCase):
+    def test_run_once_reuses_pending_plan_after_restart(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            state_dir = root / "state"
+            runs_dir = root / "output" / "runs"
+            logs_dir = root / "logs"
+            reports_dir = root / "output" / "reports"
+            for path in [state_dir, runs_dir, logs_dir, reports_dir]:
+                path.mkdir(parents=True, exist_ok=True)
+
+            pending = {
+                "run_id": "2026_03_23_run_0012",
+                "title": "Saved plan",
+                "rationale": "Resume without replanning",
+                "modified_script": "print('hi')",
+                "track": "mac_mini_official_like",
+            }
+            (state_dir / "pending_run.json").write_text(json.dumps(pending) + "\n")
+
+            with (
+                patch.object(run, "ROOT", root),
+                patch.object(run, "STATE_DIR", state_dir),
+                patch.object(run, "RUNS_DIR", runs_dir),
+                patch.object(run, "LOGS_DIR", logs_dir),
+                patch.object(run, "REPORTS_DIR", reports_dir),
+                patch.object(run, "_load_runtime", return_value={"parameter_golf": {}}),
+                patch.object(run, "plan", side_effect=AssertionError("plan() should not be called")),
+                patch.object(run, "_publish"),
+                patch.object(run, "_update_after_run"),
+                patch.object(run.parameter_golf, "run", return_value={
+                    "score": 1.23,
+                    "passed": True,
+                    "runtime_seconds": 1.0,
+                }) as mock_pg_run,
+            ):
+                run_id = run.run_once()
+
+            self.assertEqual(run_id, "2026_03_23_run_0012")
+            self.assertEqual(mock_pg_run.call_args.args[0], "2026_03_23_run_0012")
+            self.assertEqual(mock_pg_run.call_args.args[1]["title"], "Saved plan")
+            self.assertFalse((state_dir / "pending_run.json").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
