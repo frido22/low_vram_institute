@@ -45,7 +45,7 @@ class Hyperparameters:
     final_eval_serialization_seconds: float = float(os.environ.get("FINAL_EVAL_SERIALIZATION_SECONDS", 5.0))
     quant_aware_train_seconds: float = float(os.environ.get("QUANT_AWARE_TRAIN_SECONDS", 48.0))
     quant_aware_iters: int = int(os.environ.get("QUANT_AWARE_ITERS", 96))
-    quant_aware_every: int = int(os.environ.get("QUANT_AWARE_EVERY", 16))
+    quant_aware_every: int = int(os.environ.get("QUANT_AWARE_EVERY", 24))
     quant_aware_embed_lr_mul: float = float(os.environ.get("QUANT_AWARE_EMBED_LR_MUL", 0.6))
     quant_aware_matrix_lr_mul: float = float(os.environ.get("QUANT_AWARE_MATRIX_LR_MUL", 0.35))
     quant_aware_scalar_lr_mul: float = float(os.environ.get("QUANT_AWARE_SCALAR_LR_MUL", 0.8))
@@ -1176,11 +1176,7 @@ def should_activate_quant_aware(args: Hyperparameters, step: int, elapsed_ms: fl
         return False
     if max_wallclock_ms is None:
         return args.quant_aware_iters > 0 and step >= max(args.iterations - args.quant_aware_iters, 0)
-    remaining_train_ms = max(max_wallclock_ms - reserved_final_ms - elapsed_ms, 0.0)
-    quant_aware_window_ms = 1000.0 * args.quant_aware_train_seconds
-    if args.quant_aware_iters > 0 and step > 0:
-        quant_aware_window_ms = max(quant_aware_window_ms, (elapsed_ms / step) * args.quant_aware_iters)
-    return remaining_train_ms <= quant_aware_window_ms
+    return elapsed_ms >= max(max_wallclock_ms - reserved_final_ms - 1000.0 * args.quant_aware_train_seconds, 0.0)
 def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tuple[float, float, float]:
     if not quant_aware_active:
         return 1.0, 1.0, 1.0
