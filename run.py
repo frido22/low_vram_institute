@@ -9,13 +9,13 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.request import Request, urlopen
 
 import parameter_golf
 
@@ -83,76 +83,140 @@ def best_score() -> float | None:
     return min(r["score"] for r in rows) if rows else None
 
 
+def _best_run_id() -> str | None:
+    row = _best_valid_row(ledger_rows())
+    return str(row.get("run_id")) if row else None
+
+
+def _best_script_path() -> Path:
+    return STATE_DIR / "best_script.py"
+
+
 def best_script() -> str | None:
-    p = STATE_DIR / "best_script.json"
-    if not p.exists():
+    path = _best_script_path()
+    if path.exists():
+        return path.read_text()
+
+    legacy = STATE_DIR / "best_script.json"
+    if not legacy.exists():
         return None
-    data = json.loads(p.read_text())
-    return data.get("modified_script") if isinstance(data, dict) else None
+    try:
+        data = json.loads(legacy.read_text())
+    except json.JSONDecodeError:
+        return None
+    script = data.get("modified_script") if isinstance(data, dict) else None
+    if not isinstance(script, str):
+        return None
+    path.write_text(script.rstrip() + "\n")
+    return script
 
 
 
 def _save_best(run_id: str, score: float, title: str, script: str, patch: str) -> None:
-    (STATE_DIR / "best_script.json").write_text(json.dumps({
-        "run_id": run_id, "score": score, "title": title, "modified_script": script,
-    }, indent=2, sort_keys=True) + "\n")
+    _best_script_path().write_text(script.rstrip() + "\n")
+    legacy = STATE_DIR / "best_script.json"
+    if legacy.exists():
+        legacy.unlink()
     (STATE_DIR / "best_diff.patch").write_text(patch.rstrip() + "\n")
 
 
+def _next_plan_path() -> Path:
+    return STATE_DIR / "next_plan.md"
+
+
 def _pending_plan_path() -> Path:
-    return STATE_DIR / "pending_run.json"
+    return STATE_DIR / "pending_plan.md"
 
 
-def _load_pending_plan() -> dict[str, Any] | None:
-    path = _pending_plan_path()
+def _planner_lock_path() -> Path:
+    return STATE_DIR / "planner.lock"
+
+
+def _read_plan_file(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
-    try:
-        data = json.loads(path.read_text())
-    except json.JSONDecodeError:
+    text = path.read_text()
+    marker = "\n## Rationale\n"
+    if marker not in text:
         path.unlink()
         return None
 
-    run_id = data.get("run_id")
-    if not isinstance(run_id, str) or not run_id:
-        path.unlink()
-        return None
-    if (RUNS_DIR / run_id).exists():
-        path.unlink()
-        return None
+    head, body = text.split(marker, 1)
+    meta: dict[str, str] = {}
+    for line in head.splitlines()[1:]:
+        line = line.strip()
+        if not line:
+            continue
+        key, sep, value = line.partition(":")
+        if not sep:
+            continue
+        meta[key.strip()] = value.strip()
 
-    title = data.get("title")
-    rationale = data.get("rationale")
-    modified_script = data.get("modified_script")
-    track = data.get("track", "")
-    if not isinstance(title, str) or not isinstance(rationale, str):
+    rationale = body.rstrip()
+    modified_script: str | None = None
+    script_marker = "\n## Script\n```python\n"
+    if script_marker in body:
+        rationale, script_block = body.split(script_marker, 1)
+        modified_script, _, _ = script_block.partition("\n```")
+        modified_script = modified_script.rstrip()
+
+    title = meta.get("title", "")
+    track = meta.get("track", "")
+    if not title or not isinstance(track, str):
         path.unlink()
         return None
-    if modified_script is not None and not isinstance(modified_script, str):
-        path.unlink()
-        return None
-    if not isinstance(track, str):
-        track = ""
 
     return {
-        "run_id": run_id,
+        "run_id": meta.get("run_id") or None,
+        "base_best_run_id": meta.get("base_best_run_id") or None,
         "plan": {
             "title": title,
-            "rationale": rationale,
+            "rationale": rationale.strip(),
             "modified_script": modified_script,
             "track": track,
         },
     }
 
 
+def _write_plan_file(
+    path: Path,
+    plan_dict: dict[str, Any],
+    *,
+    run_id: str | None = None,
+    base_best_run_id: str | None = None,
+) -> None:
+    lines = ["# Plan", ""]
+    if run_id:
+        lines.append(f"run_id: {run_id}")
+    if base_best_run_id:
+        lines.append(f"base_best_run_id: {base_best_run_id}")
+    lines.append(f"title: {plan_dict.get('title', '')}")
+    lines.append(f"track: {plan_dict.get('track', '')}")
+    lines.extend([
+        "",
+        "## Rationale",
+        str(plan_dict.get("rationale", "")).strip() or "(none)",
+    ])
+    script = plan_dict.get("modified_script")
+    if script is not None:
+        lines.extend(["", "## Script", "```python", script.rstrip(), "```"])
+    path.write_text("\n".join(lines).rstrip() + "\n")
+
+
+def _load_pending_plan() -> dict[str, Any] | None:
+    path = _pending_plan_path()
+    data = _read_plan_file(path)
+    if not data:
+        return None
+    run_id = data.get("run_id")
+    if not isinstance(run_id, str) or not run_id or (RUNS_DIR / run_id).exists():
+        path.unlink(missing_ok=True)
+        return None
+    return {"run_id": run_id, "plan": data["plan"]}
+
+
 def _save_pending_plan(run_id: str, plan_dict: dict[str, Any]) -> None:
-    _pending_plan_path().write_text(json.dumps({
-        "run_id": run_id,
-        "title": plan_dict.get("title", ""),
-        "rationale": plan_dict.get("rationale", ""),
-        "modified_script": plan_dict.get("modified_script"),
-        "track": plan_dict.get("track", ""),
-    }, indent=2, sort_keys=True) + "\n")
+    _write_plan_file(_pending_plan_path(), plan_dict, run_id=run_id)
 
 
 def _clear_pending_plan(run_id: str | None = None) -> None:
@@ -162,13 +226,30 @@ def _clear_pending_plan(run_id: str | None = None) -> None:
     if run_id is None:
         path.unlink()
         return
-    try:
-        data = json.loads(path.read_text())
-    except json.JSONDecodeError:
+    data = _read_plan_file(path)
+    if not data or data.get("run_id") == run_id:
         path.unlink()
-        return
-    if data.get("run_id") == run_id:
-        path.unlink()
+
+
+def _load_next_plan(expected_best_run_id: str | None, *, consume: bool = False) -> dict[str, Any] | None:
+    path = _next_plan_path()
+    data = _read_plan_file(path)
+    if not data:
+        return None
+    if data.get("base_best_run_id") != (expected_best_run_id or ""):
+        path.unlink(missing_ok=True)
+        return None
+    if consume:
+        path.unlink(missing_ok=True)
+    return data["plan"]
+
+
+def _save_next_plan(plan_dict: dict[str, Any], base_best_run_id: str) -> None:
+    _write_plan_file(_next_plan_path(), plan_dict, base_best_run_id=base_best_run_id)
+
+
+def _clear_next_plan() -> None:
+    _next_plan_path().unlink(missing_ok=True)
 
 
 #Curve analysis
@@ -499,73 +580,28 @@ def _call_codex(
         except json.JSONDecodeError as exc:
             raise CodexError(f"Invalid JSON: {exc}", retryable=False) from exc
 
-
-def _fetch_ideas(runtime: dict) -> str:
-    repo = runtime.get("github", {})
-    if not repo.get("issues_enabled", True):
-        return ""
-    owner = repo.get("owner", "")
-    name = repo.get("repo", "")
-    token = os.environ.get("GITHUB_TOKEN")
-    if not owner or not name or not token:
-        return ""
-    url = f"https://api.github.com/repos/{owner}/{name}/issues?state=open&per_page=10"
-    req = Request(url, headers={
-        "Accept": "application/vnd.github+json",
-        "Authorization": f"Bearer {token}",
-        "User-Agent": "low-vram-institute",
-    })
-    try:
-        with urlopen(req, timeout=15) as resp:  # noqa: S310
-            issues = json.loads(resp.read().decode("utf-8"))
-    except Exception:
-        return ""
-    if not issues:
-        return ""
-    lines = ["## Community Ideas (GitHub Issues)"]
-    for iss in issues:
-        if "pull_request" in iss:
-            continue
-        body = (iss.get("body") or "").replace("\n", " ").strip()[:120]
-        lines.append(f"- {iss.get('title', '')}: {body}" if body else f"- {iss.get('title', '')}")
-    return "\n".join(lines)
-
-
 #Plan (prompt from config/prompt.md template)
 
 def _build_prompt(run_errors: list[str] | None = None) -> str:
-    runtime = _load_runtime()
-
     # Template
     template_path = CONFIG_DIR / "prompt.md"
-    template = template_path.read_text() if template_path.exists() else "Return a plan as JSON.\n{rules}\n{history}\n{script}\n"
+    template = template_path.read_text() if template_path.exists() else "Return a plan as JSON.\n{rules}\n{history}\n"
 
     # Rules
     rules_path = CONFIG_DIR / "parameter_golf_rules.md"
     rules = rules_path.read_text().strip() if rules_path.exists() else ""
 
-    # Training script (original baseline)
-    ws_path = runtime.get("parameter_golf", {}).get("workspace", "")
-    original_script = ""
-    if ws_path:
-        sp = Path(ws_path) / "train_gpt_mlx.py"
-        if sp.exists():
-            try:
-                original_script = sp.read_text()
-            except OSError:
-                pass
-
-    # After the first run, Codex only sees the best script — original is irrelevant
     best = best_script()
     if best:
-        best_script_section = f"## Current Best Script (start from this)\n\n```python\n{best}\n```"
-        script = ""
+        best_script_section = (
+            "## Current Best Script\n"
+            "Read `state/best_script.py` from the workspace and return the full modified script.\n"
+        )
     else:
-        best_script_section = ""
-        script = f"```python\n{original_script}\n```" if original_script else "(script not available)"
-
-    # Community ideas from GitHub issues
-    ideas = _fetch_ideas(runtime)
+        best_script_section = (
+            "## Current Script\n"
+            "Read `third_party/parameter-golf/train_gpt_mlx.py` from the workspace and return the full modified script.\n"
+        )
 
     # Errors
     errors_section = ""
@@ -578,8 +614,6 @@ def _build_prompt(run_errors: list[str] | None = None) -> str:
         rules=rules,
         history=render_context(),
         best_script_section=best_script_section,
-        script=script,
-        ideas=ideas,
         errors_section=errors_section,
     )
 
@@ -620,6 +654,18 @@ def plan(run_errors: list[str] | None = None) -> dict:
         "modified_script": best_script(),
         "track": track,
     }
+
+
+def plan_next() -> None:
+    best_run_id = _best_run_id()
+    if not best_run_id:
+        return
+    with _planner_lock():
+        if _load_next_plan(best_run_id):
+            return
+        p = plan()
+        _save_next_plan(p, best_run_id)
+        _emit(f"next plan ready: {p.get('title', '?')}")
 
 
 #Publish (per-run artifacts + CSV + SVG + git push)
@@ -773,7 +819,7 @@ def _git_commit(run_id: str) -> None:
     if not (ROOT / ".git").exists():
         return
     for cmd in [
-        ["git", "add", "output/reports", "output/runs"],
+        ["git", "add", "output/reports", "output/runs", "state"],
         ["git", "commit", "-m", f"Publish {run_id}"],
     ]:
         r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=False)  # noqa: S603
@@ -828,13 +874,62 @@ def _run_lock():
             lock.unlink()
 
 
+@contextmanager
+def _planner_lock():
+    lock = _planner_lock_path()
+    if lock.exists():
+        try:
+            data = json.loads(lock.read_text())
+            age = (datetime.now(timezone.utc) - datetime.fromisoformat(data["locked_at"])).total_seconds()
+            if age <= STALE_LOCK_S:
+                raise RuntimeError("Planner already active.")
+        except (json.JSONDecodeError, KeyError):
+            pass
+        lock.unlink()
+    lock.write_text(json.dumps({"locked_at": datetime.now(timezone.utc).isoformat()}) + "\n")
+    try:
+        yield
+    finally:
+        if lock.exists():
+            lock.unlink()
+
+
+def _planner_active() -> bool:
+    lock = _planner_lock_path()
+    if not lock.exists():
+        return False
+    try:
+        data = json.loads(lock.read_text())
+        age = (datetime.now(timezone.utc) - datetime.fromisoformat(data["locked_at"])).total_seconds()
+    except (json.JSONDecodeError, KeyError):
+        lock.unlink()
+        return False
+    if age <= STALE_LOCK_S:
+        return True
+    lock.unlink()
+    return False
+
+
+def _start_next_planner() -> None:
+    best_run_id = _best_run_id()
+    if not best_run_id or _load_next_plan(best_run_id) or _planner_active():
+        return
+    subprocess.Popen(  # noqa: S603
+        [sys.executable, str(ROOT / "run.py"), "plan-next"],
+        cwd=ROOT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+
+
 def _next_run_id() -> str:
     prefix = datetime.now(timezone.utc).strftime("%Y_%m_%d_run_")
     existing = [p.name for p in RUNS_DIR.iterdir() if p.is_dir() and p.name.startswith(prefix)] if RUNS_DIR.exists() else []
     return prefix + f"{len(existing) + 1:04d}"
 
 
-def run_once() -> str:
+def run_once(start_async_planner: bool = False) -> str:
     if shutil.disk_usage(ROOT).free < MIN_FREE_DISK:
         raise RuntimeError("Low disk space.")
 
@@ -842,18 +937,26 @@ def run_once() -> str:
     pg_config = runtime.get("parameter_golf", {})
 
     with _run_lock():
+        prior_best_run_id = _best_run_id()
         pending = _load_pending_plan()
+        queued = None if pending else _load_next_plan(prior_best_run_id, consume=True)
         run_id = pending["run_id"] if pending else _next_run_id()
         _emit(f"starting {run_id}")
 
         run_errors: list[str] = []
-        p: dict[str, Any] | None = pending["plan"] if pending else None
+        p: dict[str, Any] | None = pending["plan"] if pending else queued
         for attempt in range(3):
             if attempt > 0 or p is None:
                 p = plan(run_errors=run_errors or None)
-                _save_pending_plan(run_id, p)
-            suffix = " [pending]" if attempt == 0 and pending else ""
+            _save_pending_plan(run_id, p)
+            suffix = ""
+            if attempt == 0 and pending:
+                suffix = " [pending]"
+            elif attempt == 0 and queued:
+                suffix = " [next]"
             _emit(f"plan: {p.get('title', '?')}{suffix}")
+            if start_async_planner and attempt == 0:
+                _start_next_planner()
 
             try:
                 raw = parameter_golf.run(run_id, p, pg_config, LOGS_DIR)
@@ -867,6 +970,8 @@ def run_once() -> str:
 
         _emit(f"score={raw['score']:.4f} passed={raw['passed']}")
         _update_after_run(run_id, p, raw)
+        if _best_run_id() != prior_best_run_id:
+            _clear_next_plan()
         _publish(run_id, p, raw)
         _clear_pending_plan(run_id)
         _emit(f"published {run_id}")
@@ -882,7 +987,7 @@ def daemon(max_cycles: int | None = None) -> None:
     _emit("daemon started")
     while max_cycles is None or cycles < max_cycles:
         try:
-            run_once()
+            run_once(start_async_planner=True)
             failures = 0
             cycles += 1
             _emit(f"cycle done; sleeping {HEARTBEAT_S}s")
@@ -907,6 +1012,7 @@ def daemon(max_cycles: int | None = None) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Low VRAM Institute")
     sub = parser.add_subparsers(dest="cmd")
+    sub.add_parser("plan-next")
     sub.add_parser("run-once")
     d = sub.add_parser("daemon")
     d.add_argument("--max-cycles", type=int, default=None)
@@ -915,7 +1021,9 @@ if __name__ == "__main__":
     for d in [STATE_DIR, LOGS_DIR, RUNS_DIR, REPORTS_DIR]:
         d.mkdir(parents=True, exist_ok=True)
 
-    if args.cmd == "run-once":
+    if args.cmd == "plan-next":
+        plan_next()
+    elif args.cmd == "run-once":
         run_once()
     elif args.cmd == "daemon":
         daemon(max_cycles=args.max_cycles)

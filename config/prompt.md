@@ -17,8 +17,4 @@ Remove unused code.
 
 {best_script_section}
 
-{script}
-
-{ideas}
-
 {errors_section}
