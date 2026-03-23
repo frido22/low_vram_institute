@@ -58,8 +58,14 @@ def _append_ledger(row: dict[str, Any]) -> None:
         f.write(json.dumps(row, sort_keys=True) + "\n")
 
 
+def _is_valid_main_track(row: dict[str, Any]) -> bool:
+    if "valid_main_track" in row:
+        return bool(row.get("valid_main_track"))
+    return bool(row.get("under_16mb"))
+
+
 def _best_valid_row(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
-    valid = [r for r in rows if r.get("under_16mb") and r.get("score") is not None]
+    valid = [r for r in rows if _is_valid_main_track(r) and r.get("score") is not None]
     return min(valid, key=lambda r: r["score"]) if valid else None
 
 
@@ -67,7 +73,7 @@ def _valid_improvement_run_ids(rows: list[dict[str, Any]]) -> set[str]:
     best_so_far: float | None = None
     winners: set[str] = set()
     for row in rows:
-        if not row.get("under_16mb"):
+        if not _is_valid_main_track(row):
             continue
         score = row.get("score")
         if score is None:
@@ -282,7 +288,7 @@ def render_context() -> str:
         tag = "WIN" if run_id in improvement_ids else f"{delta:+.4f}"
         parts = []
         parts.append("mod" if row.get("has_modified_script") else "base")
-        parts.append("valid" if row.get("under_16mb", True) else "oversize")
+        parts.append("valid" if _is_valid_main_track(row) else "invalid")
         lines.append(f"- {row['run_id']} | {row['score']:.4f} {tag} | {', '.join(parts)} | {row.get('title', '')}")
     lines.append("")
 
@@ -296,7 +302,7 @@ def render_context() -> str:
     misses = [
         r for r in rows
         if r.get("has_modified_script")
-        and (str(r.get("run_id", "")) not in improvement_ids or not r.get("under_16mb"))
+        and (str(r.get("run_id", "")) not in improvement_ids or not _is_valid_main_track(r))
     ]
     if misses:
         lines.append("Closest misses:")
@@ -306,7 +312,7 @@ def render_context() -> str:
             if title in seen:
                 continue
             seen.add(title)
-            status = "oversize" if row.get("under_16mb") is False else "valid"
+            status = "invalid" if not _is_valid_main_track(row) else "valid"
             lines.append(f"- {title} | {row['score'] - best_val:+.4f} | {status}")
             if len(seen) == 5:
                 break
@@ -319,15 +325,14 @@ def render_context() -> str:
 
 def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
     rows = ledger_rows()
-    prior_best = min((r["score"] for r in rows if r.get("under_16mb")), default=None)
+    prior_best = min((r["score"] for r in rows if _is_valid_main_track(r)), default=None)
     score = raw["score"]
-    valid_run = bool(raw.get("diagnostics", {}).get("under_16mb"))
+    diag = raw.get("diagnostics", {})
+    valid_run = bool(raw["passed"]) and bool(diag.get("under_16mb")) and bool(diag.get("within_train_wallclock", True))
     improved = valid_run and (prior_best is None or score < prior_best)
 
     if improved and plan_dict.get("modified_script"):
         _save_best(run_id, score, plan_dict.get("title", ""), plan_dict["modified_script"], raw["patch"])
-
-    diag = raw.get("diagnostics", {})
 
     _append_ledger({
         "run_id": run_id,
@@ -336,6 +341,7 @@ def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
         "rationale": plan_dict.get("rationale", ""),
         "score": score,
         "val_loss": diag.get("val_loss"),
+        "train_time_ms": diag.get("train_time_ms"),
         "passed": raw["passed"],
         "has_modified_script": bool(plan_dict.get("modified_script")),
         "improved_best": improved,
@@ -344,6 +350,8 @@ def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
         "code_bytes": diag.get("code_bytes"),
         "artifact_bytes": diag.get("artifact_bytes"),
         "under_16mb": diag.get("under_16mb"),
+        "within_train_wallclock": diag.get("within_train_wallclock"),
+        "valid_main_track": valid_run,
         "track": plan_dict.get("track", ""),
     })
 
@@ -526,6 +534,7 @@ def _publish(run_id: str, plan_dict: dict, raw: dict) -> None:
     run_dir.mkdir(parents=True, exist_ok=True)
     diag = raw.get("diagnostics", {})
     prov = raw.get("provenance", {})
+    valid_main_track = bool(raw["passed"]) and bool(diag.get("under_16mb")) and bool(diag.get("within_train_wallclock", True))
 
     # Per-run artifacts
     (run_dir / "diff.patch").write_text((raw.get("patch") or "").rstrip() + "\n")
@@ -544,6 +553,9 @@ def _publish(run_id: str, plan_dict: dict, raw: dict) -> None:
         "model_bytes": diag.get("quantized_bytes", 0),
         "artifact_bytes": diag.get("artifact_bytes", 0),
         "under_16mb": bool(diag.get("under_16mb")),
+        "train_time_ms": diag.get("train_time_ms"),
+        "within_train_wallclock": bool(diag.get("within_train_wallclock", True)),
+        "valid_main_track": valid_main_track,
         "limit_bytes": 16_000_000,
     }
     (run_dir / "artifact_size.json").write_text(json.dumps(artifact, indent=2, sort_keys=True) + "\n")
@@ -558,10 +570,13 @@ def _publish(run_id: str, plan_dict: dict, raw: dict) -> None:
         "has_modified_script": bool(plan_dict.get("modified_script")),
         "title": plan_dict.get("title", ""),
         "rationale": plan_dict.get("rationale", ""),
+        "train_time_ms": diag.get("train_time_ms"),
         "code_bytes": diag.get("code_bytes", 0),
         "model_bytes": diag.get("quantized_bytes", 0),
         "artifact_bytes": diag.get("artifact_bytes", 0),
         "under_16mb": bool(diag.get("under_16mb")),
+        "within_train_wallclock": bool(diag.get("within_train_wallclock", True)),
+        "valid_main_track": valid_main_track,
     }, indent=2, sort_keys=True) + "\n")
     (run_dir / "README.md").write_text(
         "\n".join([
@@ -569,12 +584,16 @@ def _publish(run_id: str, plan_dict: dict, raw: dict) -> None:
             "",
             f"- score: {raw['score']:.6f}",
             f"- runtime_seconds: {raw['runtime_seconds']:.2f}",
+            f"- train_time_ms: {diag.get('train_time_ms')}",
             f"- track: {plan_dict.get('track', '')}",
             f"- title: {plan_dict.get('title', '')}",
             f"- code_bytes: {diag.get('code_bytes', 0)}",
             f"- model_bytes: {diag.get('quantized_bytes', 0)}",
             f"- artifact_bytes: {diag.get('artifact_bytes', 0)}",
+            f"- passed: {bool(raw['passed'])}",
             f"- under_16mb: {bool(diag.get('under_16mb'))}",
+            f"- within_train_wallclock: {bool(diag.get('within_train_wallclock', True))}",
+            f"- valid_main_track: {valid_main_track}",
             "",
             "This is a Mac mini official-like local run package.",
             "The intended mismatch versus official leaderboard submissions is hardware.",
@@ -597,7 +616,7 @@ def _render_csv() -> str:
         score = row.get("score")
         if score is None:
             continue
-        valid = bool(row.get("under_16mb"))
+        valid = _is_valid_main_track(row)
         improved = valid and (best_so_far is None or score < best_so_far)
         if improved:
             best_so_far = score
@@ -612,7 +631,7 @@ def _render_svg() -> str:
     pts: list[dict] = []
     for row in rows:
         s = row.get("score")
-        if s is None or not row.get("under_16mb"):
+        if s is None or not _is_valid_main_track(row):
             continue
         if best_so_far is None or s < best_so_far:
             best_so_far = s

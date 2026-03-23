@@ -10,6 +10,7 @@ from pathlib import Path
 
 
 FINAL_EXACT_RE = re.compile(r"final_int8_zlib_roundtrip_exact val_loss:(?P<val_loss>[0-9.]+) val_bpb:(?P<val_bpb>[0-9.]+)")
+TRAIN_TIME_RE = re.compile(r"train_time:(?P<train_time_ms>\d+)ms")
 REQUIRED_MARKERS = ["final_int8_zlib_roundtrip_exact", "MAX_WALLCLOCK_SECONDS"]
 MAX_SCRIPT_LINES = 1500
 
@@ -117,11 +118,14 @@ def run(run_id: str, plan: dict, pg_config: dict, logs_dir: Path) -> dict:
     run_log = run_log_path.read_text() if run_log_path.exists() else (completed.stdout + completed.stderr)
 
     final = _parse_final_metrics(run_log)
+    train_time_ms = _last_train_time_ms(run_log)
+    max_wallclock_seconds = float(env.get("MAX_WALLCLOCK_SECONDS", pg_config.get("max_wallclock_seconds", 600)))
     quant_path = log_dir / f"{run_id}_mlx_model.int8.ptz"
     quant_bytes = quant_path.stat().st_size if quant_path.exists() else 0
     code_bytes = len(script_snapshot.encode("utf-8"))
     artifact_bytes = code_bytes + quant_bytes
     score = final["val_bpb"]
+    within_train_wallclock = train_time_ms is None or train_time_ms <= int(max_wallclock_seconds * 1000.0)
 
     return {
         "score": score,
@@ -132,6 +136,8 @@ def run(run_id: str, plan: dict, pg_config: dict, logs_dir: Path) -> dict:
         "train_script": script_snapshot,
         "diagnostics": {
             "val_loss": final["val_loss"],
+            "train_time_ms": train_time_ms,
+            "within_train_wallclock": within_train_wallclock,
             "quantized_bytes": quant_bytes,
             "code_bytes": code_bytes,
             "artifact_bytes": artifact_bytes,
@@ -192,3 +198,10 @@ def _parse_final_metrics(text: str) -> dict[str, float]:
         raise RuntimeError("Log missing final_int8_zlib_roundtrip_exact metrics.")
     m = matches[-1]
     return {"val_loss": float(m.group("val_loss")), "val_bpb": float(m.group("val_bpb"))}
+
+
+def _last_train_time_ms(text: str) -> int | None:
+    matches = list(TRAIN_TIME_RE.finditer(text))
+    if not matches:
+        return None
+    return int(matches[-1].group("train_time_ms"))
