@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15966552,
+  "code_bytes": 73506,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15893046,
+  "rationale": "Builds on the current best late quant-aware LR rebalance and tail FP16 rescue without replaying another scheduler tweak. The new idea is to make the final int8 roundtrip itself more faithful on biased matrix rows: large 2D tensors can now store a cheap per-row float16 offset when their row mean is materially nonzero, then quantize the centered residuals with the existing per-row scales. That directly targets final_int8_zlib_roundtrip_exact val_bpb at small byte cost, while also removing unused qmeta metadata and a redundant float-keep branch to stay lean under the 16MB cap.",
+  "run_id": "2026_03_23_run_0018",
+  "runtime_seconds": 600.090006,
+  "submitter": "frido22",
+  "title": "Adaptive Row-Offset Int8 Quantizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533588,
+  "under_16mb": true,
+  "val_bpb": 1.57919573,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

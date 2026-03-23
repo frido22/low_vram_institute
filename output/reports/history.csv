@@ -16,3 +16,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_23_run_0015,1.584565,True,False,Budget-Greedy Final FP16 Rescue
 2026_03_23_run_0016,1.590216,True,False,Terminal Scalar-Only Quantized Calibration
 2026_03_23_run_0017,1.588245,True,False,Budgeted Final FP16 Knapsack Reallocation
+2026_03_23_run_0018,1.579196,True,True,Adaptive Row-Offset Int8 Quantizer
