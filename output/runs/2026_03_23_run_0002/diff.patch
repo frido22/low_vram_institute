@@ -1,0 +1,104 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -29,7 +29,7 @@
+ # HYPERPARAMETERS
+ # ==============================================================================
+ # Default Simple Baseline run:
+-# - 9 transformer blocks at width 512
++# - 9 transformer blocks at width 544
+ # - 8 attention heads with 4 KV heads (GQA) and 2x MLP expansion
+ # - vocab size 1024, sequence length 1024, tied embeddings
+ # - default local runs are wallclock-limited; iterations is a high safety ceiling
+@@ -66,7 +66,7 @@
+     # Model (defaults match the current baseline setup).
+     vocab_size: int = int(os.environ.get("VOCAB_SIZE", 1024))
+     num_layers: int = int(os.environ.get("NUM_LAYERS", 9))
+-    model_dim: int = int(os.environ.get("MODEL_DIM", 512))
++    model_dim: int = int(os.environ.get("MODEL_DIM", 544))
+     num_heads: int = int(os.environ.get("NUM_HEADS", 8))
+     num_kv_heads: int = int(os.environ.get("NUM_KV_HEADS", 4))
+     mlp_mult: int = int(os.environ.get("MLP_MULT", 2))
+@@ -516,6 +516,8 @@
+ INT8_PER_ROW_SCALE_DTYPE = np.float16
+ INT8_CLIP_PERCENTILE = 99.99984
+ INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
++INT8_GROUP_SIZE = int(os.environ.get("INT8_GROUP_SIZE", 64))
++INT8_GROUP_MIN_COLS = int(os.environ.get("INT8_GROUP_MIN_COLS", 128))
+ INT8_FP16_KEEP_NAMES = tuple(
+     name
+     for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
+@@ -536,8 +538,25 @@
+ def quantize_float_array(arr: mx.array) -> tuple[np.ndarray, np.ndarray]:
+     f32 = _np_float32(arr)
+     if f32.ndim == 2:
+-        # Matrices get one scale per row, which usually tracks output-channel
+-        # ranges much better than a single tensor-wide scale.
++        # Matrices get grouped per-row scales. The artifact budget has slack on this
++        # baseline, so we spend a small amount of metadata to improve the final
++        # int8 roundtrip score directly.
++        if f32.shape[1] >= INT8_GROUP_MIN_COLS and INT8_GROUP_SIZE > 0:
++            group_size = min(INT8_GROUP_SIZE, f32.shape[1])
++            n_groups = (f32.shape[1] + group_size - 1) // group_size
++            pad_cols = n_groups * group_size - f32.shape[1]
++            if pad_cols > 0:
++                f32 = np.pad(f32, ((0, 0), (0, pad_cols)))
++            grouped = f32.reshape(f32.shape[0], n_groups, group_size)
++            clip_abs = np.quantile(np.abs(grouped), INT8_CLIP_Q, axis=2) if grouped.size else np.empty((grouped.shape[0], n_groups), dtype=np.float32)
++            clipped = np.clip(grouped, -clip_abs[..., None], clip_abs[..., None])
++            scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
++            q = np.clip(np.round(clipped / scale[..., None]), -127, 127).astype(np.int8, copy=False)
++            if pad_cols > 0:
++                q = q.reshape(q.shape[0], n_groups * group_size)[:, : arr.shape[1]]
++            else:
++                q = q.reshape(q.shape[0], arr.shape[1])
++            return np.ascontiguousarray(q), np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False))
+         clip_abs = np.quantile(np.abs(f32), INT8_CLIP_Q, axis=1) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
+         clipped = np.clip(f32, -clip_abs[:, None], clip_abs[:, None])
+         scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
+@@ -577,14 +596,16 @@
+             continue
+         stats["num_float_tensors"] += 1
+         q, s = quantize_float_array(arr)
+-        if s.ndim > 0:
++        if s.ndim == 2:
++            qmeta[name] = {"scheme": "per_row_grouped", "axis": 0, "group_size": min(INT8_GROUP_SIZE, int(arr.shape[1]))}
++        elif s.ndim > 0:
+             qmeta[name] = {"scheme": "per_row", "axis": 0}
+         quantized[name] = q
+         scales[name] = s
+         dtypes[name] = str(arr.dtype).split(".")[-1]
+         stats["int8_payload_bytes"] += int(q.nbytes + s.nbytes)
+     obj: dict[str, object] = {
+-        "__quant_format__": "int8_clean_per_row_v1",
++        "__quant_format__": "int8_clean_per_row_grouped_v2",
+         "quantized": quantized,
+         "scales": scales,
+         "dtypes": dtypes,
+@@ -603,7 +624,18 @@
+         q_np = np.asarray(q, dtype=np.int8)
+         dtype_name = quant_obj["dtypes"][name]
+         scale = np.asarray(quant_obj["scales"][name], dtype=np.float32)
+-        if qmeta.get(name, {}).get("scheme") == "per_row" or scale.ndim > 0:
++        meta = qmeta.get(name, {})
++        if meta.get("scheme") == "per_row_grouped" and scale.ndim == 2:
++            group_size = int(meta.get("group_size", scale.shape[1]))
++            n_groups = scale.shape[1]
++            pad_cols = n_groups * group_size - q_np.shape[1]
++            if pad_cols > 0:
++                q_np = np.pad(q_np, ((0, 0), (0, pad_cols)))
++            grouped = q_np.reshape(q_np.shape[0], n_groups, group_size).astype(np.float32)
++            out_arr = (grouped * scale[..., None]).reshape(q_np.shape[0], n_groups * group_size)
++            if pad_cols > 0:
++                out_arr = out_arr[:, : out_arr.shape[1] - pad_cols]
++        elif meta.get("scheme") == "per_row" or scale.ndim > 0:
+             # Broadcast the saved row scale back across trailing dimensions.
+             out_arr = q_np.astype(np.float32) * scale.reshape((q_np.shape[0],) + (1,) * (q_np.ndim - 1))
+         else:
+@@ -1290,6 +1322,7 @@
+     log(f"eval_mode:{eval_mode} bos_token_id:{bos_token_id} val_docs:{0 if doc_spans is None else len(doc_spans)}")
+     log(f"eval_stride:{args.eval_stride}")
+     log(f"compute_dtype:{COMPUTE_DTYPE} compile:True")
++    log(f"int8_quant:group_size:{INT8_GROUP_SIZE} min_cols:{INT8_GROUP_MIN_COLS} clip_percentile:{INT8_CLIP_PERCENTILE}")
+     log(
+         f"dtypes tok_emb:{model.tok_emb.weight.dtype} "
+         f"linear_weight:{model.blocks[0].attn.c_q.weight.dtype} "

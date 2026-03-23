@@ -1,0 +1,15 @@
+{
+  "artifact_bytes": 13346932,
+  "code_bytes": 75965,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 13270967,
+  "rationale": "The baseline leaves meaningful headroom under the 16MB artifact cap, so this run spends it in two places that directly matter for the scored metric. First, the default width moves from 512 to 544 to buy a modest capacity increase without a radical throughput hit on the Mac mini. Second, the final quantizer switches large 2D tensors from single per-row scales to grouped per-row scales, which should improve the final int8 roundtrip fidelity at a very small metadata cost. This targets final_int8_zlib_roundtrip_exact val_bpb directly instead of only chasing float training loss.",
+  "run_id": "2026_03_23_run_0002",
+  "runtime_seconds": 592.903574,
+  "submitter": "frido22",
+  "title": "Wider 544d model with grouped per-row int8 quantization",
+  "track": "mac_mini_official_like",
+  "under_16mb": true,
+  "val_bpb": 2.17899732
+}
