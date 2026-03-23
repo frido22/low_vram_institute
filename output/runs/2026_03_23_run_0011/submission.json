@@ -1,0 +1,15 @@
+{
+  "artifact_bytes": 16157136,
+  "code_bytes": 72694,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 16084442,
+  "rationale": "The current best script wins by expanding late FP16 rescue, but that pushes the quantized artifact over 16MB. This change keeps the quant-aware phase reset and reallocates the same approximate FP16 payload budget used by the last valid run: drop the always-float token embedding, keep the final block fully in FP16, keep the last two projection pairs, and add penultimate-block QKV in FP16. The hypothesis is that late attention weights are more roundtrip-sensitive than the embedding table, so this should recover more of run 0010's gain while staying near run 0008's artifact size. I also removed a redundant float-keep branch.",
+  "run_id": "2026_03_23_run_0011",
+  "runtime_seconds": 598.888161,
+  "submitter": "frido22",
+  "title": "Budget-Neutral Tail QKV FP16 Rescue",
+  "track": "mac_mini_official_like",
+  "under_16mb": false,
+  "val_bpb": 1.58920117
+}

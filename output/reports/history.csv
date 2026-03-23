@@ -9,3 +9,4 @@ run_id,score,modified,improved,title
 2026_03_23_run_0008,1.583374,True,True,Quant-Aware Late LR Rebalance
 2026_03_23_run_0009,1.697299,True,False,Half-Context Higher-Token Budget
 2026_03_23_run_0010,1.578407,True,True,Quant-Aware Phase Reset With Deeper Tail FP16 Rescue
+2026_03_23_run_0011,1.589201,True,False,Budget-Neutral Tail QKV FP16 Rescue
