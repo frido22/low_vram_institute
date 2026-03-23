@@ -7,6 +7,7 @@ EVERY run must change something. Null is only acceptable for the very first base
 Start from the current best script below and make your changes on top.
 Original is always restored after each run — be fearless.
 You can change anything: a single hyperparameter, the optimizer, the architecture, or rewrite the entire script.
+The score that matters is `final_int8_zlib_roundtrip_exact val_bpb`. Optimize for that final quantized number, not training loss and not intermediate validation lines.
 
 {rules}
 

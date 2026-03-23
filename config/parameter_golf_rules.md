@@ -4,6 +4,7 @@
 
 Minimize the Parameter Golf score on an Apple Silicon Mac mini (M4, 16 GB RAM).
 Real upstream code path, official validation split, `MAX_WALLCLOCK_SECONDS=600`.
+The primary objective is `final_int8_zlib_roundtrip_exact val_bpb` — lower is better.
 
 ## Agency
 
@@ -48,6 +49,7 @@ Every run should change something. Null (unmodified baseline) is only acceptable
 - Never import network libraries (socket, http, urllib, requests) or subprocess
 - Keep scripts under 1500 lines (upstream rule — enforced in the script header itself)
 - Scoring metric is val_bpb (bits per byte) — lower is better
+- Optimize for the final quantized roundtrip score, not training loss and not intermediate validation lines
 - The quantized artifact size is reported as `quantized_artifact_bytes` — watch it, stay under 16MB
 
 ## Mac Mini Reality
