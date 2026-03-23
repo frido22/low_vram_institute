@@ -19,3 +19,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_23_run_0018,1.579196,True,True,Adaptive Row-Offset Int8 Quantizer
 2026_03_23_run_0019,1.587158,True,False,Row-Offset Error Gate
 2026_03_23_run_0020,1.585613,True,False,MSE-Gated Adaptive Row-Offset Int8
+2026_03_23_run_0021,1.588701,True,False,Affine-Recalibrated Row-Offset Int8 Quantizer

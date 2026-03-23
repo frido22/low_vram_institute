@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""
-The `train_gpt.py` and `train_gpt_mlx.py` scripts are intended as good launching-off points for new participants, not SOTA configs. We'll accept PRs that tune, improve, or simplify these scripts without significantly increasing complexity, but competitive submissions should stay in the `/records` folder.
-Hard stop: To keep readable for newcomers, let's make sure `train_gpt.py` and `train_gpt_mlx.py` never are longer than 1500 lines.
-"""
+"""Competitive-but-readable MLX GPT trainer for the parameter golf track."""
 from __future__ import annotations
 import glob
 import json
@@ -76,20 +73,13 @@ class Hyperparameters:
     grad_clip_norm: float = float(os.environ.get("GRAD_CLIP_NORM", 0.0))
     out_dir: str = os.environ.get("OUT_DIR", "logs")
     @property
-    def train_files(self) -> str:
-        return f"{self.data_path}/fineweb_train_*.bin"
+    def train_files(self) -> str: return f"{self.data_path}/fineweb_train_*.bin"
     @property
-    def val_files(self) -> str:
-        return f"{self.data_path}/fineweb_val_*.bin"
+    def val_files(self) -> str: return f"{self.data_path}/fineweb_val_*.bin"
     @property
-    def microbatch_tokens(self) -> int:
-        return self.train_batch_tokens // self.grad_accum_steps
+    def microbatch_tokens(self) -> int: return self.train_batch_tokens // self.grad_accum_steps
     @property
-    def use_single_microbatch_path(self) -> bool:
-        return (
-            self.grad_accum_steps == 1
-            and self.microbatch_tokens <= self.mlx_max_microbatch_tokens
-        )
+    def use_single_microbatch_path(self) -> bool: return self.grad_accum_steps == 1 and self.microbatch_tokens <= self.mlx_max_microbatch_tokens
     def lr_mul(self, step: int, elapsed_ms: float) -> float:
         if self.warmdown_iters <= 0:
             return 1.0
@@ -128,11 +118,7 @@ def token_chunks(total_tokens: int, seq_len: int, max_chunk_tokens: int) -> list
         chunks.append(chunk)
         remaining -= chunk
     return chunks
-def accumulate_flat_grads(
-    accum: dict[str, mx.array] | None,
-    grads_tree: dict,
-    scale: float,
-) -> dict[str, mx.array]:
+def accumulate_flat_grads(accum: dict[str, mx.array] | None, grads_tree: dict, scale: float) -> dict[str, mx.array]:
     flat = dict(tree_flatten(grads_tree))
     if accum is None:
         return {k: g * scale for k, g in flat.items()}
@@ -169,12 +155,7 @@ def load_data_shard(path: Path) -> np.ndarray:
         raise ValueError(f"Short read for {path}")
     return tokens.astype(np.int32, copy=False)
 class TokenStream:
-    def __init__(
-        self,
-        pattern: str,
-        log_fn: Callable[[str], None] | None = None,
-        dataset_name: str = "",
-    ):
+    def __init__(self, pattern: str, log_fn: Callable[[str], None] | None = None, dataset_name: str = ""):
         self.files = [Path(p) for p in sorted(glob.glob(pattern))]
         if not self.files:
             raise FileNotFoundError(f"No files found for pattern: {pattern}")
@@ -207,12 +188,7 @@ class TokenStream:
             left -= k
         return chunks[0] if len(chunks) == 1 else np.concatenate(chunks, axis=0)
 class TokenLoader:
-    def __init__(
-        self,
-        pattern: str,
-        log_fn: Callable[[str], None] | None = None,
-        dataset_name: str = "",
-    ):
+    def __init__(self, pattern: str, log_fn: Callable[[str], None] | None = None, dataset_name: str = ""):
         self.stream = TokenStream(pattern, log_fn=log_fn, dataset_name=dataset_name)
     def next_batch(self, batch_tokens: int, seq_len: int) -> tuple[mx.array, mx.array]:
         usable = (batch_tokens // seq_len) * seq_len
@@ -232,14 +208,7 @@ class RMSNormNoWeight(nn.Module):
     def __call__(self, x: mx.array) -> mx.array:
         return rms_norm(x)
 class CausalSelfAttention(nn.Module):
-    def __init__(
-        self,
-        dim: int,
-        num_heads: int,
-        num_kv_heads: int,
-        rope_base: float,
-        qk_gain_init: float,
-    ):
+    def __init__(self, dim: int, num_heads: int, num_kv_heads: int, rope_base: float, qk_gain_init: float):
         super().__init__()
         if dim % num_heads != 0:
             raise ValueError("model_dim must be divisible by num_heads")
@@ -279,15 +248,7 @@ class MLP(nn.Module):
         x = nn.relu(self.fc(x))
         return self.proj(x * x)
 class Block(nn.Module):
-    def __init__(
-        self,
-        dim: int,
-        num_heads: int,
-        num_kv_heads: int,
-        mlp_mult: int,
-        rope_base: float,
-        qk_gain_init: float,
-    ):
+    def __init__(self, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int, rope_base: float, qk_gain_init: float):
         super().__init__()
         self.attn_norm = RMSNormNoWeight()
         self.mlp_norm = RMSNormNoWeight()
@@ -430,16 +391,7 @@ class SplitOptimizers:
             eps=args.adam_eps,
             bias_correction=True,
         )
-    def step(
-        self,
-        model: GPT,
-        grads_tree: dict,
-        step: int,
-        lr_mul: float,
-        embed_lr_mul: float = 1.0,
-        matrix_lr_mul: float = 1.0,
-        scalar_lr_mul: float = 1.0,
-    ) -> None:
+    def step(self, model: GPT, grads_tree: dict, step: int, lr_mul: float, embed_lr_mul: float = 1.0, matrix_lr_mul: float = 1.0, scalar_lr_mul: float = 1.0) -> None:
         params = dict(tree_flatten(model.parameters()))
         grads = dict(tree_flatten(grads_tree))
         updated = dict(params)
@@ -456,17 +408,15 @@ class SplitOptimizers:
         scalar_params = {k: params[k] for k in self.scalar_keys}
         updated.update(self.adam_scalar.apply_gradients(scalar_grads, scalar_params))
         model.update(tree_unflatten(list(updated.items())))
-MX_DTYPE_FROM_NAME = {
-    "float32": mx.float32,
-    "float16": mx.float16,
-    "bfloat16": mx.bfloat16,
-}
+MX_DTYPE_FROM_NAME = {"float32": mx.float32, "float16": mx.float16, "bfloat16": mx.bfloat16}
 INT8_KEEP_FLOAT_MAX_NUMEL = 65_536
 INT8_KEEP_FLOAT_STORE_DTYPE = np.float16
 INT8_PER_ROW_SCALE_DTYPE = np.float16
 INT8_PER_ROW_OFFSET_DTYPE = np.float16
 INT8_CLIP_PERCENTILE = 99.99984
 INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
+INT8_CLIP_LO_Q = (1.0 - INT8_CLIP_Q) * 0.5
+INT8_CLIP_HI_Q = 1.0 - INT8_CLIP_LO_Q
 INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
 INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 1))
 INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
@@ -475,18 +425,8 @@ INT8_FP16_KEEP_NAMES = tuple(
     for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
     if name
 )
-BLOCK_FP16_MATRIX_SUFFIXES = (
-    "attn.c_q.weight",
-    "attn.c_k.weight",
-    "attn.c_v.weight",
-    "attn.proj.weight",
-    "mlp.fc.weight",
-    "mlp.proj.weight",
-)
-BLOCK_FP16_PROJ_SUFFIXES = (
-    "attn.proj.weight",
-    "mlp.proj.weight",
-)
+BLOCK_FP16_MATRIX_SUFFIXES = ("attn.c_q.weight", "attn.c_k.weight", "attn.c_v.weight", "attn.proj.weight", "mlp.fc.weight", "mlp.proj.weight")
+BLOCK_FP16_PROJ_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
 def _np_float32(arr: mx.array) -> np.ndarray:
     return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
 def build_int8_fp16_keep_names(num_layers: int) -> set[str]:
@@ -507,39 +447,79 @@ def keep_float_array(name: str, arr: mx.array, passthrough_orig_dtypes: dict[str
         passthrough_orig_dtypes[name] = str(arr.dtype).split(".")[-1]
         return np.ascontiguousarray(np.array(arr.astype(mx.float16), dtype=INT8_KEEP_FLOAT_STORE_DTYPE, copy=False))
     return np.ascontiguousarray(np.array(arr, copy=True))
-def quantize_float_array(arr: mx.array) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
-    f32 = _np_float32(arr)
-    if f32.ndim == 2:
-        row_offset = np.mean(f32, axis=1, dtype=np.float32) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
-        centered = f32 - row_offset[:, None]
-        mean_abs = float(np.mean(np.abs(row_offset), dtype=np.float64)) if row_offset.size else 0.0
+def quantized_mse(f32: np.ndarray, q: np.ndarray, scale: np.ndarray, offset: np.ndarray | None) -> float:
+    scale_f32 = scale.astype(np.float32, copy=False)
+    recon = q.astype(np.float32, copy=False) * scale_f32[:, None]
+    if offset is not None:
+        recon = recon + offset.astype(np.float32, copy=False)[:, None]
+    err = f32 - recon
+    return float(np.mean(err * err, dtype=np.float64)) if err.size else 0.0
+def quantize_rowwise_int8(f32: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    clip_abs = np.quantile(np.abs(f32), INT8_CLIP_Q, axis=1) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
+    clipped = np.clip(f32, -clip_abs[:, None], clip_abs[:, None])
+    scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
+    q = np.clip(np.round(clipped / scale[:, None]), -127, 127).astype(np.int8, copy=False)
+    return np.ascontiguousarray(q), np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False))
+def quantize_rowwise_centered_int8(f32: np.ndarray, offset: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    centered = f32 - offset[:, None]
+    clip_abs = np.quantile(np.abs(centered), INT8_CLIP_Q, axis=1) if centered.size else np.empty((centered.shape[0],), dtype=np.float32)
+    clipped = np.clip(centered, -clip_abs[:, None], clip_abs[:, None])
+    scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
+    q = np.clip(np.round(clipped / scale[:, None]), -127, 127).astype(np.int8, copy=False)
+    return np.ascontiguousarray(q), np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False))
+def quantize_matrix_candidates(f32: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray | None, bool]:
+    best_q, best_scale = quantize_rowwise_int8(f32)
+    best_offset = None
+    best_transposed = False
+    best_mse = quantized_mse(f32, best_q, best_scale, None)
+    candidates: list[tuple[np.ndarray, bool]] = [(f32, False)]
+    if f32.shape[0] != f32.shape[1]:
+        candidates.append((f32.T, True))
+    for matrix, is_transposed in candidates:
+        if is_transposed:
+            cand_q, cand_scale = quantize_rowwise_int8(matrix)
+            cand_mse = quantized_mse(matrix, cand_q, cand_scale, None)
+            if cand_mse < best_mse:
+                best_q, best_scale = cand_q, cand_scale
+                best_offset = None
+                best_transposed = True
+                best_mse = cand_mse
+        row_mean = np.mean(matrix, axis=1, dtype=np.float32) if matrix.size else np.empty((matrix.shape[0],), dtype=np.float32)
+        centered = matrix - row_mean[:, None]
+        mean_abs = float(np.mean(np.abs(row_mean), dtype=np.float64)) if row_mean.size else 0.0
         resid_abs = float(np.mean(np.abs(centered), dtype=np.float64)) if centered.size else 0.0
         if mean_abs >= INT8_ROW_OFFSET_MIN_RATIO * max(resid_abs, 1e-12):
-            clip_abs = np.quantile(np.abs(centered), INT8_CLIP_Q, axis=1) if centered.size else np.empty((centered.shape[0],), dtype=np.float32)
-            clipped = np.clip(centered, -clip_abs[:, None], clip_abs[:, None])
-            scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
-            q = np.clip(np.round(clipped / scale[:, None]), -127, 127).astype(np.int8, copy=False)
-            return (
-                np.ascontiguousarray(q),
-                np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False)),
-                np.ascontiguousarray(row_offset.astype(INT8_PER_ROW_OFFSET_DTYPE, copy=False)),
-            )
-        clip_abs = np.quantile(np.abs(f32), INT8_CLIP_Q, axis=1) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
-        clipped = np.clip(f32, -clip_abs[:, None], clip_abs[:, None])
-        scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
-        q = np.clip(np.round(clipped / scale[:, None]), -127, 127).astype(np.int8, copy=False)
-        return np.ascontiguousarray(q), np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False)), None
+            mean_q, mean_scale = quantize_rowwise_centered_int8(matrix, row_mean)
+            mean_mse = quantized_mse(matrix, mean_q, mean_scale, row_mean)
+            if mean_mse < best_mse:
+                best_q, best_scale = mean_q, mean_scale
+                best_offset = np.ascontiguousarray(row_mean.astype(INT8_PER_ROW_OFFSET_DTYPE, copy=False))
+                best_transposed = is_transposed
+                best_mse = mean_mse
+            row_lo = np.quantile(matrix, INT8_CLIP_LO_Q, axis=1) if matrix.size else np.empty((matrix.shape[0],), dtype=np.float32)
+            row_hi = np.quantile(matrix, INT8_CLIP_HI_Q, axis=1) if matrix.size else np.empty((matrix.shape[0],), dtype=np.float32)
+            mid_offset = 0.5 * (row_lo + row_hi)
+            mid_q, mid_scale = quantize_rowwise_centered_int8(matrix, mid_offset)
+            mid_mse = quantized_mse(matrix, mid_q, mid_scale, mid_offset)
+            if mid_mse < best_mse:
+                best_q, best_scale = mid_q, mid_scale
+                best_offset = np.ascontiguousarray(mid_offset.astype(INT8_PER_ROW_OFFSET_DTYPE, copy=False))
+                best_transposed = is_transposed
+                best_mse = mid_mse
+    return best_q, best_scale, best_offset, best_transposed
+def quantize_float_array(arr: mx.array) -> tuple[np.ndarray, np.ndarray, np.ndarray | None, bool]:
+    f32 = _np_float32(arr)
+    if f32.ndim == 2:
+        return quantize_matrix_candidates(f32)
     clip_abs = float(np.quantile(np.abs(f32).reshape(-1), INT8_CLIP_Q)) if f32.size else 0.0
     scale = np.array(clip_abs / 127.0 if clip_abs > 0.0 else 1.0, dtype=np.float32)
     q = np.clip(np.round(np.clip(f32, -clip_abs, clip_abs) / scale), -127, 127).astype(np.int8, copy=False)
-    return np.ascontiguousarray(q), scale, None
-def quantize_state_dict_int8(
-    flat_state: dict[str, mx.array],
-    int8_fp16_keep_names: set[str],
-) -> tuple[dict[str, object], dict[str, int]]:
+    return np.ascontiguousarray(q), scale, None, False
+def quantize_state_dict_int8(flat_state: dict[str, mx.array], int8_fp16_keep_names: set[str]) -> tuple[dict[str, object], dict[str, int]]:
     quantized: dict[str, np.ndarray] = {}
     scales: dict[str, np.ndarray] = {}
     offsets: dict[str, np.ndarray] = {}
+    transposed: dict[str, bool] = {}
     dtypes: dict[str, str] = {}
     passthrough: dict[str, np.ndarray] = {}
     passthrough_orig_dtypes: dict[str, str] = {}
@@ -562,28 +542,27 @@ def quantize_state_dict_int8(
             stats["int8_payload_bytes"] += int(kept.nbytes)
             continue
         stats["num_float_tensors"] += 1
-        q, s, o = quantize_float_array(arr)
+        q, s, o, t = quantize_float_array(arr)
         quantized[name] = q
         scales[name] = s
         if o is not None:
             offsets[name] = o
+        if t:
+            transposed[name] = True
         dtypes[name] = str(arr.dtype).split(".")[-1]
         stats["int8_payload_bytes"] += int(q.nbytes + s.nbytes + (0 if o is None else o.nbytes))
-    obj: dict[str, object] = {
-        "__quant_format__": "int8_clean_per_row_offset_v2",
-        "quantized": quantized,
-        "scales": scales,
-        "dtypes": dtypes,
-        "passthrough": passthrough,
-    }
+    obj: dict[str, object] = {"__quant_format__": "int8_clean_per_row_offset_axis_mix_v3", "quantized": quantized, "scales": scales, "dtypes": dtypes, "passthrough": passthrough}
     if offsets:
         obj["offsets"] = offsets
+    if transposed:
+        obj["transposed"] = transposed
     if passthrough_orig_dtypes:
         obj["passthrough_orig_dtypes"] = passthrough_orig_dtypes
     return obj, stats
 def dequantize_state_dict_int8(quant_obj: dict[str, object]) -> dict[str, mx.array]:
     out: dict[str, mx.array] = {}
     offsets = quant_obj.get("offsets", {})
+    transposed = quant_obj.get("transposed", {})
     passthrough_orig_dtypes = quant_obj.get("passthrough_orig_dtypes", {})
     for name, q in quant_obj["quantized"].items():
         q_np = np.asarray(q, dtype=np.int8)
@@ -595,17 +574,15 @@ def dequantize_state_dict_int8(quant_obj: dict[str, object]) -> dict[str, mx.arr
                 out_arr = out_arr + np.asarray(offsets[name], dtype=np.float32).reshape((q_np.shape[0],) + (1,) * (q_np.ndim - 1))
         else:
             out_arr = q_np.astype(np.float32) * float(scale)
+        if transposed.get(name, False):
+            out_arr = out_arr.T
         out[name] = mx.array(out_arr, dtype=MX_DTYPE_FROM_NAME[dtype_name])
     for name, arr in quant_obj["passthrough"].items():
         out_arr = np.array(arr, copy=True)
         orig_dtype = passthrough_orig_dtypes.get(name)
         out[name] = mx.array(out_arr, dtype=MX_DTYPE_FROM_NAME[orig_dtype]) if isinstance(orig_dtype, str) else mx.array(out_arr)
     return out
-def roundtrip_tensor_like_final(
-    name: str,
-    arr: mx.array,
-    int8_fp16_keep_names: set[str],
-) -> mx.array:
+def roundtrip_tensor_like_final(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> mx.array:
     if not mx.issubdtype(arr.dtype, mx.floating):
         return arr
     if should_keep_float_tensor(name, arr, int8_fp16_keep_names):
@@ -614,11 +591,13 @@ def roundtrip_tensor_like_final(
         if arr.dtype in {mx.float32, mx.bfloat16}:
             return mx.array(np.array(arr.astype(mx.float16), dtype=INT8_KEEP_FLOAT_STORE_DTYPE, copy=False), dtype=arr.dtype)
         return mx.array(np.array(arr, copy=True), dtype=arr.dtype)
-    q, s, o = quantize_float_array(arr)
+    q, s, o, t = quantize_float_array(arr)
     scale = np.asarray(s, dtype=np.float32)
     out_arr = q.astype(np.float32) * (scale.reshape((q.shape[0],) + (1,) * (q.ndim - 1)) if scale.ndim > 0 else float(scale))
     if o is not None:
         out_arr = out_arr + np.asarray(o, dtype=np.float32).reshape((q.shape[0],) + (1,) * (q.ndim - 1))
+    if t:
+        out_arr = out_arr.T
     return mx.array(np.ascontiguousarray(out_arr), dtype=arr.dtype)
 def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str]) -> None:
     model.update(

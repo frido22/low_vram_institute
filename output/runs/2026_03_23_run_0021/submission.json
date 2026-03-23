@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15977423,
+  "code_bytes": 75145,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15902278,
+  "rationale": "Keeps the winning adaptive row-offset path, but after choosing the int8 codes it refits the stored dequant scale and offset by least squares. That keeps the same training/runtime shape, adds no validation leakage, and directly targets final roundtrip fidelity instead of replaying another quant-aware schedule variant.",
+  "run_id": "2026_03_23_run_0021",
+  "runtime_seconds": 600.73227,
+  "submitter": "frido22",
+  "title": "Affine-Recalibrated Row-Offset Int8 Quantizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534173,
+  "under_16mb": true,
+  "val_bpb": 1.58870064,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
