@@ -1,0 +1,15 @@
+{
+  "artifact_bytes": 15963411,
+  "code_bytes": 70785,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15892626,
+  "rationale": "Run_0006 already spent almost the entire 16MB budget on the most sensitive late decoder weights, so this iteration avoids another FP16-size increase and instead targets the remaining int8 error directly. The current per-row clip percentile is so high that 512/1024-wide rows are effectively quantized by their maxima, which wastes int8 range on rare outliers. Lowering the default int8 clip percentile to 99.8 makes clipping actually active on those matrix rows, and extending plus densifying the late quant-aware phase gives the model more chances to adapt to that sharper final quantizer before the exact roundtrip evaluation.",
+  "run_id": "2026_03_23_run_0007",
+  "runtime_seconds": 599.435766,
+  "submitter": "frido22",
+  "title": "Per-Row Outlier Clipping With Denser Late Quant-Aware Snaps",
+  "track": "mac_mini_official_like",
+  "under_16mb": true,
+  "val_bpb": 1.64019457
+}
