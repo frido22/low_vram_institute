@@ -597,7 +597,8 @@ def _render_csv() -> str:
         score = row.get("score")
         if score is None:
             continue
-        improved = best_so_far is None or score < best_so_far
+        valid = bool(row.get("under_16mb"))
+        improved = valid and (best_so_far is None or score < best_so_far)
         if improved:
             best_so_far = score
         title = str(row.get("title", "")).replace(",", " ")
@@ -611,7 +612,7 @@ def _render_svg() -> str:
     pts: list[dict] = []
     for row in rows:
         s = row.get("score")
-        if s is None:
+        if s is None or not row.get("under_16mb"):
             continue
         if best_so_far is None or s < best_so_far:
             best_so_far = s
@@ -668,7 +669,8 @@ def _git_commit(run_id: str) -> None:
     if not (ROOT / ".git").exists():
         return
     for cmd in [
-        ["git", "add", "output/reports", "output/runs", "state"],
+        ["git", "add", "output/reports", "output/runs",
+         "state/README.md", "state/ledger.jsonl", "state/best_script.py", "state/best_diff.patch"],
         ["git", "commit", "-m", f"Publish {run_id}"],
     ]:
         r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=False)  # noqa: S603

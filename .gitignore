@@ -24,8 +24,6 @@ state/*
 !state/ledger.jsonl
 !state/best_script.py
 !state/best_diff.patch
-!state/pending_plan.md
-!state/next_plan.md
 
 snapshots/research/live_*.json
 
