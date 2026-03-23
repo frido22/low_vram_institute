@@ -1,0 +1,15 @@
+{
+  "artifact_bytes": 12593177,
+  "code_bytes": 73703,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12519474,
+  "rationale": "Guaranteed stock baseline on the Mac mini before autonomous modifications begin.",
+  "run_id": "2026_03_23_run_0001",
+  "runtime_seconds": 577.035127,
+  "submitter": "frido22",
+  "title": "Establish baseline",
+  "track": "mac_mini_official_like",
+  "under_16mb": true,
+  "val_bpb": 2.22121136
+}
