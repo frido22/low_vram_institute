@@ -1,0 +1,15 @@
+{
+  "artifact_bytes": 15911949,
+  "code_bytes": 72312,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15839637,
+  "rationale": "Builds directly on the best late LR rebalance path by making the first quant-aware step a real phase change: roundtrip once at phase start, reset Muon/Adam state so stale optimizer moments do not fight the quantized weights, then continue the existing periodic roundtrips. I also removed a redundant float-keep branch to keep the script lean and size-neutral.",
+  "run_id": "2026_03_23_run_0012",
+  "runtime_seconds": 599.151814,
+  "submitter": "frido22",
+  "title": "Quant-Aware Phase-Start Reset",
+  "track": "mac_mini_official_like",
+  "under_16mb": true,
+  "val_bpb": 1.5899413
+}
