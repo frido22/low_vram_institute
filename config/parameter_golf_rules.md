@@ -25,6 +25,7 @@ Every run should change something. Null (unmodified baseline) is only acceptable
 4. LEARN: Study what worked and what failed. Form hypotheses, not just random trials.
 5. SPEND THE RUN BUDGET WELL: One Mac mini run is expensive. Prefer a new serious idea over another weak replay.
 6. VALIDATE SPARINGLY: Validate only after a clearly meaningful win or a major architectural change. Tiny gains are not worth many replay runs on this machine.
+7. SIMPLIFY WHEN POSSIBLE: If two approaches score similarly, prefer the simpler, faster, easier-to-reason-about script.
 
 ## Budget Policy
 
