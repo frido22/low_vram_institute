@@ -302,6 +302,9 @@ def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
         "peak_mb": diag.get("peak_mb"),
         "active_mb": diag.get("active_mb"),
         "quantized_bytes": diag.get("quantized_bytes"),
+        "code_bytes": diag.get("code_bytes"),
+        "artifact_bytes": diag.get("artifact_bytes"),
+        "under_16mb": diag.get("under_16mb"),
         "curve": curve.get("shape", "no_data"),
         "curve_drop": curve.get("drop"),
         "first_val": curve.get("first_val"),
@@ -471,6 +474,8 @@ def plan(run_errors: list[str] | None = None) -> dict:
 def _publish(run_id: str, plan_dict: dict, raw: dict) -> None:
     run_dir = RUNS_DIR / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
+    diag = raw.get("diagnostics", {})
+    prov = raw.get("provenance", {})
 
     # Per-run artifacts
     (run_dir / "diff.patch").write_text((raw.get("patch") or "").rstrip() + "\n")
@@ -478,6 +483,22 @@ def _publish(run_id: str, plan_dict: dict, raw: dict) -> None:
         (run_dir / "run.log").write_text(raw["run_log"].rstrip() + "\n")
     if raw.get("metrics_jsonl"):
         (run_dir / "metrics.jsonl").write_text(raw["metrics_jsonl"].rstrip() + "\n")
+    if raw.get("train_script"):
+        (run_dir / "train_gpt_mlx.py").write_text(raw["train_script"].rstrip() + "\n")
+    req_path = prov.get("requirements_path")
+    if req_path and Path(req_path).exists():
+        shutil.copy2(req_path, run_dir / "requirements.txt")
+    quant_path = prov.get("quantized_model_path")
+    if quant_path and Path(quant_path).exists():
+        shutil.copy2(quant_path, run_dir / Path(quant_path).name)
+    artifact = {
+        "code_bytes": diag.get("code_bytes", 0),
+        "model_bytes": diag.get("quantized_bytes", 0),
+        "artifact_bytes": diag.get("artifact_bytes", 0),
+        "under_16mb": bool(diag.get("under_16mb")),
+        "limit_bytes": 16_000_000,
+    }
+    (run_dir / "artifact_size.json").write_text(json.dumps(artifact, indent=2, sort_keys=True) + "\n")
 
     # Submission JSON (Parameter Golf format)
     runtime = _load_runtime()
@@ -489,7 +510,28 @@ def _publish(run_id: str, plan_dict: dict, raw: dict) -> None:
         "has_modified_script": bool(plan_dict.get("modified_script")),
         "title": plan_dict.get("title", ""),
         "rationale": plan_dict.get("rationale", ""),
+        "code_bytes": diag.get("code_bytes", 0),
+        "model_bytes": diag.get("quantized_bytes", 0),
+        "artifact_bytes": diag.get("artifact_bytes", 0),
+        "under_16mb": bool(diag.get("under_16mb")),
     }, indent=2, sort_keys=True) + "\n")
+    (run_dir / "README.md").write_text(
+        "\n".join([
+            f"# {run_id}",
+            "",
+            f"- score: {raw['score']:.6f}",
+            f"- runtime_seconds: {raw['runtime_seconds']:.2f}",
+            f"- track: {plan_dict.get('track', '')}",
+            f"- title: {plan_dict.get('title', '')}",
+            f"- code_bytes: {diag.get('code_bytes', 0)}",
+            f"- model_bytes: {diag.get('quantized_bytes', 0)}",
+            f"- artifact_bytes: {diag.get('artifact_bytes', 0)}",
+            f"- under_16mb: {bool(diag.get('under_16mb'))}",
+            "",
+            "This is a Mac mini official-like local run package.",
+            "The intended mismatch versus official leaderboard submissions is hardware.",
+        ]) + "\n"
+    )
 
     # Reports
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)

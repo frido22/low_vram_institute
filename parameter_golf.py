@@ -134,11 +134,13 @@ def run(run_id: str, plan: dict, pg_config: dict, logs_dir: Path) -> dict:
     diagnostics = _parse_diagnostics(run_log)
     quant_path = log_dir / f"{run_id}_mlx_model.int8.ptz"
     quant_bytes = quant_path.stat().st_size if quant_path.exists() else 0
+    code_bytes = len(script_snapshot.encode("utf-8"))
+    artifact_bytes = code_bytes + quant_bytes
     score = final["val_bpb"]
 
     summary = (
         f"Final val_bpb={score:.4f}, val_loss={final['val_loss']:.4f}, "
-        f"quantized={quant_bytes}B."
+        f"quantized={quant_bytes}B, code={code_bytes}B, artifact={artifact_bytes}B."
     )
     if modified:
         summary += " Modified script."
@@ -167,12 +169,17 @@ def run(run_id: str, plan: dict, pg_config: dict, logs_dir: Path) -> dict:
             "peak_mb": diagnostics.get("peak_mb"),
             "active_mb": diagnostics.get("active_mb"),
             "quantized_bytes": quant_bytes,
+            "code_bytes": code_bytes,
+            "artifact_bytes": artifact_bytes,
+            "under_16mb": artifact_bytes < 16_000_000,
         },
         "provenance": {
             "adapter": "parameter_golf",
             "workspace": str(ws.path),
             "command": command,
             "has_modified_script": bool(modified),
+            "requirements_path": str(ws.path / "requirements.txt"),
+            "quantized_model_path": str(quant_path) if quant_path.exists() else "",
             "launch_baseline_env": {k: env.get(k) for k in [
                 "ITERATIONS", "TRAIN_BATCH_TOKENS", "VAL_BATCH_SIZE",
                 "VAL_LOSS_EVERY", "TRAIN_LOG_EVERY", "MAX_WALLCLOCK_SECONDS",
