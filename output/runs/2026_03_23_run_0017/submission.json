@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15921572,
+  "code_bytes": 73681,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15847891,
+  "rationale": "Builds directly on the best late quant-aware LR rebalance script, but changes only the final size-allocation policy. Instead of always spending FP16 budget on the tied embedding and then greedily trying extra penultimate attention tensors, this run treats the embedding and penultimate Q/K/V as a tiny exact-budget search: it scores each tensor by actual int8 roundtrip distortion, enumerates all subsets that fit the true 16MB compressed cap, and keeps the subset with the highest recovered quantization error. I also remove the now-unused qmeta bookkeeping to keep the script lean and preserve the 1500-line limit.",
+  "run_id": "2026_03_23_run_0017",
+  "runtime_seconds": 608.444988,
+  "submitter": "frido22",
+  "title": "Budgeted Final FP16 Knapsack Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533558,
+  "under_16mb": true,
+  "val_bpb": 1.58824543,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
