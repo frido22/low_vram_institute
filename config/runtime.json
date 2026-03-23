@@ -7,7 +7,7 @@
   "codex": {
     "enabled": true,
     "model": "gpt-5.4",
-    "reasoning_effort": "medium"
+    "reasoning_effort": "high"
   },
   "parameter_golf": {
     "workspace": "/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf",
