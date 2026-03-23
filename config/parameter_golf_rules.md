@@ -8,15 +8,14 @@ The primary objective is `final_int8_zlib_roundtrip_exact val_bpb` — lower is 
 
 ## Agency
 
-You have FULL, UNRESTRICTED agency over the training script.
+You may change any part of the training script.
 Return the complete modified `train_gpt_mlx.py` as `modified_script`.
-The original is always restored after each run — be fearless.
-Every run should change something. Null (unmodified baseline) is only acceptable for the very first run.
+Original is restored after each run.
+Every run should change something. Null (unmodified baseline) is only acceptable for the first run.
 
-- A single hyperparameter tweak can be the winning move (warmdown_iters 1200→15 was a 2.5x improvement)
-- But you can also rewrite entire functions, add new classes, or replace the architecture wholesale
-- There is NO limit on ambition — let the hypothesis determine the scope
-- You can also optimize the code itself to run faster — more training steps in 600s = better results
+- A single hyperparameter tweak can be a winning move
+- Full rewrites are allowed when the hypothesis justifies them
+- Faster code can buy more steps in 600s
 
 ## Decision Priorities
 
@@ -27,6 +26,7 @@ Every run should change something. Null (unmodified baseline) is only acceptable
 5. SPEND THE RUN BUDGET WELL: One Mac mini run is expensive. Prefer a new serious idea over another weak replay.
 6. VALIDATE SPARINGLY: Validate only after a clearly meaningful win or a major architectural change. Tiny gains are not worth many replay runs on this machine.
 7. SIMPLIFY WHEN POSSIBLE: If two approaches score similarly, prefer the simpler, faster, easier-to-reason-about script.
+8. KEEP IT LEAN: Remove unused code.
 
 ## Budget Policy
 
@@ -48,7 +48,7 @@ Every run should change something. Null (unmodified baseline) is only acceptable
 - Never change data/tokenizer path resolution
 - Never import network libraries (socket, http, urllib, requests) or subprocess
 - Keep scripts under 1500 lines (upstream rule — enforced in the script header itself)
-- Scoring metric is val_bpb (bits per byte) — lower is better
+- Remove unused code
 - Optimize for the final quantized roundtrip score, not training loss and not intermediate validation lines
 - The quantized artifact size is reported as `quantized_artifact_bytes` — watch it, stay under 16MB
 
