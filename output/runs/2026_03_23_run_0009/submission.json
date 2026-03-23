@@ -1,0 +1,15 @@
+{
+  "artifact_bytes": 15947723,
+  "code_bytes": 72159,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15875564,
+  "rationale": "This keeps the run-0008 quant-aware and tail-FP16 quantization wins, but pivots to a new idea category: use 512-token training windows with a larger 8192-token batch and 16384-token validation batch. On a 600s M4 budget, shorter sequences should materially cut per-step attention cost and allow many more optimizer steps/tokens, while the model still preserves the same parameterization and late quantization-aware behavior. I also drop the fixed final-eval reserve floor from 72s to 48s because the shorter-context eval path should be much cheaper, which should buy back additional training time without touching the hard wallclock cap.",
+  "run_id": "2026_03_23_run_0009",
+  "runtime_seconds": 606.602923,
+  "submitter": "frido22",
+  "title": "Half-Context Higher-Token Budget",
+  "track": "mac_mini_official_like",
+  "under_16mb": true,
+  "val_bpb": 1.69729915
+}
