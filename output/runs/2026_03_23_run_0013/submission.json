@@ -1,0 +1,15 @@
+{
+  "artifact_bytes": 15881577,
+  "code_bytes": 73047,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15808530,
+  "rationale": "Builds on the best late quant-aware LR rebalance path by starting quant-aware training earlier and ramping the LR multipliers in smoothly, aiming to reduce the abrupt distribution shift that hurt phase-reset variants while giving the model longer to adapt to the final int8 roundtrip target.",
+  "run_id": "2026_03_23_run_0013",
+  "runtime_seconds": 599.188046,
+  "submitter": "frido22",
+  "title": "Quant-Aware Soft-Start Ramp",
+  "track": "mac_mini_official_like",
+  "under_16mb": true,
+  "val_bpb": 1.59235366
+}
