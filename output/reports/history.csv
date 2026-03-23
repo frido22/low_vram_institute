@@ -3,3 +3,4 @@ run_id,score,modified,improved,title
 2026_03_23_run_0002,2.784058,True,False,Speed-biased smaller-context MQA transformer
 2026_03_23_run_0003,2.222307,True,False,Quantization-sensitive decoder projection passthrough
 2026_03_23_run_0004,2.231610,True,False,Centered residual int8 quantization for 2D tensors
+2026_03_23_run_0005,2.309466,True,False,Row-normalized linear weights with learned gains

@@ -1,0 +1,15 @@
+{
+  "artifact_bytes": 15230879,
+  "code_bytes": 74506,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15156373,
+  "rationale": "Switched the transformer\u2019s large linear layers to a row-normalized parameterization with separate learned gain vectors. This is a new category versus prior quantization-only tweaks: the effective weights become much less sensitive to per-row int8 scale distortion after roundtrip, while keeping the overall baseline architecture and training loop intact.",
+  "run_id": "2026_03_23_run_0005",
+  "runtime_seconds": 577.672736,
+  "submitter": "frido22",
+  "title": "Row-normalized linear weights with learned gains",
+  "track": "mac_mini_official_like",
+  "under_16mb": true,
+  "val_bpb": 2.30946607
+}

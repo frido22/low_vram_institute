@@ -514,8 +514,11 @@ MX_DTYPE_FROM_NAME = {
 INT8_KEEP_FLOAT_MAX_NUMEL = 65_536
 INT8_KEEP_FLOAT_STORE_DTYPE = np.float16
 INT8_PER_ROW_SCALE_DTYPE = np.float16
-INT8_CLIP_PERCENTILE = 99.99984
-INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
+INT8_CLIP_CANDIDATE_QUANTILES = tuple(
+    float(q)
+    for q in os.environ.get("INT8_CLIP_CANDIDATE_QUANTILES", "0.999,0.9999,0.99998,0.9999984,1.0").split(",")
+    if q
+)
 INT8_FP16_KEEP_NAMES = tuple(
     name
     for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
@@ -533,21 +536,40 @@ def keep_float_array(name: str, arr: mx.array, passthrough_orig_dtypes: dict[str
         passthrough_orig_dtypes[name] = str(arr.dtype).split(".")[-1]
         return np.ascontiguousarray(np.array(arr.astype(mx.float16), dtype=INT8_KEEP_FLOAT_STORE_DTYPE, copy=False))
     return np.ascontiguousarray(np.array(arr, copy=True))
+def _candidate_clip_abs(abs_f32: np.ndarray, axis: int | None = None) -> np.ndarray:
+    if abs_f32.size == 0:
+        shape = () if axis is None else (len(INT8_CLIP_CANDIDATE_QUANTILES), abs_f32.shape[1 - axis])
+        return np.zeros(shape, dtype=np.float32)
+    return np.quantile(abs_f32, INT8_CLIP_CANDIDATE_QUANTILES, axis=axis).astype(np.float32, copy=False)
 def quantize_float_array(arr: mx.array) -> tuple[np.ndarray, np.ndarray]:
     f32 = _np_float32(arr)
     if f32.ndim == 2:
-        # Matrices get one scale per row, which usually tracks output-channel
-        # ranges much better than a single tensor-wide scale.
-        clip_abs = np.quantile(np.abs(f32), INT8_CLIP_Q, axis=1) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
-        clipped = np.clip(f32, -clip_abs[:, None], clip_abs[:, None])
-        scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
-        q = np.clip(np.round(clipped / scale[:, None]), -127, 127).astype(np.int8, copy=False)
-        return np.ascontiguousarray(q), np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False))
-    # Vectors / scalars use a simpler per-tensor scale.
-    clip_abs = float(np.quantile(np.abs(f32).reshape(-1), INT8_CLIP_Q)) if f32.size else 0.0
-    scale = np.array(clip_abs / 127.0 if clip_abs > 0.0 else 1.0, dtype=np.float32)
-    q = np.clip(np.round(np.clip(f32, -clip_abs, clip_abs) / scale), -127, 127).astype(np.int8, copy=False)
-    return np.ascontiguousarray(q), scale
+        clip_abs_candidates = _candidate_clip_abs(np.abs(f32), axis=1)
+        best_err = np.full((f32.shape[0],), np.inf, dtype=np.float32)
+        best_scale = np.ones((f32.shape[0],), dtype=np.float32)
+        best_q = np.zeros(f32.shape, dtype=np.int8)
+        for clip_abs in clip_abs_candidates:
+            scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
+            q = np.clip(np.round(np.clip(f32, -clip_abs[:, None], clip_abs[:, None]) / scale[:, None]), -127, 127).astype(np.int8, copy=False)
+            err = np.mean(np.square(f32 - q.astype(np.float32) * scale[:, None]), axis=1, dtype=np.float32)
+            better = err < best_err
+            best_err[better] = err[better]
+            best_scale[better] = scale[better]
+            best_q[better] = q[better]
+        return np.ascontiguousarray(best_q), np.ascontiguousarray(best_scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False))
+    clip_abs_candidates = _candidate_clip_abs(np.abs(f32).reshape(-1))
+    best_err = math.inf
+    best_scale = np.array(1.0, dtype=np.float32)
+    best_q = np.zeros(f32.shape, dtype=np.int8)
+    for clip_abs in np.atleast_1d(clip_abs_candidates):
+        scale = np.array(max(float(clip_abs) / 127.0, 1.0 / 127.0), dtype=np.float32)
+        q = np.clip(np.round(np.clip(f32, -clip_abs, clip_abs) / scale), -127, 127).astype(np.int8, copy=False)
+        err = float(np.mean(np.square(f32 - q.astype(np.float32) * scale), dtype=np.float32))
+        if err < best_err:
+            best_err = err
+            best_scale = scale
+            best_q = q
+    return np.ascontiguousarray(best_q), best_scale
 def quantize_state_dict_int8(flat_state: dict[str, mx.array]) -> tuple[dict[str, object], dict[str, int]]:
     quantized: dict[str, np.ndarray] = {}
     scales: dict[str, np.ndarray] = {}
