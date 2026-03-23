@@ -58,6 +58,11 @@ def _append_ledger(row: dict[str, Any]) -> None:
         f.write(json.dumps(row, sort_keys=True) + "\n")
 
 
+def _row_val_bpb(row: dict[str, Any]) -> float | None:
+    value = row.get("final_val_bpb", row.get("score"))
+    return float(value) if value is not None else None
+
+
 def _is_valid_main_track(row: dict[str, Any]) -> bool:
     if "valid_main_track" in row:
         return bool(row.get("valid_main_track"))
@@ -65,8 +70,8 @@ def _is_valid_main_track(row: dict[str, Any]) -> bool:
 
 
 def _best_valid_row(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
-    valid = [r for r in rows if _is_valid_main_track(r) and r.get("score") is not None]
-    return min(valid, key=lambda r: r["score"]) if valid else None
+    valid = [r for r in rows if _is_valid_main_track(r) and _row_val_bpb(r) is not None]
+    return min(valid, key=lambda r: _row_val_bpb(r) or float("inf")) if valid else None
 
 
 def _valid_improvement_run_ids(rows: list[dict[str, Any]]) -> set[str]:
@@ -75,18 +80,19 @@ def _valid_improvement_run_ids(rows: list[dict[str, Any]]) -> set[str]:
     for row in rows:
         if not _is_valid_main_track(row):
             continue
-        score = row.get("score")
-        if score is None:
+        val_bpb = _row_val_bpb(row)
+        if val_bpb is None:
             continue
-        if best_so_far is None or score < best_so_far:
+        if best_so_far is None or val_bpb < best_so_far:
             winners.add(str(row.get("run_id", "")))
-            best_so_far = score
+            best_so_far = val_bpb
     return winners
 
 
 def best_score() -> float | None:
     rows = ledger_rows()
-    return min(r["score"] for r in rows) if rows else None
+    scores = [score for score in (_row_val_bpb(r) for r in rows) if score is not None]
+    return min(scores) if scores else None
 
 
 def _best_run_id() -> str | None:
@@ -265,8 +271,9 @@ def render_context() -> str:
     if not rows:
         return "No runs yet."
 
-    best_row = _best_valid_row(rows) or min(rows, key=lambda r: r["score"])
-    best_val = best_row["score"]
+    best_row = _best_valid_row(rows) or min(rows, key=lambda r: _row_val_bpb(r) or float("inf"))
+    best_val = _row_val_bpb(best_row)
+    assert best_val is not None
     improvement_ids = _valid_improvement_run_ids(rows)
     improvements = [r for r in rows if str(r.get("run_id", "")) in improvement_ids]
     last_imp_idx = max(
@@ -276,26 +283,38 @@ def render_context() -> str:
     plateau = len(rows) - last_imp_idx - 1
 
     lines: list[str] = []
-    lines.append(f"Best valid: {best_val:.4f} ({best_row['run_id']}) | {best_row.get('title', '')}")
+    lines.append(
+        f"Best valid final_int8_zlib_roundtrip_exact val_bpb: {best_val:.4f} "
+        f"({best_row['run_id']}) | {best_row.get('title', '')}"
+    )
     lines.append(f"Runs: {len(rows)} | Improvements: {len(improvements)} | Plateau streak: {plateau}")
     lines.append("")
 
     lines.append("Recent runs:")
     for row in rows[-8:]:
-        delta = row["score"] - best_val
+        val_bpb = _row_val_bpb(row)
+        if val_bpb is None:
+            continue
+        delta = val_bpb - best_val
         run_id = str(row.get("run_id", ""))
         tag = "WIN" if run_id in improvement_ids else f"{delta:+.4f}"
         parts = []
         parts.append("mod" if row.get("has_modified_script") else "base")
         parts.append("valid" if _is_valid_main_track(row) else "invalid")
-        lines.append(f"- {row['run_id']} | {row['score']:.4f} {tag} | {', '.join(parts)} | {row.get('title', '')}")
+        lines.append(
+            f"- {row['run_id']} | final_int8_zlib_roundtrip_exact val_bpb {val_bpb:.4f} "
+            f"{tag} | {', '.join(parts)} | {row.get('title', '')}"
+        )
     lines.append("")
 
     if improvements:
         lines.append("Best path:")
         for row in improvements[-6:]:
+            val_bpb = _row_val_bpb(row)
+            if val_bpb is None:
+                continue
             mod = "base" if not row.get("has_modified_script") else "mod"
-            lines.append(f"- {row['run_id']} | {row['score']:.4f} | {mod} | {row.get('title', '')}")
+            lines.append(f"- {row['run_id']} | {val_bpb:.4f} | {mod} | {row.get('title', '')}")
         lines.append("")
 
     misses = [
@@ -306,13 +325,16 @@ def render_context() -> str:
     if misses:
         lines.append("Closest misses:")
         seen: set[str] = set()
-        for row in sorted(misses, key=lambda r: r["score"]):
+        for row in sorted(misses, key=lambda r: _row_val_bpb(r) or float("inf")):
+            val_bpb = _row_val_bpb(row)
+            if val_bpb is None:
+                continue
             title = row.get("title", "")
             if title in seen:
                 continue
             seen.add(title)
             status = "invalid" if not _is_valid_main_track(row) else "valid"
-            lines.append(f"- {title} | {row['score'] - best_val:+.4f} | {status}")
+            lines.append(f"- {title} | {val_bpb - best_val:+.4f} | {status}")
             if len(seen) == 5:
                 break
         lines.append("")
@@ -324,7 +346,8 @@ def render_context() -> str:
 
 def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
     rows = ledger_rows()
-    prior_best = min((r["score"] for r in rows if _is_valid_main_track(r)), default=None)
+    prior_scores = [_row_val_bpb(r) for r in rows if _is_valid_main_track(r)]
+    prior_best = min((score for score in prior_scores if score is not None), default=None)
     score = raw["score"]
     diag = raw.get("diagnostics", {})
     valid_run = bool(raw["passed"]) and bool(diag.get("under_16mb")) and bool(diag.get("within_train_wallclock", True))
@@ -338,7 +361,7 @@ def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "title": plan_dict.get("title", ""),
         "rationale": plan_dict.get("rationale", ""),
-        "score": score,
+        "final_val_bpb": score,
         "val_loss": diag.get("val_loss"),
         "train_time_ms": diag.get("train_time_ms"),
         "passed": raw["passed"],
@@ -581,7 +604,7 @@ def _publish(run_id: str, plan_dict: dict, raw: dict) -> None:
         "\n".join([
             f"# {run_id}",
             "",
-            f"- score: {raw['score']:.6f}",
+            f"- final_int8_zlib_roundtrip_exact val_bpb: {raw['score']:.6f}",
             f"- runtime_seconds: {raw['runtime_seconds']:.2f}",
             f"- train_time_ms: {diag.get('train_time_ms')}",
             f"- track: {plan_dict.get('track', '')}",
@@ -609,10 +632,10 @@ def _publish(run_id: str, plan_dict: dict, raw: dict) -> None:
 
 def _render_csv() -> str:
     rows = ledger_rows()
-    lines = ["run_id,score,modified,improved,title"]
+    lines = ["run_id,final_val_bpb,modified,improved,title"]
     best_so_far: float | None = None
     for row in rows:
-        score = row.get("score")
+        score = _row_val_bpb(row)
         if score is None:
             continue
         valid = _is_valid_main_track(row)
@@ -629,7 +652,7 @@ def _render_svg() -> str:
     best_so_far: float | None = None
     pts: list[dict] = []
     for row in rows:
-        s = row.get("score")
+        s = _row_val_bpb(row)
         if s is None or not _is_valid_main_track(row):
             continue
         if best_so_far is None or s < best_so_far:
@@ -642,7 +665,8 @@ def _render_svg() -> str:
         return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}">'
                 '<text x="20" y="40" font-family="monospace" font-size="16">No history yet.</text></svg>\n')
 
-    scores = [r["score"] for r in pts]
+    scores = [_row_val_bpb(r) for r in pts]
+    scores = [s for s in scores if s is not None]
     mn, mx = min(scores), max(scores)
     if mx == mn:
         mx = mn + 0.01
@@ -655,9 +679,9 @@ def _render_svg() -> str:
     def yf(v: float) -> float:
         return h - bm - ((v - mn_a) / (mx_a - mn_a)) * (h - tm - bm)
 
-    polyline = " ".join(f"{xf(i):.1f},{yf(r['score']):.1f}" for i, r in enumerate(pts))
+    polyline = " ".join(f"{xf(i):.1f},{yf(_row_val_bpb(r) or 0.0):.1f}" for i, r in enumerate(pts))
     dots = "".join(
-        f'<circle cx="{xf(i):.1f}" cy="{yf(r["score"]):.1f}" r="4" fill="#0f766e"/>'
+        f'<circle cx="{xf(i):.1f}" cy="{yf(_row_val_bpb(r) or 0.0):.1f}" r="4" fill="#0f766e"/>'
         f'<text x="{xf(i):.1f}" y="{h-28}" text-anchor="middle" font-family="monospace" font-size="10">'
         f'{r["run_id"].split("_")[-1]}</text>'
         for i, r in enumerate(pts))

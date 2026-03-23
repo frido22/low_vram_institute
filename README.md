@@ -13,7 +13,7 @@ Each cycle the daemon:
 3. Starts preparing the next plan in the background while the current run trains.
 4. Validates and runs the 10-minute training experiment.
 5. Records the result to `state/ledger.jsonl`.
-6. If the score improved, saves the winning script for compounding.
+6. If `final_int8_zlib_roundtrip_exact val_bpb` improved on the valid main track, saves the winning script for compounding.
 7. Publishes per-run artifacts, state, and pushes to GitHub.
 
 ## Architecture
@@ -22,7 +22,7 @@ Two Python files, no dependencies beyond stdlib:
 
 ```
 run.py              — daemon loop, planning, ledger, publishing, git push
-parameter_golf.py   — runs training, parses final score, validates scripts
+parameter_golf.py   — runs training, parses final exact metric, validates scripts
 ```
 
 ## State
