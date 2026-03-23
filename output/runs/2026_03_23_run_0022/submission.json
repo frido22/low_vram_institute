@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15975942,
+  "code_bytes": 75624,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15900318,
+  "rationale": "Builds directly on the winning adaptive row-offset quantizer instead of changing the training recipe. The quantizer now evaluates more serious 2D candidates at roundtrip time: rowwise vs transposed-axis quantization, plus mean-offset and midpoint-offset centered variants, then keeps the lowest-MSE encoding for each matrix. This keeps the same official eval path, preserves quant-aware training, removes some line-count overhead, and stays under the 1500-line script cap.",
+  "run_id": "2026_03_23_run_0022",
+  "runtime_seconds": 603.641313,
+  "submitter": "frido22",
+  "title": "Axis-Mixed Midpoint Row-Offset Int8",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536357,
+  "under_16mb": true,
+  "val_bpb": 1.58030339,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
