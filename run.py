@@ -252,40 +252,6 @@ def _clear_next_plan() -> None:
     _next_plan_path().unlink(missing_ok=True)
 
 
-#Curve analysis
-
-def _analyze_curve(metrics_jsonl: str) -> dict[str, Any]:
-    """Analyze training curve. Returns shape + trajectory details."""
-    if not metrics_jsonl:
-        return {"shape": "no_data"}
-    scores: list[float] = []
-    for line in metrics_jsonl.strip().splitlines():
-        try:
-            row = json.loads(line.strip())
-            scores.append(row.get("val_bpb", row.get("val_loss", 0)))
-        except (json.JSONDecodeError, ValueError):
-            continue
-    if len(scores) < 2:
-        return {"shape": "too_short"}
-    mid = len(scores) // 2
-    early = scores[0] - scores[mid]
-    late = scores[mid] - scores[-1]
-    if early > 0.001 and late > 0.001:
-        shape = "improving"
-    elif early > 0.001:
-        shape = "plateaued"
-    elif late > 0.001:
-        shape = "slow_start"
-    else:
-        shape = "flat"
-    return {
-        "shape": shape,
-        "first_val": round(scores[0], 4),
-        "last_val": round(scores[-1], 4),
-        "drop": round(scores[0] - scores[-1], 4),
-    }
-
-
 #Render context for prompt (the memory system)
 
 def render_context() -> str:
@@ -317,8 +283,6 @@ def render_context() -> str:
         parts = []
         parts.append("mod" if row.get("has_modified_script") else "base")
         parts.append("valid" if row.get("under_16mb", True) else "oversize")
-        if row.get("avg_tok_s"):
-            parts.append(f"{row['avg_tok_s']:.0f}tok/s")
         lines.append(f"- {row['run_id']} | {row['score']:.4f} {tag} | {', '.join(parts)} | {row.get('title', '')}")
     lines.append("")
 
@@ -364,7 +328,6 @@ def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
         _save_best(run_id, score, plan_dict.get("title", ""), plan_dict["modified_script"], raw["patch"])
 
     diag = raw.get("diagnostics", {})
-    curve = _analyze_curve(raw.get("metrics_jsonl", ""))
 
     _append_ledger({
         "run_id": run_id,
@@ -377,20 +340,10 @@ def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
         "has_modified_script": bool(plan_dict.get("modified_script")),
         "improved_best": improved,
         "runtime_seconds": raw["runtime_seconds"],
-        "step_count": diag.get("step_count", 0),
-        "total_steps": diag.get("total_steps"),
-        "total_tokens": diag.get("total_tokens"),
-        "avg_tok_s": diag.get("avg_tok_s"),
-        "peak_mb": diag.get("peak_mb"),
-        "active_mb": diag.get("active_mb"),
         "quantized_bytes": diag.get("quantized_bytes"),
         "code_bytes": diag.get("code_bytes"),
         "artifact_bytes": diag.get("artifact_bytes"),
         "under_16mb": diag.get("under_16mb"),
-        "curve": curve.get("shape", "no_data"),
-        "curve_drop": curve.get("drop"),
-        "first_val": curve.get("first_val"),
-        "last_val": curve.get("last_val"),
         "track": plan_dict.get("track", ""),
     })
 
@@ -578,8 +531,6 @@ def _publish(run_id: str, plan_dict: dict, raw: dict) -> None:
     (run_dir / "diff.patch").write_text((raw.get("patch") or "").rstrip() + "\n")
     if raw.get("run_log"):
         (run_dir / "run.log").write_text(raw["run_log"].rstrip() + "\n")
-    if raw.get("metrics_jsonl"):
-        (run_dir / "metrics.jsonl").write_text(raw["metrics_jsonl"].rstrip() + "\n")
     if raw.get("train_script"):
         (run_dir / "train_gpt_mlx.py").write_text(raw["train_script"].rstrip() + "\n")
     req_path = prov.get("requirements_path")
