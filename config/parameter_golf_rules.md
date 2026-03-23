@@ -58,7 +58,6 @@ Every run should change something. Null (unmodified baseline) is only acceptable
 - Script-controlled training design includes `ITERATIONS`, `TRAIN_BATCH_TOKENS`, `VAL_BATCH_SIZE`, `VAL_LOSS_EVERY`, `TRAIN_LOG_EVERY`, and `MLX_MAX_MICROBATCH_TOKENS`
 - `MLX_EAGER_EVAL=1` stays fixed as a platform-stability guardrail unless we intentionally revisit it
 - By default, runs should be wallclock-limited, not artificially stopped early by a tiny iteration cap
-- The baseline gets ~15 training steps in 10 minutes — but this is NOT a fixed limit
 - Optimizing code speed (faster forward/backward, less overhead) means more steps in the same 600s
 - More steps = more gradient updates = potentially better final score
 - 16GB unified memory — cannot run models that need >14GB
