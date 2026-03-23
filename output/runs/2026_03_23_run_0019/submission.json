@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15921653,
+  "code_bytes": 73879,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15847774,
+  "rationale": "Builds directly on the current adaptive row-offset int8 winner, but makes offsets earn their metadata. The best run is already near the 16MB ceiling, so this keeps the same per-row offset format and instead adds an error gate: only keep a row-offset tensor when its actual roundtrip reconstruction MSE beats plain rowwise int8 by a meaningful margin. That targets final_int8_zlib_roundtrip_exact more directly than the previous heuristic, can drop low-value offset payload on tensors that do not benefit, and leaves the hot training loop unchanged.",
+  "run_id": "2026_03_23_run_0019",
+  "runtime_seconds": 600.392004,
+  "submitter": "frido22",
+  "title": "Row-Offset Error Gate",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533782,
+  "under_16mb": true,
+  "val_bpb": 1.58715773,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
