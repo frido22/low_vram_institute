@@ -1,2 +1,3 @@
 run_id,score,modified,improved,title
 2026_03_23_run_0001,2.344757,True,True,Fuse QKV And Shorten Default Context
+2026_03_23_run_0002,2.348801,True,False,Use The Full Wallclock With A Longer Default Horizon

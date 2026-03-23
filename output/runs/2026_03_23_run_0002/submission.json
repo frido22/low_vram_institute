@@ -1,0 +1,11 @@
+{
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "rationale": "The current best script reached step 200 in about 151 seconds, leaving most of the 600-second budget unused. The highest-value next move is to keep the same fast fused model path and let it train much longer by default. I increased the default iteration budget to 800 so the existing wallclock stop can actually matter, lengthened warmdown to better match the longer run horizon, and trimmed the fixed final-eval reserve so more of the budget goes to updates while still preserving the exact final roundtrip eval path.",
+  "run_id": "2026_03_23_run_0002",
+  "runtime_seconds": 150.736014,
+  "submitter": "frido22",
+  "title": "Use The Full Wallclock With A Longer Default Horizon",
+  "track": "mac_mini_official_like",
+  "val_bpb": 2.34880051
+}
