@@ -444,6 +444,15 @@ def plan(run_errors: list[str] | None = None) -> dict:
     runtime = _load_runtime()
     codex_cfg = runtime.get("codex", {})
     track = runtime.get("parameter_golf", {}).get("local_track", "mac_mini_official_like")
+    has_runs = best_score() is not None
+
+    if not has_runs:
+        return {
+            "title": "Establish baseline",
+            "rationale": "Guaranteed stock baseline on the Mac mini before autonomous modifications begin.",
+            "modified_script": None,
+            "track": track,
+        }
 
     if codex_cfg.get("enabled"):
         prompt = _build_prompt(run_errors)
@@ -460,11 +469,10 @@ def plan(run_errors: list[str] | None = None) -> dict:
         }
 
     # Heuristic fallback (codex disabled)
-    has_runs = best_score() is not None
     return {
-        "title": "Establish baseline" if not has_runs else "Refine current best",
-        "rationale": "Baseline needed." if not has_runs else "Exploiting current best.",
-        "modified_script": best_script() if has_runs else None,
+        "title": "Refine current best",
+        "rationale": "Exploiting current best.",
+        "modified_script": best_script(),
         "track": track,
     }
 
