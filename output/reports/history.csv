@@ -1,4 +1,4 @@
-run_id,score,modified,improved,title
+run_id,final_val_bpb,modified,improved,title
 2026_03_23_run_0001,2.226923,False,True,Establish baseline
 2026_03_23_run_0002,1.635226,True,True,Single-Microbatch Sync Cleanup
 2026_03_23_run_0003,1.634419,True,True,Smaller Batch And Tighter Reserve
@@ -13,3 +13,4 @@ run_id,score,modified,improved,title
 2026_03_23_run_0012,1.589941,True,False,Quant-Aware Phase-Start Reset
 2026_03_23_run_0013,1.592354,True,False,Quant-Aware Soft-Start Ramp
 2026_03_23_run_0014,1.582210,True,False,Sqrt-Companded Matrix Int8 Roundtrip
+2026_03_23_run_0015,1.584565,True,False,Budget-Greedy Final FP16 Rescue

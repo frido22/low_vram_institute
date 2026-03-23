@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15990985,
+  "code_bytes": 72807,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15918178,
+  "rationale": "Builds directly on the current best quant-aware late-LR path, but spends the remaining 16MB artifact headroom more deliberately. The final save now greedily tests a small ranked set of penultimate attention tensors for FP16 passthrough against the true compressed model budget, so this run can capture extra post-quantization fidelity only when it actually fits. I also removed redundant quantization metadata and an unused float-keep branch to keep the script lean and under the line cap.",
+  "run_id": "2026_03_23_run_0015",
+  "runtime_seconds": 601.444043,
+  "submitter": "frido22",
+  "title": "Budget-Greedy Final FP16 Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533404,
+  "under_16mb": true,
+  "val_bpb": 1.58456528,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
