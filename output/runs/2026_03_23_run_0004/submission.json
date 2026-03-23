@@ -1,0 +1,15 @@
+{
+  "artifact_bytes": 12647984,
+  "code_bytes": 74804,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12573180,
+  "rationale": "The last near-miss suggests the baseline training dynamics are already close, so this run avoids disturbing optimization and targets the actual metric directly: the final int8 zlib roundtrip score. I changed the quantizer, not the model. Large 2D float tensors are now quantized after subtracting a per-row mean, and non-2D quantized floats use tensor-centered quantization. The saved means are tiny compared with matrix payloads, but they can recover a meaningful amount of quantization error when rows have DC offsets or asymmetric ranges. This is a new idea category relative to the failed architectural and projection-path experiments, preserves baseline training speed, and specifically optimizes the post-quantization validation number we care about.",
+  "run_id": "2026_03_23_run_0004",
+  "runtime_seconds": 576.894951,
+  "submitter": "frido22",
+  "title": "Centered residual int8 quantization for 2D tensors",
+  "track": "mac_mini_official_like",
+  "under_16mb": true,
+  "val_bpb": 2.23161032
+}
