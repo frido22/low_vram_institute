@@ -1,0 +1,7 @@
+{
+  "artifact_bytes": 11531240,
+  "code_bytes": 73579,
+  "limit_bytes": 16000000,
+  "model_bytes": 11457661,
+  "under_16mb": true
+}
