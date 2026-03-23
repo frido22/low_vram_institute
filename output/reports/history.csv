@@ -8,7 +8,8 @@ run_id,score,modified,improved,title
 2026_03_23_run_0007,1.640195,True,False,Per-Row Outlier Clipping With Denser Late Quant-Aware Snaps
 2026_03_23_run_0008,1.583374,True,True,Quant-Aware Late LR Rebalance
 2026_03_23_run_0009,1.697299,True,False,Half-Context Higher-Token Budget
-2026_03_23_run_0010,1.578407,True,True,Quant-Aware Phase Reset With Deeper Tail FP16 Rescue
+2026_03_23_run_0010,1.578407,True,False,Quant-Aware Phase Reset With Deeper Tail FP16 Rescue
 2026_03_23_run_0011,1.589201,True,False,Budget-Neutral Tail QKV FP16 Rescue
 2026_03_23_run_0012,1.589941,True,False,Quant-Aware Phase-Start Reset
 2026_03_23_run_0013,1.592354,True,False,Quant-Aware Soft-Start Ramp
+2026_03_23_run_0014,1.582210,True,False,Sqrt-Companded Matrix Int8 Roundtrip
