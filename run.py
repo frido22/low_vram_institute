@@ -104,31 +104,33 @@ def _best_script_path() -> Path:
     return STATE_DIR / "best_script.py"
 
 
+def _best_published_script_path() -> Path | None:
+    run_id = _best_run_id()
+    if not run_id:
+        return None
+    path = RUNS_DIR / run_id / "train_gpt_mlx.py"
+    return path if path.exists() else None
+
+
 def best_script() -> str | None:
+    published = _best_published_script_path()
+    if published:
+        script = published.read_text()
+        path = _best_script_path()
+        text = script.rstrip() + "\n"
+        if not path.exists() or path.read_text() != text:
+            path.write_text(text)
+        return script
+
     path = _best_script_path()
     if path.exists():
         return path.read_text()
-
-    legacy = STATE_DIR / "best_script.json"
-    if not legacy.exists():
-        return None
-    try:
-        data = json.loads(legacy.read_text())
-    except json.JSONDecodeError:
-        return None
-    script = data.get("modified_script") if isinstance(data, dict) else None
-    if not isinstance(script, str):
-        return None
-    path.write_text(script.rstrip() + "\n")
-    return script
+    return None
 
 
 
 def _save_best(script: str) -> None:
     _best_script_path().write_text(script.rstrip() + "\n")
-    legacy = STATE_DIR / "best_script.json"
-    if legacy.exists():
-        legacy.unlink()
 
 
 def _next_plan_path() -> Path:
@@ -360,14 +362,10 @@ def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
         "run_id": run_id,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "title": plan_dict.get("title", ""),
-        "rationale": plan_dict.get("rationale", ""),
         "final_val_bpb": score,
-        "val_loss": diag.get("val_loss"),
         "train_time_ms": diag.get("train_time_ms"),
         "passed": raw["passed"],
         "has_modified_script": bool(plan_dict.get("modified_script")),
-        "improved_best": improved,
-        "runtime_seconds": raw["runtime_seconds"],
         "quantized_bytes": diag.get("quantized_bytes"),
         "code_bytes": diag.get("code_bytes"),
         "artifact_bytes": diag.get("artifact_bytes"),
