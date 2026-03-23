@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15966200,
+  "code_bytes": 74292,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15891908,
+  "rationale": "Build on the current adaptive row-offset quantizer without spending more artifact bytes: during the late quant-aware phase, keep int8-bound matrices conservative while allowing the matrices already preserved in FP16 in the final artifact to keep adapting faster. That gives the late decoder/tail rescue path more capacity to absorb upstream int8 error in the exact final regime, while leaving the hot training loop and final evaluation path otherwise unchanged. I also removed a few lines of incidental verbosity so the script stays under the 1500-line limit.",
+  "run_id": "2026_03_23_run_0023",
+  "runtime_seconds": 600.629578,
+  "submitter": "frido22",
+  "title": "Selective FP16-Tail Quant-Aware Matrix LR Split",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533998,
+  "under_16mb": true,
+  "val_bpb": 1.58749263,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
