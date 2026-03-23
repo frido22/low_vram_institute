@@ -1,2 +1,3 @@
 run_id,score,modified,improved,title
 2026_03_23_run_0001,2.221211,False,True,Establish baseline
+2026_03_23_run_0002,2.784058,True,False,Speed-biased smaller-context MQA transformer
