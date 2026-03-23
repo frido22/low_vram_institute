@@ -165,7 +165,7 @@ def run(run_id: str, plan: dict, pg_config: dict, logs_dir: Path) -> dict:
             "quantized_bytes": quant_bytes,
             "code_bytes": code_bytes,
             "artifact_bytes": artifact_bytes,
-            "under_16mb": artifact_bytes < 16_000_000,
+            "under_16mb": artifact_bytes <= 16_000_000,
         },
         "provenance": {
             "adapter": "parameter_golf",

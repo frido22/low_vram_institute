@@ -58,6 +58,26 @@ def _append_ledger(row: dict[str, Any]) -> None:
         f.write(json.dumps(row, sort_keys=True) + "\n")
 
 
+def _best_valid_row(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
+    valid = [r for r in rows if r.get("under_16mb") and r.get("score") is not None]
+    return min(valid, key=lambda r: r["score"]) if valid else None
+
+
+def _valid_improvement_run_ids(rows: list[dict[str, Any]]) -> set[str]:
+    best_so_far: float | None = None
+    winners: set[str] = set()
+    for row in rows:
+        if not row.get("under_16mb"):
+            continue
+        score = row.get("score")
+        if score is None:
+            continue
+        if best_so_far is None or score < best_so_far:
+            winners.add(str(row.get("run_id", "")))
+            best_so_far = score
+    return winners
+
+
 def best_score() -> float | None:
     rows = ledger_rows()
     return min(r["score"] for r in rows) if rows else None
@@ -128,16 +148,17 @@ def render_context() -> str:
     rows = ledger_rows()
     if not rows:
         return "No runs yet."
-    best_row = min(rows, key=lambda r: r["score"])
+    best_row = _best_valid_row(rows) or min(rows, key=lambda r: r["score"])
     best_val = best_row["score"]
-    improvements = [r for r in rows if r.get("improved_best")]
-    last_imp_idx = max((i for i, r in enumerate(rows) if r.get("improved_best")), default=0)
+    improvement_ids = _valid_improvement_run_ids(rows)
+    improvements = [r for r in rows if str(r.get("run_id", "")) in improvement_ids]
+    last_imp_idx = max((i for i, r in enumerate(rows) if str(r.get("run_id", "")) in improvement_ids), default=0)
     plateau = len(rows) - last_imp_idx - 1
 
     lines: list[str] = []
 
     # 1. Scoreboard
-    lines.append(f"Best: {best_val:.4f} ({best_row['run_id']}) | {best_row.get('title', '')}")
+    lines.append(f"Best valid: {best_val:.4f} ({best_row['run_id']}) | {best_row.get('title', '')}")
     lines.append(f"Runs: {len(rows)} | Improvements: {len(improvements)} | Plateau streak: {plateau}")
     lines.append("")
 
@@ -145,7 +166,8 @@ def render_context() -> str:
     lines.append("Recent runs:")
     for row in rows[-15:]:
         delta = row["score"] - best_val
-        tag = "WIN" if row.get("improved_best") else f"+{delta:.4f}"
+        run_id = str(row.get("run_id", ""))
+        tag = "WIN" if run_id in improvement_ids else f"+{delta:.4f}"
         mod = "mod" if row.get("has_modified_script") else "base"
         parts = []
         if row.get("total_steps"):
@@ -160,6 +182,8 @@ def render_context() -> str:
             parts.append(f"{row['avg_tok_s']:.0f}tok/s")
         if row.get("peak_mb"):
             parts.append(f"{row['peak_mb']:.0f}MB")
+        if row.get("under_16mb") is False:
+            parts.append("oversize")
         if row.get("curve") and row["curve"] != "no_data":
             curve_str = row["curve"]
             if row.get("first_val") and row.get("last_val"):
@@ -170,7 +194,11 @@ def render_context() -> str:
     lines.append("")
 
     # Collect all non-improving modified runs
-    failed = [r for r in rows if not r.get("improved_best") and r.get("has_modified_script")]
+    failed = [
+        r for r in rows
+        if r.get("has_modified_script")
+        and (str(r.get("run_id", "")) not in improvement_ids or not r.get("under_16mb"))
+    ]
 
     # 3. Near-misses (within 3% of best) — promising, worth refining
     near = [r for r in failed if r["score"] < best_val * 1.03]
@@ -276,9 +304,10 @@ def render_context() -> str:
 
 def _update_after_run(run_id: str, plan_dict: dict, raw: dict) -> None:
     rows = ledger_rows()
-    prior_best = min((r["score"] for r in rows), default=None)
+    prior_best = min((r["score"] for r in rows if r.get("under_16mb")), default=None)
     score = raw["score"]
-    improved = prior_best is None or score < prior_best
+    valid_run = bool(raw.get("diagnostics", {}).get("under_16mb"))
+    improved = valid_run and (prior_best is None or score < prior_best)
 
     if improved and plan_dict.get("modified_script"):
         _save_best(run_id, score, plan_dict.get("title", ""), plan_dict["modified_script"], raw["patch"])
