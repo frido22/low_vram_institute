@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15913053,
+  "code_bytes": 73322,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15839731,
+  "rationale": "Builds directly on the best late quant-aware LR rebalance path, but pivots to a new endgame idea instead of another schedule replay or bigger FP16 rescue. The last few pre-reserve training seconds now keep the model on the exact final quantized manifold every step while freezing embedding and matrix updates, so the remaining float control tensors can calibrate around the real int8 roundtrip target without wasting tail budget on large-weight optimizer work. I also removed redundant FP16 keep handling and unused qmeta serialization to keep the script lean and slightly reduce artifact overhead.",
+  "run_id": "2026_03_23_run_0016",
+  "runtime_seconds": 594.587532,
+  "submitter": "frido22",
+  "title": "Terminal Scalar-Only Quantized Calibration",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 528103,
+  "under_16mb": true,
+  "val_bpb": 1.59021552,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

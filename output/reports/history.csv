@@ -14,3 +14,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_23_run_0013,1.592354,True,False,Quant-Aware Soft-Start Ramp
 2026_03_23_run_0014,1.582210,True,False,Sqrt-Companded Matrix Int8 Roundtrip
 2026_03_23_run_0015,1.584565,True,False,Budget-Greedy Final FP16 Rescue
+2026_03_23_run_0016,1.590216,True,False,Terminal Scalar-Only Quantized Calibration
