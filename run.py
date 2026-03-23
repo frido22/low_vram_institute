@@ -6,6 +6,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -322,6 +323,32 @@ class CodexError(RuntimeError):
         self.retryable = retryable
 
 
+def _is_retryable_codex_failure(detail: str) -> bool:
+    lowered = detail.lower()
+    if any(marker in lowered for marker in [
+        "invalid model",
+        "unknown model",
+        "login required",
+        "expired",
+        "authentication",
+        "unauthorized",
+    ]):
+        return False
+    if re.search(r"\b(429|5\d\d)\b", lowered):
+        return True
+    return any(marker in lowered for marker in [
+        "rate limit",
+        "timeout",
+        "unavailable",
+        "overloaded",
+        "stream disconnected",
+        "sending request",
+        "connection",
+        "dns",
+        "resolve host",
+    ])
+
+
 def _call_codex(
     prompt: str,
     model: str | None = None,
@@ -330,7 +357,7 @@ def _call_codex(
 ) -> dict:
     binary = shutil.which("codex")
     if not binary:
-        raise CodexError("Codex CLI not found in PATH.")
+        raise CodexError("Codex CLI not found in PATH.", retryable=False)
 
     schema = {
         "type": "object",
@@ -362,16 +389,14 @@ def _call_codex(
         r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, check=False)  # noqa: S603
         if r.returncode != 0:
             detail = "\n".join(filter(None, [r.stdout.strip(), r.stderr.strip()]))
-            retryable = any(k in detail.lower() for k in [
-                "rate limit", "quota", "timeout", "unavailable", "overloaded",
-                "try again", "429", "503", "login required", "expired"])
+            retryable = _is_retryable_codex_failure(detail)
             raise CodexError(f"Codex failed: {detail[:200]}", retryable=retryable)
         if not output_path.exists():
-            raise CodexError("Codex produced no output.")
+            raise CodexError("Codex produced no output.", retryable=False)
         try:
             return json.loads(output_path.read_text())
         except json.JSONDecodeError as exc:
-            raise CodexError(f"Invalid JSON: {exc}") from exc
+            raise CodexError(f"Invalid JSON: {exc}", retryable=False) from exc
 
 
 def _fetch_ideas(runtime: dict) -> str:
