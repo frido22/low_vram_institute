@@ -62,7 +62,6 @@ class Workspace:
         variant = self.config.get("dataset_variant", "sp1024")
         env.setdefault("DATA_PATH", str(self.path / "data" / "datasets" / f"fineweb10B_{variant}"))
         env.setdefault("TOKENIZER_PATH", str(self.path / "data" / "tokenizers" / "fineweb_1024_bpe.model"))
-        env.setdefault("ITERATIONS", str(self.config.get("iterations", 200)))
         env.setdefault("TRAIN_BATCH_TOKENS", str(self.config.get("train_batch_tokens", 8192)))
         env.setdefault("VAL_BATCH_SIZE", str(self.config.get("val_batch_size", 8192)))
         env.setdefault("VAL_LOSS_EVERY", str(self.config.get("val_loss_every", 0)))
@@ -181,7 +180,7 @@ def run(run_id: str, plan: dict, pg_config: dict, logs_dir: Path) -> dict:
             "requirements_path": str(ws.path / "requirements.txt"),
             "quantized_model_path": str(quant_path) if quant_path.exists() else "",
             "launch_baseline_env": {k: env.get(k) for k in [
-                "ITERATIONS", "TRAIN_BATCH_TOKENS", "VAL_BATCH_SIZE",
+                "TRAIN_BATCH_TOKENS", "VAL_BATCH_SIZE",
                 "VAL_LOSS_EVERY", "TRAIN_LOG_EVERY", "MAX_WALLCLOCK_SECONDS",
                 "MLX_EAGER_EVAL", "MLX_MAX_MICROBATCH_TOKENS",
             ]},

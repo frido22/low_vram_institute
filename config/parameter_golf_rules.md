@@ -51,7 +51,8 @@ Every run should change something. Null (unmodified baseline) is only acceptable
 
 ## Mac Mini Reality
 
-- Reproducible launch baseline: `ITERATIONS=200`, `TRAIN_BATCH_TOKENS=8192`, `VAL_BATCH_SIZE=8192`, `VAL_LOSS_EVERY=0`, `TRAIN_LOG_EVERY=25`, `MAX_WALLCLOCK_SECONDS=600`, `MLX_EAGER_EVAL=1`, `MLX_MAX_MICROBATCH_TOKENS=8192`
+- Reproducible launch baseline: `TRAIN_BATCH_TOKENS=8192`, `VAL_BATCH_SIZE=8192`, `VAL_LOSS_EVERY=0`, `TRAIN_LOG_EVERY=25`, `MAX_WALLCLOCK_SECONDS=600`, `MLX_EAGER_EVAL=1`, `MLX_MAX_MICROBATCH_TOKENS=8192`
+- `ITERATIONS` is part of the experiment design in the script, not a fixed launcher constraint
 - The baseline gets ~15 training steps in 10 minutes — but this is NOT a fixed limit
 - Optimizing code speed (faster forward/backward, less overhead) means more steps in the same 600s
 - More steps = more gradient updates = potentially better final score

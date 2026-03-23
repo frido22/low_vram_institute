@@ -14,7 +14,6 @@
     "venv_python": "/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/.venv_pg/bin/python3",
     "dataset_variant": "sp1024",
     "train_shards": 1,
-    "iterations": 200,
     "train_batch_tokens": 8192,
     "val_batch_size": 8192,
     "val_loss_every": 0,
