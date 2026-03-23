@@ -4,3 +4,4 @@ run_id,score,modified,improved,title
 2026_03_23_run_0003,1.634419,True,True,Smaller Batch And Tighter Reserve
 2026_03_23_run_0004,1.628151,True,True,Late Quantization-Aware Snap And Longer Warmdown
 2026_03_23_run_0005,1.631988,True,False,Row-Group Int8 Quantization Alignment
+2026_03_23_run_0006,1.627026,True,True,Late-Decoder FP16 Quantization Rescue

@@ -1,0 +1,15 @@
+{
+  "artifact_bytes": 15983679,
+  "code_bytes": 70702,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15912977,
+  "rationale": "The current best run leaves about 3.16MB of compressed headroom under the 16MB cap, so this change spends some of that budget on the tensors most likely to dominate post-quantization error: the final decoder block is kept in FP16 and the last two blocks keep their output projections in FP16. That directly targets `final_int8_zlib_roundtrip_exact val_bpb` without slowing the hot training loop, while keeping the existing late quant-aware roundtrip schedule intact.",
+  "run_id": "2026_03_23_run_0006",
+  "runtime_seconds": 599.546011,
+  "submitter": "frido22",
+  "title": "Late-Decoder FP16 Quantization Rescue",
+  "track": "mac_mini_official_like",
+  "under_16mb": true,
+  "val_bpb": 1.62702558
+}
