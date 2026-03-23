@@ -53,9 +53,9 @@ class Hyperparameters:
     # memory pressure without changing the effective optimizer batch.
     mlx_max_microbatch_tokens: int = int(os.environ.get("MLX_MAX_MICROBATCH_TOKENS", 8_192))
     # Force MLX to materialize the graph after every sub-batch, preventing lazy
-    # graph buildup across accumulation steps. Keeps peak memory low on 16GB machines.
-    # Disable on 32GB+ unified memory for better throughput (MLX_EAGER_EVAL=0).
-    mlx_eager_eval: bool = bool(int(os.environ.get("MLX_EAGER_EVAL", "1")))
+    # graph buildup across accumulation steps. We default this off on the common
+    # single-microbatch path because the extra synchronization costs steps.
+    mlx_eager_eval: bool = bool(int(os.environ.get("MLX_EAGER_EVAL", "0")))
     warmup_steps: int = int(os.environ.get("WARMUP_STEPS", 0))
     warmdown_iters: int = int(os.environ.get("WARMDOWN_ITERS", 15))
     max_wallclock_seconds: float = float(os.environ.get("MAX_WALLCLOCK_SECONDS", 600.0))
@@ -357,7 +357,7 @@ class GPT(nn.Module):
         self.skip_weights = mx.ones((self.num_skip_weights, dim), dtype=mx.float32)
         self.blocks = [
             Block(dim, num_heads, num_kv_heads, mlp_mult, rope_base, qk_gain_init)
-            for i in range(num_layers)
+            for _ in range(num_layers)
         ]
         self.final_norm = RMSNormNoWeight()
         for b in self.blocks:
@@ -1249,6 +1249,11 @@ def main() -> None:
         inputs=model.state,
         outputs=model.state,
     )
+    if "MLX_EAGER_EVAL" not in os.environ:
+        args.mlx_eager_eval = not args.use_single_microbatch_path
+    elif args.use_single_microbatch_path and args.mlx_eager_eval:
+        log("WARNING: disabling MLX_EAGER_EVAL on single_microbatch_path for throughput")
+        args.mlx_eager_eval = False
     train_step_loss_and_grad = loss_and_grad_one_batch if args.use_single_microbatch_path else loss_and_grad_chunked
     # Print config once so logs are self-describing.
     n_params = sum(int(np.prod(p.shape)) for _, p in tree_flatten(model.parameters()))
@@ -1381,12 +1386,14 @@ def main() -> None:
             break
         lr_mul = args.lr_mul(step, train_time_ms + 1000.0 * (time.perf_counter() - t0))
         step_t0 = time.perf_counter()
+        should_log_train = args.train_log_every > 0 and (
+            step < 10 or (step + 1) % args.train_log_every == 0 or stop_after_step is not None
+        )
         if args.use_single_microbatch_path:
             train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad)
             if args.mlx_eager_eval:
                 mx.eval(train_loss, grads)
             grads = clip_grad_tree(grads, args.grad_clip_norm)
-            train_loss_value = float(train_loss.item())
         else:
             accum: dict[str, mx.array] | None = None
             train_loss = mx.array(0.0, dtype=mx.float32)
@@ -1399,14 +1406,14 @@ def main() -> None:
                     mx.eval(train_loss, accum)  # materialize each microbatch to cap peak memory
             grads = tree_unflatten(list(accum.items()))
             grads = clip_grad_tree(grads, args.grad_clip_norm)
-            train_loss_value = float(train_loss.item())
         opt.step(model, grads, step=step, lr_mul=lr_mul)
         mx.synchronize()
         step_ms = 1000.0 * (time.perf_counter() - step_t0)
         approx_train_time_ms = train_time_ms + 1000.0 * (time.perf_counter() - t0)
         tok_s = args.train_batch_tokens / (step_ms / 1000.0)
         step += 1
-        if args.train_log_every > 0 and (step <= 10 or step % args.train_log_every == 0 or stop_after_step is not None):
+        if should_log_train:
+            train_loss_value = float(train_loss.item())
             log(
                 f"step:{step}/{args.iterations} train_loss:{train_loss_value:.4f} "
                 f"train_time:{approx_train_time_ms:.0f}ms step_avg:{approx_train_time_ms / step:.2f}ms tok_s:{tok_s:.0f}"

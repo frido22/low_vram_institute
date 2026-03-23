@@ -1,0 +1,15 @@
+{
+  "artifact_bytes": 12516034,
+  "code_bytes": 74007,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12442027,
+  "rationale": "Baseline memory was already low, so this run spends the budget on more optimizer steps by removing avoidable host synchronization. It defaults MLX eager materialization off on the common single-microbatch path, keeps it available for chunked accumulation, delays train loss scalar extraction until a line will actually be logged, and removes one unused loop variable.",
+  "run_id": "2026_03_23_run_0002",
+  "runtime_seconds": 579.515727,
+  "submitter": "frido22",
+  "title": "Single-Microbatch Sync Cleanup",
+  "track": "mac_mini_official_like",
+  "under_16mb": true,
+  "val_bpb": 1.6352261
+}
