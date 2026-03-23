@@ -1,0 +1,61 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -516,6 +516,7 @@
+ INT8_PER_ROW_SCALE_DTYPE = np.float16
+ INT8_CLIP_PERCENTILE = 99.99984
+ INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
++INT8_CLIP_SEARCH_MULTS = (0.75, 1.0, 1.35)
+ INT8_FP16_KEEP_NAMES = tuple(
+     name
+     for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
+@@ -536,18 +537,38 @@
+ def quantize_float_array(arr: mx.array) -> tuple[np.ndarray, np.ndarray]:
+     f32 = _np_float32(arr)
+     if f32.ndim == 2:
+-        # Matrices get one scale per row, which usually tracks output-channel
+-        # ranges much better than a single tensor-wide scale.
+-        clip_abs = np.quantile(np.abs(f32), INT8_CLIP_Q, axis=1) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
+-        clipped = np.clip(f32, -clip_abs[:, None], clip_abs[:, None])
+-        scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
+-        q = np.clip(np.round(clipped / scale[:, None]), -127, 127).astype(np.int8, copy=False)
+-        return np.ascontiguousarray(q), np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False))
+-    # Vectors / scalars use a simpler per-tensor scale.
+-    clip_abs = float(np.quantile(np.abs(f32).reshape(-1), INT8_CLIP_Q)) if f32.size else 0.0
+-    scale = np.array(clip_abs / 127.0 if clip_abs > 0.0 else 1.0, dtype=np.float32)
+-    q = np.clip(np.round(np.clip(f32, -clip_abs, clip_abs) / scale), -127, 127).astype(np.int8, copy=False)
+-    return np.ascontiguousarray(q), scale
++        abs_f32 = np.abs(f32)
++        base_clip = np.quantile(abs_f32, INT8_CLIP_Q, axis=1) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
++        max_clip = abs_f32.max(axis=1) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
++        best_err = np.full((f32.shape[0],), np.inf, dtype=np.float32)
++        best_q = np.zeros_like(f32, dtype=np.int8)
++        best_scale = np.ones((f32.shape[0],), dtype=np.float32)
++        for mult in INT8_CLIP_SEARCH_MULTS:
++            clip_abs = np.minimum(np.maximum(base_clip * mult, 1.0 / 127.0), np.maximum(max_clip, 1.0 / 127.0))
++            scale = (clip_abs / 127.0).astype(np.float32, copy=False)
++            q = np.clip(np.round(np.clip(f32, -clip_abs[:, None], clip_abs[:, None]) / scale[:, None]), -127, 127).astype(np.int8, copy=False)
++            err = np.mean(np.square(f32 - q.astype(np.float32) * scale[:, None], dtype=np.float32), axis=1)
++            improve = err < best_err
++            best_err[improve] = err[improve]
++            best_q[improve] = q[improve]
++            best_scale[improve] = scale[improve]
++        return np.ascontiguousarray(best_q), np.ascontiguousarray(best_scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False))
++    abs_f32 = np.abs(f32).reshape(-1)
++    base_clip = float(np.quantile(abs_f32, INT8_CLIP_Q)) if f32.size else 0.0
++    max_clip = float(abs_f32.max()) if f32.size else 0.0
++    best_err = math.inf
++    best_q = np.zeros_like(f32, dtype=np.int8)
++    best_scale = np.array(1.0, dtype=np.float32)
++    for mult in INT8_CLIP_SEARCH_MULTS:
++        clip_abs = min(max(base_clip * mult, 1.0 / 127.0), max(max_clip, 1.0 / 127.0))
++        scale = np.array(clip_abs / 127.0, dtype=np.float32)
++        q = np.clip(np.round(np.clip(f32, -clip_abs, clip_abs) / scale), -127, 127).astype(np.int8, copy=False)
++        err = float(np.mean(np.square(f32 - q.astype(np.float32) * float(scale), dtype=np.float32)))
++        if err < best_err:
++            best_err = err
++            best_q = q
++            best_scale = scale
++    return np.ascontiguousarray(best_q), best_scale
+ def quantize_state_dict_int8(flat_state: dict[str, mx.array]) -> tuple[dict[str, object], dict[str, int]]:
+     quantized: dict[str, np.ndarray] = {}
+     scales: dict[str, np.ndarray] = {}

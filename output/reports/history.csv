@@ -6,3 +6,4 @@ run_id,score,modified,improved,title
 2026_03_23_run_0005,2.309466,True,False,Row-normalized linear weights with learned gains
 2026_03_23_run_0006,2.223390,True,False,Budget-Aware FP16 Roundtrip Serialization
 2026_03_23_run_0007,2.215606,False,True,Exact pre-quantization weight balancing for MLP and V-proj pairs
+2026_03_23_run_0008,2.223751,True,False,Per-row MSE clip search for int8 roundtrip

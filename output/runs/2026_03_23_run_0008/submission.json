@@ -1,0 +1,15 @@
+{
+  "artifact_bytes": 16087611,
+  "code_bytes": 74794,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 16012817,
+  "rationale": "Keep the current training recipe intact and spend the run on a different quantization idea: calibrate each tensor's clipping range with a tiny reconstruction-error search instead of one fixed percentile. The goal is to reduce final roundtrip distortion on large matrices without adding fp16 passthrough budget or touching wallclock-critical training code.",
+  "run_id": "2026_03_23_run_0008",
+  "runtime_seconds": 577.296467,
+  "submitter": "frido22",
+  "title": "Per-row MSE clip search for int8 roundtrip",
+  "track": "mac_mini_official_like",
+  "under_16mb": false,
+  "val_bpb": 2.22375084
+}
