@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15969633,
+  "code_bytes": 72839,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15896794,
+  "rationale": "Builds on the current soft quant-aware projection ramp instead of resetting course. The new change only refines final int8 quantization for projection weights: when a tensor already qualifies for row-offset quantization, attn/MLP projection matrices now test a min-max midpoint offset against the existing row-mean offset and keep whichever reconstructs better. That targets the same projection-heavy part of the model the best run already emphasized, while avoiding the broader per-row multi-center and axis-mix changes that already regressed. I also removed the now-unnecessary quant_aware_lr_muls helper by inlining it to keep the script lean under the 1500-line limit.",
+  "run_id": "2026_03_24_run_0017",
+  "runtime_seconds": 600.53722,
+  "submitter": "frido22",
+  "title": "Selective Projection Midpoint Int8",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533979,
+  "under_16mb": true,
+  "val_bpb": 1.5757796,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
