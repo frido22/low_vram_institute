@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 8622913,
+  "code_bytes": 73940,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 8548973,
+  "rationale": "Build on the current best late projection-EMA finalizer, but pivot the actual change to the int8 quantizer. Projection matrices now use grouped per-row scales during both roundtrip-aware training and final serialization, which should lower quantization distortion on the most sensitive tensors while staying comfortably under the 16MB cap. This spends artifact budget on a new quantizer-resolution idea instead of another small EMA scheduling replay.",
+  "run_id": "2026_03_24_run_0048",
+  "runtime_seconds": 634.399947,
+  "submitter": "frido22",
+  "title": "Projection Group-Scale EMA Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533665,
+  "under_16mb": true,
+  "val_bpb": 2.5771068,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
