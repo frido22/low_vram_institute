@@ -36,7 +36,6 @@ class Hyperparameters:
     train_seq_len: int = int(os.environ.get("TRAIN_SEQ_LEN", os.environ.get("TRAIN_MAX_SEQ_LEN", 1024)))
     mlx_max_microbatch_tokens: int = int(os.environ.get("MLX_MAX_MICROBATCH_TOKENS", 8_192))
     mlx_eager_eval: bool = bool(int(os.environ.get("MLX_EAGER_EVAL", "0")))
-    warmup_steps: int = int(os.environ.get("WARMUP_STEPS", 0))
     warmdown_iters: int = int(os.environ.get("WARMDOWN_ITERS", 64))
     max_wallclock_seconds: float = float(os.environ.get("MAX_WALLCLOCK_SECONDS", 600.0))
     final_eval_reserve_seconds: float = float(os.environ.get("FINAL_EVAL_RESERVE_SECONDS", 72.0))
@@ -49,6 +48,9 @@ class Hyperparameters:
     quant_aware_embed_lr_mul: float = float(os.environ.get("QUANT_AWARE_EMBED_LR_MUL", 0.6))
     quant_aware_matrix_lr_mul: float = float(os.environ.get("QUANT_AWARE_MATRIX_LR_MUL", 0.35))
     quant_aware_scalar_lr_mul: float = float(os.environ.get("QUANT_AWARE_SCALAR_LR_MUL", 0.8))
+    quant_aware_proj_start: float = float(os.environ.get("QUANT_AWARE_PROJ_START", 0.55))
+    quant_aware_proj_step: float = float(os.environ.get("QUANT_AWARE_PROJ_STEP", 0.2))
+    quant_aware_proj_end: float = float(os.environ.get("QUANT_AWARE_PROJ_END", 0.95))
     vocab_size: int = int(os.environ.get("VOCAB_SIZE", 1024))
     num_layers: int = int(os.environ.get("NUM_LAYERS", 9))
     model_dim: int = int(os.environ.get("MODEL_DIM", 512))
@@ -620,11 +622,21 @@ def roundtrip_tensor_like_final(
     if o is not None:
         out_arr = out_arr + np.asarray(o, dtype=np.float32).reshape((q.shape[0],) + (1,) * (q.ndim - 1))
     return mx.array(np.ascontiguousarray(out_arr), dtype=arr.dtype)
-def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str]) -> None:
+def blend_tensor_toward_final(
+    name: str,
+    arr: mx.array,
+    int8_fp16_keep_names: set[str],
+    mix: float,
+) -> mx.array:
+    target = roundtrip_tensor_like_final(name, arr, int8_fp16_keep_names)
+    if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names):
+        return target
+    return arr + (target - arr) * mix
+def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
     model.update(
         tree_unflatten(
             [
-                (name, roundtrip_tensor_like_final(name, arr, int8_fp16_keep_names))
+                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix))
                 for name, arr in tree_flatten(model.state)
             ]
         )
@@ -1280,7 +1292,7 @@ def main() -> None:
         f"iterations:{args.iterations} train_batch_tokens:{args.train_batch_tokens} grad_accum_steps:{args.grad_accum_steps} "
         f"microbatch_tokens:{args.microbatch_tokens} microbatch_batch_size:{args.microbatch_tokens // args.train_seq_len} "
         f"val_batch_size:{args.val_batch_size} "
-        f"warmup_steps:{args.warmup_steps} max_wallclock_seconds:{args.max_wallclock_seconds:.3f}"
+        f"max_wallclock_seconds:{args.max_wallclock_seconds:.3f}"
     )
     log(f"mlx_max_microbatch_tokens:{args.mlx_max_microbatch_tokens}")
     log(
@@ -1321,43 +1333,20 @@ def main() -> None:
         f"matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}"
     )
     log(
+        f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} "
+        f"step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}"
+    )
+    log(
         f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} "
         f"tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}"
     )
-    if args.warmup_steps > 0:
-        for warmup_step in range(args.warmup_steps):
-            accum: dict[str, mx.array] | None = None
-            warmup_loss = mx.array(0.0, dtype=mx.float32)
-            grad_scale = 1.0 / args.grad_accum_steps
-            for _ in range(args.grad_accum_steps):
-                warmup_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad)
-                accum = accumulate_flat_grads(accum, grads, grad_scale)
-            mx.eval(warmup_loss, accum)
-            mx.synchronize()
-            if args.warmup_steps <= 20 or (warmup_step + 1) % 10 == 0 or warmup_step + 1 == args.warmup_steps:
-                log(f"warmup_step:{warmup_step + 1}/{args.warmup_steps}")
-        val_batch_tokens = args.val_batch_size // args.grad_accum_steps
-        if val_batch_tokens < args.train_seq_len:
-            raise ValueError(
-                "VAL_BATCH_SIZE must provide at least one sequence; "
-                f"got VAL_BATCH_SIZE={args.val_batch_size}, GRAD_ACCUM_STEPS={args.grad_accum_steps}, "
-                f"TRAIN_SEQ_LEN={args.train_seq_len}"
-            )
-        warm_val_seqs = min(val_batch_tokens // args.train_seq_len, (val_tokens.size - 1) // args.train_seq_len)
-        warm_chunk = val_tokens[: warm_val_seqs * args.train_seq_len + 1]
-        x_val = mx.array(warm_chunk[:-1].reshape(-1, args.train_seq_len), dtype=mx.int32)
-        y_val = mx.array(warm_chunk[1:].reshape(-1, args.train_seq_len), dtype=mx.int32)
-        warm_mask = mx.ones(x_val.shape, dtype=mx.float32)
-        warm_val_loss = compiled_masked_loss(x_val, y_val, warm_mask)
-        mx.eval(warm_val_loss)
-        mx.synchronize()
-        train_loader = TokenLoader(args.train_files, log_fn=log, dataset_name=dataset_name)
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
     stop_after_step: int | None = None
     t0 = time.perf_counter()
     step = 0
     last_quant_aware_step: int | None = None
+    quant_aware_proj_mix = args.quant_aware_proj_start
     while True:
         last_step = step == args.iterations or (stop_after_step is not None and step >= stop_after_step)
         if last_step or (args.val_loss_every > 0 and step % args.val_loss_every == 0):
@@ -1427,8 +1416,9 @@ def main() -> None:
         if should_activate_quant_aware(args, next_step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms) and (
             last_quant_aware_step is None or next_step - last_quant_aware_step >= args.quant_aware_every
         ):
-            apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
+            apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix)
             last_quant_aware_step = next_step
+            quant_aware_proj_mix = min(quant_aware_proj_mix + args.quant_aware_proj_step, args.quant_aware_proj_end)
             did_quant_aware_roundtrip = True
         mx.synchronize()
         step_ms = 1000.0 * (time.perf_counter() - step_t0)

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15964535,
+  "code_bytes": 72678,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15891857,
+  "rationale": "Builds directly on the current best adaptive row-offset int8 path, but changes the late quant-aware behavior instead of trying another row-offset variant. The current script hard-roundtrips the full model every quant-aware interval, which can knock useful weights off-course abruptly. This version turns those late roundtrips into a ramped soft projection: each quant-aware pass blends quantized tensors partway toward their exact final roundtrip, then increases the mix on later passes, while the final pre-save roundtrip remains exact. That keeps the endgame targeted at final_int8_zlib_roundtrip_exact val_bpb while reducing projection shock. I also removed the unused warmup path to stay lean and under the line cap.",
+  "run_id": "2026_03_23_run_0025",
+  "runtime_seconds": 600.139494,
+  "submitter": "frido22",
+  "title": "Soft Quant-Aware Projection Ramp",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533626,
+  "under_16mb": true,
+  "val_bpb": 1.57564268,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
