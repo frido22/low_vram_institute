@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15959920,
+  "code_bytes": 73418,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15886502,
+  "rationale": "Builds on the current best script by keeping the existing soft quant-aware ramp and quantizer, but splitting Muon updates so int8 projection matrices get an extra LR damp only during the quant-aware tail. The hypothesis is that early projection weights are the most quantization-sensitive remaining matrices, so letting qkv/fc weights keep the current tail LR while slowing projection drift should improve the final int8 roundtrip score without changing artifact format or spending bytes on more float rescue.",
+  "run_id": "2026_03_24_run_0014",
+  "runtime_seconds": 601.333517,
+  "submitter": "frido22",
+  "title": "Quant-Aware Projection Muon LR Split",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534525,
+  "under_16mb": true,
+  "val_bpb": 1.57987871,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
