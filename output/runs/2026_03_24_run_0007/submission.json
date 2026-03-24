@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 14556273,
+  "code_bytes": 73461,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 14482812,
+  "rationale": "Builds on the current soft quant-aware best but pivots to a new category: projection-layer reparameterization instead of another schedule-only tweak. Attention and MLP projection matrices now carry explicit per-row mean side vectors that are kept in high fidelity, and late quant-aware snaps recenter those projections before roundtrip mixing and final save. The hypothesis is that moving the dominant row DC component out of the int8 matrices reduces final projection quantization error without materially increasing artifact size or hot-loop cost.",
+  "run_id": "2026_03_24_run_0007",
+  "runtime_seconds": 565.275199,
+  "submitter": "frido22",
+  "title": "Projection Row-Mean Reparameterization",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 497264,
+  "under_16mb": true,
+  "val_bpb": 1.70916327,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
