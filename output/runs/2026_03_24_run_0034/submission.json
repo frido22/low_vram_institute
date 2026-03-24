@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15960256,
+  "code_bytes": 74304,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15885952,
+  "rationale": "Build on the current best late projection EMA path, but stop treating EMA as an all-or-nothing swap. At finalization, score the live projection weights, a 50/50 live-EMA blend, and the EMA weights by their exact final int8 roundtrip distortion proxy, then keep the lowest-distortion candidate per projection tensor before the mandatory final roundtrip. This stays cheap in wallclock because it only runs once at the end, compounds directly on the winning EMA idea, and targets the real objective more tightly than blindly replacing every projection with EMA.",
+  "run_id": "2026_03_24_run_0034",
+  "runtime_seconds": 600.769805,
+  "submitter": "frido22",
+  "title": "Projection EMA Distortion-Gated Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533851,
+  "under_16mb": true,
+  "val_bpb": 1.58266299,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
