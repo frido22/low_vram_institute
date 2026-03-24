@@ -38,3 +38,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0012,1.575741,True,False,Midpoint-Choice Row-Offset Int8
 2026_03_24_run_0013,1.584209,True,False,Soft FP16-Keep Quant-Aware Ramp
 2026_03_24_run_0014,1.579879,True,False,Quant-Aware Projection Muon LR Split
+2026_03_24_run_0015,1.591557,True,False,Per-Row Zero-Mean-Midpoint Offset Choice

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 16043623,
+  "code_bytes": 72751,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15970872,
+  "rationale": "Build on the current best soft quant-aware projection ramp rather than resetting direction. The change is confined to the final/int8 path: each 2D tensor now compares zero-offset, row-mean, and row-midpoint centering and uses the lowest clipped dynamic-range option, while still skipping offsets when they do not beat plain per-row int8 overall. This compounds a near-best idea category, directly targets final_int8_zlib_roundtrip_exact val_bpb, and removes the old unused offset-ratio heuristic.",
+  "run_id": "2026_03_24_run_0015",
+  "runtime_seconds": 601.093439,
+  "submitter": "frido22",
+  "title": "Per-Row Zero-Mean-Midpoint Offset Choice",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534426,
+  "under_16mb": false,
+  "val_bpb": 1.59155683,
+  "valid_main_track": false,
+  "within_train_wallclock": true
+}
