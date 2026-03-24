@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15958990,
+  "code_bytes": 73004,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15885986,
+  "rationale": "The current best script already wins with late soft quant-aware snaps, but it still perturbs every quantized tensor as soon as endgame adaptation begins. Recent near-misses suggest projection layers are the most compression-sensitive while broader quantizer changes are mostly flat. This variant keeps the winning ramp and LR split, but makes the first quant-aware rounds projection-only, then expands to full-model roundtrips for the final snaps. The hypothesis is that early endgame adaptation should target the most score-critical projection weights first, preserving more general-model fit before the last full quantized alignment.",
+  "run_id": "2026_03_24_run_0021",
+  "runtime_seconds": 600.404691,
+  "submitter": "frido22",
+  "title": "Projection-Warm Quant-Aware Expansion",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533873,
+  "under_16mb": true,
+  "val_bpb": 1.57989845,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

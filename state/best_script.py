@@ -48,7 +48,6 @@ class Hyperparameters:
     quant_aware_embed_lr_mul: float = float(os.environ.get("QUANT_AWARE_EMBED_LR_MUL", 0.6))
     quant_aware_matrix_lr_mul: float = float(os.environ.get("QUANT_AWARE_MATRIX_LR_MUL", 0.35))
     quant_aware_scalar_lr_mul: float = float(os.environ.get("QUANT_AWARE_SCALAR_LR_MUL", 0.8))
-    quant_aware_proj_warmup_rounds: int = int(os.environ.get("QUANT_AWARE_PROJ_WARMUP_ROUNDS", 1))
     quant_aware_proj_start: float = float(os.environ.get("QUANT_AWARE_PROJ_START", 0.55))
     quant_aware_proj_step: float = float(os.environ.get("QUANT_AWARE_PROJ_STEP", 0.2))
     quant_aware_proj_end: float = float(os.environ.get("QUANT_AWARE_PROJ_END", 0.95))
@@ -459,7 +458,11 @@ class SplitOptimizers:
         scalar_params = {k: params[k] for k in self.scalar_keys}
         updated.update(self.adam_scalar.apply_gradients(scalar_grads, scalar_params))
         model.update(tree_unflatten(list(updated.items())))
-MX_DTYPE_FROM_NAME = {"float32": mx.float32, "float16": mx.float16, "bfloat16": mx.bfloat16}
+MX_DTYPE_FROM_NAME = {
+    "float32": mx.float32,
+    "float16": mx.float16,
+    "bfloat16": mx.bfloat16,
+}
 INT8_KEEP_FLOAT_MAX_NUMEL = 65_536
 INT8_KEEP_FLOAT_STORE_DTYPE = np.float16
 INT8_PER_ROW_SCALE_DTYPE = np.float16
@@ -469,10 +472,23 @@ INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
 INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
 INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 1))
 INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
-INT8_FP16_KEEP_NAMES = tuple(name for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",") if name)
-BLOCK_FP16_MATRIX_SUFFIXES = ("attn.c_q.weight", "attn.c_k.weight", "attn.c_v.weight", "attn.proj.weight", "mlp.fc.weight", "mlp.proj.weight")
-BLOCK_FP16_PROJ_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
-QUANT_AWARE_PROJ_ONLY_SUFFIXES = BLOCK_FP16_PROJ_SUFFIXES
+INT8_FP16_KEEP_NAMES = tuple(
+    name
+    for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
+    if name
+)
+BLOCK_FP16_MATRIX_SUFFIXES = (
+    "attn.c_q.weight",
+    "attn.c_k.weight",
+    "attn.c_v.weight",
+    "attn.proj.weight",
+    "mlp.fc.weight",
+    "mlp.proj.weight",
+)
+BLOCK_FP16_PROJ_SUFFIXES = (
+    "attn.proj.weight",
+    "mlp.proj.weight",
+)
 def _np_float32(arr: mx.array) -> np.ndarray:
     return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
 def build_int8_fp16_keep_names(num_layers: int) -> set[str]:
@@ -616,18 +632,11 @@ def blend_tensor_toward_final(
     if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names):
         return target
     return arr + (target - arr) * mix
-def is_quant_aware_proj_tensor(name: str) -> bool:
-    return name == "tok_emb.weight" or any(name.endswith(suffix) for suffix in QUANT_AWARE_PROJ_ONLY_SUFFIXES)
-def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0, projection_only: bool = False) -> None:
+def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
     model.update(
         tree_unflatten(
             [
-                (
-                    name,
-                    blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix)
-                    if not projection_only or is_quant_aware_proj_tensor(name)
-                    else arr
-                )
+                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix))
                 for name, arr in tree_flatten(model.state)
             ]
         )
@@ -1183,7 +1192,11 @@ def should_activate_quant_aware(args: Hyperparameters, step: int, elapsed_ms: fl
 def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tuple[float, float, float]:
     if not quant_aware_active:
         return 1.0, 1.0, 1.0
-    return args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul
+    return (
+        args.quant_aware_embed_lr_mul,
+        args.quant_aware_matrix_lr_mul,
+        args.quant_aware_scalar_lr_mul,
+    )
 def main() -> None:
     args = Hyperparameters()
     out_dir = Path(args.out_dir)
@@ -1323,7 +1336,6 @@ def main() -> None:
         f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} "
         f"step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}"
     )
-    log(f"quant_aware_proj_warmup_rounds:{args.quant_aware_proj_warmup_rounds}")
     log(
         f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} "
         f"tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}"
@@ -1334,7 +1346,6 @@ def main() -> None:
     t0 = time.perf_counter()
     step = 0
     last_quant_aware_step: int | None = None
-    quant_aware_rounds = 0
     quant_aware_proj_mix = args.quant_aware_proj_start
     while True:
         last_step = step == args.iterations or (stop_after_step is not None and step >= stop_after_step)
@@ -1402,19 +1413,11 @@ def main() -> None:
         next_step = step + 1
         approx_train_time_ms = train_time_ms + 1000.0 * (time.perf_counter() - t0)
         did_quant_aware_roundtrip = False
-        quant_aware_projection_only = False
         if should_activate_quant_aware(args, next_step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms) and (
             last_quant_aware_step is None or next_step - last_quant_aware_step >= args.quant_aware_every
         ):
-            quant_aware_projection_only = quant_aware_rounds < args.quant_aware_proj_warmup_rounds
-            apply_final_roundtrip_to_state(
-                model,
-                int8_fp16_keep_names,
-                mix=quant_aware_proj_mix,
-                projection_only=quant_aware_projection_only,
-            )
+            apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix)
             last_quant_aware_step = next_step
-            quant_aware_rounds += 1
             quant_aware_proj_mix = min(quant_aware_proj_mix + args.quant_aware_proj_step, args.quant_aware_proj_end)
             did_quant_aware_roundtrip = True
         mx.synchronize()
@@ -1423,10 +1426,7 @@ def main() -> None:
         tok_s = args.train_batch_tokens / (step_ms / 1000.0)
         step = next_step
         if did_quant_aware_roundtrip:
-            log(
-                f"quant_aware_roundtrip:step:{step} "
-                f"projection_only:{int(quant_aware_projection_only)} round:{quant_aware_rounds}"
-            )
+            log(f"quant_aware_roundtrip:step:{step}")
         if should_log_train:
             train_loss_value = float(train_loss.item())
             log(
