@@ -27,3 +27,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0001,1.584903,True,False,Projection-Focused Soft Quant Ramp
 2026_03_24_run_0002,1.588990,True,False,Projection-First Quant-Aware Power Ramp
 2026_03_24_run_0003,1.576693,True,False,Error-Adaptive Soft Ramp With Axis-Mixed Int8
+2026_03_24_run_0004,1.582346,True,False,Projection-Momentum Reset On Quant-Aware Snaps

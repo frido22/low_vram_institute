@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15956802,
+  "code_bytes": 72901,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15883901,
+  "rationale": "Builds directly on the winning soft quant-aware projection ramp, but fixes a mismatch it still leaves behind: late roundtrip snaps mutate projection weights while Muon momentum for those matrices still points at the pre-snap manifold. This run resets only projection-matrix Muon buffers after each quant-aware roundtrip, preserving the current throughput, quantizer, and LR schedule while letting the most quantization-sensitive weights settle toward the exact final int8 target instead of being pushed back by stale momentum.",
+  "run_id": "2026_03_24_run_0004",
+  "runtime_seconds": 600.345182,
+  "submitter": "frido22",
+  "title": "Projection-Momentum Reset On Quant-Aware Snaps",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533856,
+  "under_16mb": true,
+  "val_bpb": 1.58234583,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
