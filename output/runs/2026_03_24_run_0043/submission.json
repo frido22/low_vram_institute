@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15973300,
+  "code_bytes": 73941,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15899359,
+  "rationale": "Builds directly on the current best Late Projection EMA Finalizer instead of restarting. Recent projection-EMA row/clip variants have flattened, so this compounds the winning late EMA path with a different lever from an earlier close miss: keep the projection payload int8 and the training loop unchanged, but store per-row scales and offsets for attn/MLP projection matrices in fp32. That spends a small amount of the remaining size budget on more faithful final dequantization exactly where the current best already found the most quantization-sensitive weights, while preserving the late projection EMA endgame and adding no hot-loop cost.",
+  "run_id": "2026_03_24_run_0043",
+  "runtime_seconds": 601.721009,
+  "submitter": "frido22",
+  "title": "Projection EMA With FP32 Metadata",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534633,
+  "under_16mb": true,
+  "val_bpb": 1.57671337,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
