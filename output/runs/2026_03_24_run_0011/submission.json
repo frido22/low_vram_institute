@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15979994,
+  "code_bytes": 72964,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15907030,
+  "rationale": "Builds directly on the current best soft quant-aware projection ramp and leaves training throughput unchanged. The only functional change is to keep per-row scales and row-offsets in fp32 for quantized `attn.proj.weight` and `mlp.proj.weight`, while leaving payload weights int8 and the rest of the quantizer unchanged. That targets the final exact roundtrip metric more directly than another late-phase schedule replay, compounds with the projection-sensitive best path, and should remain within the size cap because only projection metadata grows.",
+  "run_id": "2026_03_24_run_0011",
+  "runtime_seconds": 601.335415,
+  "submitter": "frido22",
+  "title": "Projection FP32 Quant Metadata",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534564,
+  "under_16mb": true,
+  "val_bpb": 1.57968093,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

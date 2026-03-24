@@ -34,3 +34,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0008,1.680782,True,False,Projection Row-Mean Reparameterization
 2026_03_24_run_0009,1.592400,True,False,Quant-Aware Projection Micro-Pull
 2026_03_24_run_0010,1.585271,True,False,Terminal Exact Snap With Error-Adaptive Soft Mix
+2026_03_24_run_0011,1.579681,True,False,Projection FP32 Quant Metadata
