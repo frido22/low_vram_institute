@@ -24,3 +24,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_23_run_0023,1.587493,True,False,Selective FP16-Tail Quant-Aware Matrix LR Split
 2026_03_23_run_0024,1.588032,True,False,Packed Sparse Row-Offset Int8
 2026_03_23_run_0025,1.575643,True,True,Soft Quant-Aware Projection Ramp
+2026_03_24_run_0001,1.584903,True,False,Projection-Focused Soft Quant Ramp

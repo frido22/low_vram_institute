@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15962599,
+  "code_bytes": 72879,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15889720,
+  "rationale": "Builds on the current best soft quant-aware roundtrip, but stops over-regularizing every matrix equally. During the late quant-aware phase, full blend pressure now stays on attention/MLP projection weights while other int8 matrices only get a light nudge, preserving step quality and letting the model adapt where roundtrip error matters most. The script stays under the 1500-line cap and passes a syntax check.",
+  "run_id": "2026_03_24_run_0001",
+  "runtime_seconds": 600.112157,
+  "submitter": "frido22",
+  "title": "Projection-Focused Soft Quant Ramp",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533630,
+  "under_16mb": true,
+  "val_bpb": 1.58490332,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
