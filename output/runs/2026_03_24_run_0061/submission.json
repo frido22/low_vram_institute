@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15939480,
+  "code_bytes": 74413,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15865067,
+  "rationale": "Builds directly on the current best run instead of changing the winning quantizer again. Run 0053 showed the columnwise `mlp.fc.weight` path is the main new gain, and the late phase only gets three quant-aware snaps before wallclock cutoff. This change keeps projection EMA and the exact final serializer intact, but advances the quant-aware mix only for tensors already using the transposed MLP-expansion quantizer, giving those dominant int8 matrices more time in the actual final manifold without disturbing the rest of the model.",
+  "run_id": "2026_03_24_run_0061",
+  "runtime_seconds": 601.819257,
+  "submitter": "frido22",
+  "title": "Advanced Columnwise MLP Quant-Aware Ramp",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534664,
+  "under_16mb": true,
+  "val_bpb": 1.5849037,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
