@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15959850,
+  "code_bytes": 73936,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15885914,
+  "rationale": "Builds directly on the current late projection EMA winner, but stops feeding the EMA with the first quant-aware snap when the model is still adapting to the roundtrip constraint. The new change delays projection EMA collection until after the second quant-aware roundtrip, so the finalizer averages only the already-adapted late projection states. That compounds the winning endgame path, keeps artifact size unchanged, adds essentially no hot-loop cost, and targets the final int8 roundtrip score more narrowly than broadening the quantizer again.",
+  "run_id": "2026_03_24_run_0038",
+  "runtime_seconds": 600.510237,
+  "submitter": "frido22",
+  "title": "Second-Snap Projection EMA Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533845,
+  "under_16mb": true,
+  "val_bpb": 1.57405048,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

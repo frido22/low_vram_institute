@@ -61,3 +61,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0035,1.579529,True,False,Selective Projection EMA Row Finalizer
 2026_03_24_run_0036,1.590504,True,False,Projection Lattice EMA Finalizer
 2026_03_24_run_0037,1.578784,True,False,Projection Dual-Clip Row Chooser
+2026_03_24_run_0038,1.574050,True,False,Second-Snap Projection EMA Finalizer
