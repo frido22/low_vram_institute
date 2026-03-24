@@ -54,3 +54,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0028,1.583646,True,False,Projection Midpoint Offset Under Gentle Clip
 2026_03_24_run_0029,1.583422,True,False,Projection-Weighted Quant-Aware Roundtrip
 2026_03_24_run_0030,1.586717,True,False,Late Projection Outlier Regularization
+2026_03_24_run_0031,1.588160,True,False,Selective Projection-Only Quant-Aware Roundtrip

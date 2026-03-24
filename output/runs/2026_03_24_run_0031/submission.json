@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15961851,
+  "code_bytes": 73386,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15888465,
+  "rationale": "Builds on the current best quantizer and clipping, but narrows intermediate quant-aware roundtrips to projection weights only. The hypothesis is that short wallclock runs benefit from adapting the zero-init projection bottlenecks to final int8 error while avoiding extra noise on qkv/fc weights until the exact final roundtrip.",
+  "run_id": "2026_03_24_run_0031",
+  "runtime_seconds": 601.072686,
+  "submitter": "frido22",
+  "title": "Selective Projection-Only Quant-Aware Roundtrip",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534070,
+  "under_16mb": true,
+  "val_bpb": 1.58816005,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
