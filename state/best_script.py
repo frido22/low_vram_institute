@@ -479,6 +479,9 @@ INT8_FP16_KEEP_NAMES = tuple(
     for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
     if name
 )
+QUANT_AWARE_MIX_SUFFIXES = tuple(
+    suffix for suffix in os.environ.get("QUANT_AWARE_MIX_SUFFIXES", "attn.proj.weight,mlp.proj.weight").split(",") if suffix
+)
 BLOCK_FP16_MATRIX_SUFFIXES = (
     "attn.c_q.weight",
     "attn.c_k.weight",
@@ -641,7 +644,11 @@ def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], m
     model.update(
         tree_unflatten(
             [
-                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix))
+                (
+                    name,
+                    arr if QUANT_AWARE_MIX_SUFFIXES and mix < 1.0 and not name.endswith(QUANT_AWARE_MIX_SUFFIXES)
+                    else blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix),
+                )
                 for name, arr in tree_flatten(model.state)
             ]
         )
@@ -1195,13 +1202,11 @@ def should_activate_quant_aware(args: Hyperparameters, step: int, elapsed_ms: fl
         return args.quant_aware_iters > 0 and step >= max(args.iterations - args.quant_aware_iters, 0)
     return elapsed_ms >= max(max_wallclock_ms - reserved_final_ms - 1000.0 * args.quant_aware_train_seconds, 0.0)
 def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tuple[float, float, float]:
-    if not quant_aware_active:
-        return 1.0, 1.0, 1.0
     return (
         args.quant_aware_embed_lr_mul,
         args.quant_aware_matrix_lr_mul,
         args.quant_aware_scalar_lr_mul,
-    )
+    ) if quant_aware_active else (1.0, 1.0, 1.0)
 def main() -> None:
     args = Hyperparameters()
     out_dir = Path(args.out_dir)
@@ -1339,7 +1344,8 @@ def main() -> None:
     )
     log(
         f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} "
-        f"step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}"
+        f"step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end} "
+        f"targets:{','.join(QUANT_AWARE_MIX_SUFFIXES) if QUANT_AWARE_MIX_SUFFIXES else 'all'}"
     )
     log(
         f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} "

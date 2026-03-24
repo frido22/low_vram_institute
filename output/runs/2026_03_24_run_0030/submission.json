@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15957905,
+  "code_bytes": 73348,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15884557,
+  "rationale": "Builds directly on the current best projection-only gentle clipping path, but shifts the new work from quantizer metadata tweaks to late-training weight shaping. During the quant-aware phase, a second compiled loss adds a projection-only row-normalized outlier penalty on the projection matrices that still end up int8-quantized, so final exact roundtrip needs less destructive clipping on those rows. I also removed dormant logit-chunking branches to keep the script lean and under the 1500-line cap while preserving the evaluation and final serialization path.",
+  "run_id": "2026_03_24_run_0030",
+  "runtime_seconds": 602.516435,
+  "submitter": "frido22",
+  "title": "Late Projection Outlier Regularization",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 535942,
+  "under_16mb": true,
+  "val_bpb": 1.58671676,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
