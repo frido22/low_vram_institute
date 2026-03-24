@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15937907,
+  "code_bytes": 74345,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15863562,
+  "rationale": "Build on the current winner by extending the late EMA snapshot set from projection weights to every matrix already targeted for transpose-aware final int8 quantization. The best run showed mlp.fc.weight is the key new quantization-sensitive tensor; smoothing those weights during the quant-aware tail can reduce last-step noise at serialization time without spending artifact bytes or changing the training path earlier in the run.",
+  "run_id": "2026_03_24_run_0057",
+  "runtime_seconds": 601.171942,
+  "submitter": "frido22",
+  "title": "EMA Over Transposed MLP Expansion Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534273,
+  "under_16mb": true,
+  "val_bpb": 1.58329004,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
