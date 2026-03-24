@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15964864,
+  "code_bytes": 73633,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15891231,
+  "rationale": "Build on the current best soft quant-aware projection ramp with a narrower first snap instead of another quantizer rewrite. The first quant-aware roundtrip now touches only the tied embedding and projection weights, then later snaps expand back to the full state. The hypothesis is that this reduces endgame disruption early, preserves more float-model fit during the short 600s budget, and still finishes aligned to the exact final int8 roundtrip target. I also compressed a few constant/helper definitions so the script stays under the 1500-line cap.",
+  "run_id": "2026_03_24_run_0020",
+  "runtime_seconds": 600.145913,
+  "submitter": "frido22",
+  "title": "Projection-Warm Quant-Aware Expansion",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533677,
+  "under_16mb": true,
+  "val_bpb": 1.58416743,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
