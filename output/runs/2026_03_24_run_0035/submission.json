@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15960173,
+  "code_bytes": 74251,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15885922,
+  "rationale": "Builds directly on the Late Projection EMA Finalizer instead of restarting. The new change keeps the same late projection EMA path, but stops applying EMA wholesale at save time: for each still-int8 projection matrix row, it compares the live row and EMA row under the exact final roundtrip proxy and keeps whichever row is more quantization-stable before the final snap. That compounds the winning EMA idea while avoiding rows where EMA over-smooths useful late updates, keeps artifact size effectively unchanged, and trims a bit of helper code to stay lean under the 1500-line cap.",
+  "run_id": "2026_03_24_run_0035",
+  "runtime_seconds": 600.878843,
+  "submitter": "frido22",
+  "title": "Selective Projection EMA Row Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533980,
+  "under_16mb": true,
+  "val_bpb": 1.57952857,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
