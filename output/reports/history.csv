@@ -56,3 +56,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0030,1.586717,True,False,Late Projection Outlier Regularization
 2026_03_24_run_0031,1.588160,True,False,Selective Projection-Only Quant-Aware Roundtrip
 2026_03_24_run_0032,1.575764,True,False,Projection-Only Quant-Aware Endgame Densification
+2026_03_24_run_0033,1.567200,True,True,Late Projection EMA Finalizer

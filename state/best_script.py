@@ -467,13 +467,12 @@ INT8_KEEP_FLOAT_MAX_NUMEL = 65_536
 INT8_KEEP_FLOAT_STORE_DTYPE = np.float16
 INT8_PER_ROW_SCALE_DTYPE = np.float16
 INT8_PER_ROW_OFFSET_DTYPE = np.float16
-INT8_CLIP_PERCENTILE = 99.99984
-INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
-INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99.9))
-INT8_PROJ_CLIP_Q = INT8_PROJ_CLIP_PERCENTILE / 100.0
+INT8_CLIP_PERCENTILE = 99.99984; INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
+INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99.9)); INT8_PROJ_CLIP_Q = INT8_PROJ_CLIP_PERCENTILE / 100.0
 INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
 INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 1))
 INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
+PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
 INT8_FP16_KEEP_NAMES = tuple(
     name
     for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
@@ -1328,23 +1327,11 @@ def main() -> None:
         1000.0 * args.final_eval_reserve_seconds,
         estimated_final_eval_ms * args.final_eval_reserve_scale + 1000.0 * args.final_eval_serialization_seconds,
     )
-    log(
-        f"final_eval_budget:estimate_ms:{estimated_final_eval_ms:.0f} "
-        f"reserve_ms:{reserved_final_ms:.0f} estimate_batches:{args.final_eval_estimate_batches}"
-    )
+    log(f"final_eval_budget:estimate_ms:{estimated_final_eval_ms:.0f} reserve_ms:{reserved_final_ms:.0f} estimate_batches:{args.final_eval_estimate_batches}")
     log(f"quant_aware:train_seconds:{args.quant_aware_train_seconds:.1f} iters:{args.quant_aware_iters} every:{args.quant_aware_every}")
-    log(
-        f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} "
-        f"matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}"
-    )
-    log(
-        f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} "
-        f"step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}"
-    )
-    log(
-        f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} "
-        f"tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}"
-    )
+    log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
+    log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
+    log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
     stop_after_step: int | None = None
@@ -1352,6 +1339,8 @@ def main() -> None:
     step = 0
     last_quant_aware_step: int | None = None
     quant_aware_proj_mix = args.quant_aware_proj_start
+    proj_ema: dict[str, mx.array] | None = None
+    proj_ema_keep = 1.0 - PROJ_EMA_DECAY
     while True:
         last_step = step == args.iterations or (stop_after_step is not None and step >= stop_after_step)
         if last_step or (args.val_loss_every > 0 and step % args.val_loss_every == 0):
@@ -1425,6 +1414,13 @@ def main() -> None:
             last_quant_aware_step = next_step
             quant_aware_proj_mix = min(quant_aware_proj_mix + args.quant_aware_proj_step, args.quant_aware_proj_end)
             did_quant_aware_roundtrip = True
+        if last_quant_aware_step is not None:
+            flat_params = dict(tree_flatten(model.parameters()))
+            if proj_ema is None:
+                proj_ema = {name: arr + mx.zeros_like(arr) for name, arr in flat_params.items() if name.endswith(BLOCK_FP16_PROJ_SUFFIXES) and not should_keep_float_tensor(name, arr, int8_fp16_keep_names)}
+            else:
+                for name in proj_ema:
+                    proj_ema[name] = proj_ema[name] + (flat_params[name] - proj_ema[name]) * proj_ema_keep
         mx.synchronize()
         step_ms = 1000.0 * (time.perf_counter() - step_t0)
         approx_train_time_ms = train_time_ms + 1000.0 * (time.perf_counter() - t0)
@@ -1448,6 +1444,9 @@ def main() -> None:
         apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
         mx.synchronize()
         log(f"quant_aware_roundtrip:step:{step} final_pre_save")
+    if proj_ema:
+        model.update(tree_unflatten(list(proj_ema.items())))
+        apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
     out_path = out_dir / f"{args.run_id}_mlx_model.npz"
     flat_state = {k: v for k, v in tree_flatten(model.state)}
     mx.savez(str(out_path), **flat_state)

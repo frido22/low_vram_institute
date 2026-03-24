@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15962372,
+  "code_bytes": 73677,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15888695,
+  "rationale": "Builds directly on the current projection-only gentle clipping winner but pivots away from more offset and midpoint experiments, which have recently regressed. The new change keeps a late EMA over only the projection matrices that still end up int8-quantized after the first quant-aware roundtrip, then reapplies the exact final roundtrip before save. That targets the real score by smoothing the noisiest quantization-sensitive weights without increasing artifact bytes or disrupting the hot training path for most of the run.",
+  "run_id": "2026_03_24_run_0033",
+  "runtime_seconds": 602.147632,
+  "submitter": "frido22",
+  "title": "Late Projection EMA Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534904,
+  "under_16mb": true,
+  "val_bpb": 1.56720003,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
