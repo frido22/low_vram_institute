@@ -72,3 +72,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0046,1.591710,True,False,Roundtripped Projection EMA Finalizer
 2026_03_24_run_0047,1.590133,True,False,Projection Row-Gain Equalized EMA Finalizer
 2026_03_24_run_0048,2.577107,True,False,Projection Group-Scale EMA Finalizer
+2026_03_24_run_0049,1.595633,True,False,Recovered Endgame Budget With Delayed Projection EMA

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15965307,
+  "code_bytes": 73935,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15891372,
+  "rationale": "The current best is likely leaving safe wallclock on the table: its 72s hard reserve is materially above the measured final eval need, so this patch lowers the reserve floor to 56s to buy more training steps without changing the 600s cap logic. I also extend the quant-aware window from 48s to 56s so the recovered budget is spent partly in the endgame, increasing the chance of a fourth late roundtrip while keeping the same projection-EMA finalizer. Finally, projection EMA now starts only after the second quant-aware roundtrip, building on the closest-miss second-snap idea and avoiding averaging the noisier early endgame weights.",
+  "run_id": "2026_03_24_run_0049",
+  "runtime_seconds": 615.246612,
+  "submitter": "frido22",
+  "title": "Recovered Endgame Budget With Delayed Projection EMA",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 548513,
+  "under_16mb": true,
+  "val_bpb": 1.59563309,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
