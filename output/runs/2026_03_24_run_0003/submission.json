@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15965197,
+  "code_bytes": 75954,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15889243,
+  "rationale": "Build on the current soft quant-aware winner, but pivot away from another projection-only schedule replay. This version improves the final int8 path itself by letting each 2D tensor choose among rowwise, mean-offset, midpoint-offset, and transposed-axis rowwise encodings, then keeps the late soft roundtrip ramp but scales each tensor's blend by its actual quantization error so low-distortion tensors are disturbed less while hard tensors still adapt strongly. That directly targets final_int8_zlib_roundtrip_exact val_bpb, stays under the 1500-line cap, preserves the official evaluation path and final marker, and avoids spending artifact budget on new FP16 payload.",
+  "run_id": "2026_03_24_run_0003",
+  "runtime_seconds": 603.704916,
+  "submitter": "frido22",
+  "title": "Error-Adaptive Soft Ramp With Axis-Mixed Int8",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536476,
+  "under_16mb": true,
+  "val_bpb": 1.57669253,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
