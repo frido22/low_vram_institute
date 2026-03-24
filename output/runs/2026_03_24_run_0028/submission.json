@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15992640,
+  "code_bytes": 72928,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15919712,
+  "rationale": "Build on the current winner by keeping the projection-only gentle clipping and targeted quant-aware ramp, but let projection rows choose midpoint offsets when they quantize better than row-mean offsets. This attacks final int8 roundtrip error directly on the most sensitive matrices while removing unused logit chunking to stay under the 1500-line cap.",
+  "run_id": "2026_03_24_run_0028",
+  "runtime_seconds": 601.198949,
+  "submitter": "frido22",
+  "title": "Projection Midpoint Offset Under Gentle Clip",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534472,
+  "under_16mb": true,
+  "val_bpb": 1.58364625,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

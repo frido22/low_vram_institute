@@ -51,3 +51,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0025,1.581200,True,False,Always-Exact Final Quant-Aware Snap
 2026_03_24_run_0026,1.574193,True,True,Projection-Only Gentle Int8 Clipping
 2026_03_24_run_0027,1.578857,True,False,Proxy-Clip Projection Finalizer
+2026_03_24_run_0028,1.583646,True,False,Projection Midpoint Offset Under Gentle Clip
