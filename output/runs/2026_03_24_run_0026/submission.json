@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15962783,
+  "code_bytes": 72969,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15889814,
+  "rationale": "Builds on the current best soft quant-aware projection-ramp path without changing the hot loop or artifact format. The current row-wise clip percentile is effectively max-abs for 512-wide rows, so projection matrices still let single outliers dominate int8 range. This variant keeps the winning adaptive row-offset quantizer everywhere else, but lowers clipping only for attn/MLP projection weights so those rows get a gentler, actually-active clip during both quant-aware roundtrips and final serialization.",
+  "run_id": "2026_03_24_run_0026",
+  "runtime_seconds": 600.476804,
+  "submitter": "frido22",
+  "title": "Projection-Only Gentle Int8 Clipping",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533927,
+  "under_16mb": true,
+  "val_bpb": 1.5741933,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
