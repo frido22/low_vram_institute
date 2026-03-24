@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15937809,
+  "code_bytes": 74676,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15863133,
+  "rationale": "Builds directly on the current best columnwise-MLP-expansion plus projection-EMA script. The change keeps full exact final roundtripping intact, but during late quant-aware training it now pushes only the most quantization-sensitive matrices hard toward the final manifold: both projection weights and the transposed MLP expansion weights. All other quantized tensors get only a light 0.15 roundtrip mix, which should preserve the 0053 gains while reducing unnecessary endgame disturbance to QKV and other matrices under the same 600s budget.",
+  "run_id": "2026_03_24_run_0059",
+  "runtime_seconds": 601.679643,
+  "submitter": "frido22",
+  "title": "Selective Quant-Aware MLP Expansion Plus Projection Endgame",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534579,
+  "under_16mb": true,
+  "val_bpb": 1.5846349,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
