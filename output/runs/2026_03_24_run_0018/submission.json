@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15966306,
+  "code_bytes": 73184,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15893122,
+  "rationale": "Builds on the current soft quant-aware ramp but keeps its training-time snaps on the proven mean-offset path. Only the terminal pre-save snap and final int8 serialization switch to a selective per-row midpoint choice for projection weights, aiming to capture the tiny export-time gain seen in midpoint variants without perturbing the endgame optimization dynamics that produced the current best run. I also removed the now-unused quant-aware LR helper to keep the script lean under the code-plus-artifact cap.",
+  "run_id": "2026_03_24_run_0018",
+  "runtime_seconds": 600.854918,
+  "submitter": "frido22",
+  "title": "Terminal Projection Midpoint Quantizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534034,
+  "under_16mb": true,
+  "val_bpb": 1.58615412,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
