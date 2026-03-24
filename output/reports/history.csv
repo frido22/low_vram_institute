@@ -48,3 +48,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0022,2.198220,False,False,Terminal Exact Quantization Runway
 2026_03_24_run_0023,1.586275,True,False,Error-Gated Quant-Aware Projection Ramp
 2026_03_24_run_0024,1.591190,True,False,Selective Projection Row-Center Choice
+2026_03_24_run_0025,1.581200,True,False,Always-Exact Final Quant-Aware Snap

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15962473,
+  "code_bytes": 72644,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15889829,
+  "rationale": "Build on the current best soft quant-aware projection ramp by fixing its endgame mismatch instead of exploring another broad quantizer variant. In the current script, if the final training step lands on a quant-aware interval, the late soft roundtrip runs but the intended exact pre-save roundtrip is skipped; the best run log shows this happened at step 899. This change always applies the exact final roundtrip once quant-aware mode has been used, so the serialized model and final_int8_zlib_roundtrip_exact evaluation are aligned even when the last training step already took a soft snap. The hot loop and artifact format stay unchanged, and the script stays lean.",
+  "run_id": "2026_03_24_run_0025",
+  "runtime_seconds": 600.52024,
+  "submitter": "frido22",
+  "title": "Always-Exact Final Quant-Aware Snap",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533872,
+  "under_16mb": true,
+  "val_bpb": 1.58120047,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
