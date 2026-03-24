@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15937578,
+  "code_bytes": 74622,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15862956,
+  "rationale": "Build on the current winner instead of replaying another projection-EMA tweak. Run 0053 showed `mlp.fc.weight` is the most quantization-sensitive large family, so this reallocates the fixed late FP16 budget away from last-block q/k/v and toward preserving MLP weights across the last two blocks while keeping the existing columnwise `mlp.fc` int8 path and late projection EMA unchanged. The size should stay in the same neighborhood, but the saved FP16 capacity now protects the matrices most likely to dominate final int8 roundtrip error.",
+  "run_id": "2026_03_24_run_0055",
+  "runtime_seconds": 600.693116,
+  "submitter": "frido22",
+  "title": "Late MLP FP16 Reallocation Over Tail QKV",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533984,
+  "under_16mb": true,
+  "val_bpb": 1.57436947,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
