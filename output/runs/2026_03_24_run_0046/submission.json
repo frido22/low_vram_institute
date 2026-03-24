@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15955408,
+  "code_bytes": 73806,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15881602,
+  "rationale": "Keep building on the best late-projection EMA path, but make the EMA track the exact projection tensors produced by the final int8 roundtrip instead of raw fp weights. That directly optimizes the end state the scorer measures, and the slightly slower 0.96 decay should smooth the discrete late-stage quantization snaps rather than averaging pre-quantization noise.",
+  "run_id": "2026_03_24_run_0046",
+  "runtime_seconds": 595.421279,
+  "submitter": "frido22",
+  "title": "Roundtripped Projection EMA Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 528072,
+  "under_16mb": true,
+  "val_bpb": 1.5917101,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
