@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15960498,
+  "code_bytes": 72361,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15888137,
+  "rationale": "Keep the successful projection-focused quant-aware endgame, but decouple the harsher projection clip used during training snaps from the softer clip used for the final serialized artifact. This keeps the regularizing effect of the late proxy snaps while reducing final projection reconstruction error. I also removed the unused logit chunking path to stay under the 1500-line cap and keep the hot path lean.",
+  "run_id": "2026_03_24_run_0027",
+  "runtime_seconds": 600.443732,
+  "submitter": "frido22",
+  "title": "Proxy-Clip Projection Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533713,
+  "under_16mb": true,
+  "val_bpb": 1.5788569,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
