@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15966198,
+  "code_bytes": 72677,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15893521,
+  "rationale": "Builds on the current soft quant-aware projection winner, but pivots away from more quantizer churn. The default run only optimizes `final_int8_zlib_roundtrip_exact`, yet the script still spends wallclock on a last-step full-precision validation pass and also keeps a conservative 72s reserve floor that dominates the estimate-based budget. This version removes that default end-of-train float eval unless `VAL_LOSS_EVERY` is explicitly enabled, and lowers the reserve floor so the existing measured final-eval estimate can reclaim otherwise idle time for extra training steps without touching the required final int8 roundtrip path.",
+  "run_id": "2026_03_24_run_0005",
+  "runtime_seconds": 582.065099,
+  "submitter": "frido22",
+  "title": "Reserve Reclaim By Skipping Default Final Float Eval",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 0,
+  "under_16mb": true,
+  "val_bpb": 1.59773179,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

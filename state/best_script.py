@@ -38,8 +38,8 @@ class Hyperparameters:
     mlx_eager_eval: bool = bool(int(os.environ.get("MLX_EAGER_EVAL", "0")))
     warmdown_iters: int = int(os.environ.get("WARMDOWN_ITERS", 64))
     max_wallclock_seconds: float = float(os.environ.get("MAX_WALLCLOCK_SECONDS", 600.0))
-    final_eval_reserve_seconds: float = float(os.environ.get("FINAL_EVAL_RESERVE_SECONDS", 72.0))
-    final_eval_reserve_scale: float = float(os.environ.get("FINAL_EVAL_RESERVE_SCALE", 1.35))
+    final_eval_reserve_seconds: float = float(os.environ.get("FINAL_EVAL_RESERVE_SECONDS", 40.0))
+    final_eval_reserve_scale: float = float(os.environ.get("FINAL_EVAL_RESERVE_SCALE", 1.2))
     final_eval_estimate_batches: int = int(os.environ.get("FINAL_EVAL_ESTIMATE_BATCHES", 2))
     final_eval_serialization_seconds: float = float(os.environ.get("FINAL_EVAL_SERIALIZATION_SECONDS", 5.0))
     quant_aware_train_seconds: float = float(os.environ.get("QUANT_AWARE_TRAIN_SECONDS", 48.0))
@@ -1319,9 +1319,14 @@ def main() -> None:
         doc_spans,
         bos_token_id,
     )
+    needs_terminal_float_eval = args.val_loss_every > 0
+    terminal_eval_count = 1 + int(needs_terminal_float_eval)
     reserved_final_ms = max(
         1000.0 * args.final_eval_reserve_seconds,
-        estimated_final_eval_ms * args.final_eval_reserve_scale + 1000.0 * args.final_eval_serialization_seconds,
+        (
+            estimated_final_eval_ms * args.final_eval_reserve_scale * terminal_eval_count
+            + 1000.0 * args.final_eval_serialization_seconds
+        ),
     )
     log(
         f"final_eval_budget:estimate_ms:{estimated_final_eval_ms:.0f} "
@@ -1349,7 +1354,8 @@ def main() -> None:
     quant_aware_proj_mix = args.quant_aware_proj_start
     while True:
         last_step = step == args.iterations or (stop_after_step is not None and step >= stop_after_step)
-        if last_step or (args.val_loss_every > 0 and step % args.val_loss_every == 0):
+        should_run_val = args.val_loss_every > 0 and (last_step or step % args.val_loss_every == 0)
+        if should_run_val:
             train_time_ms += 1000.0 * (time.perf_counter() - t0)
             val_loss, val_bpb = eval_val(
                 args,
@@ -1370,6 +1376,8 @@ def main() -> None:
                 )
             t0 = time.perf_counter()
         if last_step:
+            if not should_run_val:
+                train_time_ms += 1000.0 * (time.perf_counter() - t0)
             if stop_after_step is not None and step < args.iterations:
                 log(f"stopping_early: wallclock_cap train_time:{train_time_ms:.0f}ms step:{step}/{args.iterations}")
             break
