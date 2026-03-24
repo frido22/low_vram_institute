@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15735524,
+  "code_bytes": 72678,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15662846,
+  "rationale": "I am keeping the current best quant-aware/quantizer path intact and shifting to a per-step efficiency hypothesis instead. Muon's Newton-Schulz backend has stayed at 5 steps across the run history; dropping the default to 4 should reduce optimizer overhead on the wallclock-limited Mac mini and buy extra updates in the same 600s budget, while still preserving most of the orthogonalization benefit for the matrix-heavy blocks that dominate the model.",
+  "run_id": "2026_03_24_run_0019",
+  "runtime_seconds": 601.137748,
+  "submitter": "frido22",
+  "title": "Four-Step Muon Orthogonalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534506,
+  "under_16mb": true,
+  "val_bpb": 1.59948781,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
