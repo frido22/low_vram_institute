@@ -45,3 +45,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0019,1.599488,True,False,Four-Step Muon Orthogonalizer
 2026_03_24_run_0020,1.584167,True,False,Projection-Warm Quant-Aware Expansion
 2026_03_24_run_0021,1.579898,True,False,Projection-Warm Quant-Aware Expansion
+2026_03_24_run_0022,2.198220,False,False,Terminal Exact Quantization Runway

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12588296,
+  "code_bytes": 73703,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12514593,
+  "rationale": "Builds on the current soft quant-aware projection ramp instead of changing quantization again. The new move spends the last ~9 training seconds on exact roundtripped weights with a tighter LR split, so the optimizer gets a short runway to adapt to the true final int8/fp16 artifact before the wallclock stop instead of only snapping at save time.",
+  "run_id": "2026_03_24_run_0022",
+  "runtime_seconds": 576.674308,
+  "submitter": "frido22",
+  "title": "Terminal Exact Quantization Runway",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 510018,
+  "under_16mb": true,
+  "val_bpb": 2.19821977,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
