@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15937906,
+  "code_bytes": 74418,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15863488,
+  "rationale": "Build directly on the current winner instead of changing the quantizer again. This keeps the winning columnwise `mlp.fc.weight` int8 path and late projection EMA finalizer, but delays projection EMA collection until after the second quant-aware roundtrip. The first snap is still the biggest adaptation into the new int8 basin, so averaging only the later adapted projection states is a low-overhead way to preserve the run_0053 quantizer gain while importing the strongest close-miss endgame refinement at essentially zero artifact-size cost.",
+  "run_id": "2026_03_24_run_0054",
+  "runtime_seconds": 600.4733,
+  "submitter": "frido22",
+  "title": "Second-Snap Columnwise MLP Projection EMA",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533789,
+  "under_16mb": true,
+  "val_bpb": 1.57584502,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

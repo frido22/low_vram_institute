@@ -77,3 +77,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0051,1.578111,True,False,Projection Quant-Bias EMA Finalizer
 2026_03_24_run_0052,1.582423,True,False,Selective Muon Reset On Quant-Aware Entry
 2026_03_24_run_0053,1.565410,True,True,Columnwise MLP Expansion Int8 With Projection EMA
+2026_03_24_run_0054,1.575845,True,False,Second-Snap Columnwise MLP Projection EMA
