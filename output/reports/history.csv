@@ -83,3 +83,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0057,1.583290,True,False,EMA Over Transposed MLP Expansion Finalizer
 2026_03_24_run_0058,1.573534,True,False,Transpose-Tuned MLP Expansion Int8
 2026_03_24_run_0059,1.584635,True,False,Selective Quant-Aware MLP Expansion Plus Projection Endgame
+2026_03_24_run_0060,1.586623,True,False,Selective Quant-Aware MLP Expansion Plus Projection Endgame

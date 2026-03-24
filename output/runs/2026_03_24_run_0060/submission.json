@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15940325,
+  "code_bytes": 74666,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15865659,
+  "rationale": "Builds on the current best 0053 script instead of resetting. The 0053 win came from columnwise MLP expansion int8 plus projection EMA, but recent full-model endgame variants were flat or worse. This change keeps the same quantizer and final exact roundtrip, and only changes late quant-aware mixing: projection weights and transposed MLP expansion weights still get the strong scheduled mix, while other quantized tensors get a light 0.15 nudge. That should preserve the useful final-manifold pressure on the known sensitive matrices without over-disturbing QKV and other matrices during the last ~48 seconds.",
+  "run_id": "2026_03_24_run_0060",
+  "runtime_seconds": 601.766332,
+  "submitter": "frido22",
+  "title": "Selective Quant-Aware MLP Expansion Plus Projection Endgame",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534645,
+  "under_16mb": true,
+  "val_bpb": 1.5866232,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
