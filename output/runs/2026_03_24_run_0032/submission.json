@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15961059,
+  "code_bytes": 73153,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15887906,
+  "rationale": "Builds on the projection-sensitive int8 win by keeping late quant-aware roundtrips focused on projection matrices, where the current best quantizer is already most specialized. That removes repeated endgame noise from qkv/fc weights while increasing quant-aware snap frequency and allowing the projection ramp to actually reach exact roundtrip before the final save.",
+  "run_id": "2026_03_24_run_0032",
+  "runtime_seconds": 601.648834,
+  "submitter": "frido22",
+  "title": "Projection-Only Quant-Aware Endgame Densification",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534626,
+  "under_16mb": true,
+  "val_bpb": 1.57576425,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
