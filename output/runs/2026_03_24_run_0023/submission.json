@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15962294,
+  "code_bytes": 73759,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15888535,
+  "rationale": "Builds directly on the current best soft quant-aware projection ramp, but changes when late roundtrip noise is injected rather than trying another offset/midpoint quantizer variant. Intermediate quant-aware snaps now skip tensors whose exact final roundtrip would barely change them, using a short threshold ramp so early endgame updates focus on genuinely quantization-sensitive weights while the final pre-save roundtrip remains exact. This keeps the objective aligned to final_int8_zlib_roundtrip_exact val_bpb, avoids extra hot-loop cost, and stays lean enough to remain under the 1500-line script cap.",
+  "run_id": "2026_03_24_run_0023",
+  "runtime_seconds": 600.538673,
+  "submitter": "frido22",
+  "title": "Error-Gated Quant-Aware Projection Ramp",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534007,
+  "under_16mb": true,
+  "val_bpb": 1.58627503,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

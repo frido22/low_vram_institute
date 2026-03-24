@@ -470,6 +470,7 @@ INT8_PER_ROW_OFFSET_DTYPE = np.float16
 INT8_CLIP_PERCENTILE = 99.99984
 INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
 INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
+INT8_ROW_CENTER_CANDIDATE_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
 INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 1))
 INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
 INT8_FP16_KEEP_NAMES = tuple(
@@ -509,28 +510,42 @@ def keep_float_array(name: str, arr: mx.array, passthrough_orig_dtypes: dict[str
         passthrough_orig_dtypes[name] = str(arr.dtype).split(".")[-1]
         return np.ascontiguousarray(np.array(arr.astype(mx.float16), dtype=INT8_KEEP_FLOAT_STORE_DTYPE, copy=False))
     return np.ascontiguousarray(np.array(arr, copy=True))
-def quantize_float_array(arr: mx.array) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+def quantize_int8_rows(f32: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    clip_abs = np.quantile(np.abs(f32), INT8_CLIP_Q, axis=1) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
+    scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
+    q = np.clip(np.round(np.clip(f32, -clip_abs[:, None], clip_abs[:, None]) / scale[:, None]), -127, 127).astype(np.int8, copy=False)
+    err = np.mean(np.square(f32 - q.astype(np.float32, copy=False) * scale[:, None]), axis=1, dtype=np.float64) if f32.size else np.empty((f32.shape[0],), dtype=np.float64)
+    return q, scale, err
+def quantize_float_array(name: str, arr: mx.array) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
     f32 = _np_float32(arr)
     if f32.ndim == 2:
+        q_base, scale_base, err_base = quantize_int8_rows(f32)
         row_offset = np.mean(f32, axis=1, dtype=np.float32) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
         centered = f32 - row_offset[:, None]
         mean_abs = float(np.mean(np.abs(row_offset), dtype=np.float64)) if row_offset.size else 0.0
         resid_abs = float(np.mean(np.abs(centered), dtype=np.float64)) if centered.size else 0.0
         if mean_abs >= INT8_ROW_OFFSET_MIN_RATIO * max(resid_abs, 1e-12):
-            clip_abs = np.quantile(np.abs(centered), INT8_CLIP_Q, axis=1) if centered.size else np.empty((centered.shape[0],), dtype=np.float32)
-            clipped = np.clip(centered, -clip_abs[:, None], clip_abs[:, None])
-            scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
-            q = np.clip(np.round(clipped / scale[:, None]), -127, 127).astype(np.int8, copy=False)
+            q, scale, err = quantize_int8_rows(centered)
+            if name.endswith(INT8_ROW_CENTER_CANDIDATE_SUFFIXES):
+                row_mid = (0.5 * (np.max(f32, axis=1) + np.min(f32, axis=1))).astype(np.float32, copy=False) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
+                q_mid, scale_mid, err_mid = quantize_int8_rows(f32 - row_mid[:, None])
+                use_mid = err_mid < err
+                use_base = err_base < np.minimum(err, err_mid)
+                if np.any(use_mid) or np.any(use_base):
+                    row_offset = np.array(row_offset, copy=True)
+                    q, scale = np.array(q, copy=True), np.array(scale, copy=True)
+                    if np.any(use_mid):
+                        q[use_mid], scale[use_mid], row_offset[use_mid], err[use_mid] = q_mid[use_mid], scale_mid[use_mid], row_mid[use_mid], err_mid[use_mid]
+                    if np.any(use_base):
+                        q[use_base], scale[use_base], row_offset[use_base] = q_base[use_base], scale_base[use_base], 0.0
+                if not np.any(row_offset):
+                    return np.ascontiguousarray(q_base), np.ascontiguousarray(scale_base.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False)), None
             return (
                 np.ascontiguousarray(q),
                 np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False)),
                 np.ascontiguousarray(row_offset.astype(INT8_PER_ROW_OFFSET_DTYPE, copy=False)),
             )
-        clip_abs = np.quantile(np.abs(f32), INT8_CLIP_Q, axis=1) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
-        clipped = np.clip(f32, -clip_abs[:, None], clip_abs[:, None])
-        scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
-        q = np.clip(np.round(clipped / scale[:, None]), -127, 127).astype(np.int8, copy=False)
-        return np.ascontiguousarray(q), np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False)), None
+        return np.ascontiguousarray(q_base), np.ascontiguousarray(scale_base.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False)), None
     clip_abs = float(np.quantile(np.abs(f32).reshape(-1), INT8_CLIP_Q)) if f32.size else 0.0
     scale = np.array(clip_abs / 127.0 if clip_abs > 0.0 else 1.0, dtype=np.float32)
     q = np.clip(np.round(np.clip(f32, -clip_abs, clip_abs) / scale), -127, 127).astype(np.int8, copy=False)
@@ -564,7 +579,7 @@ def quantize_state_dict_int8(
             stats["int8_payload_bytes"] += int(kept.nbytes)
             continue
         stats["num_float_tensors"] += 1
-        q, s, o = quantize_float_array(arr)
+        q, s, o = quantize_float_array(name, arr)
         quantized[name] = q
         scales[name] = s
         if o is not None:
@@ -616,7 +631,7 @@ def roundtrip_tensor_like_final(
         if arr.dtype in {mx.float32, mx.bfloat16}:
             return mx.array(np.array(arr.astype(mx.float16), dtype=INT8_KEEP_FLOAT_STORE_DTYPE, copy=False), dtype=arr.dtype)
         return mx.array(np.array(arr, copy=True), dtype=arr.dtype)
-    q, s, o = quantize_float_array(arr)
+    q, s, o = quantize_float_array(name, arr)
     scale = np.asarray(s, dtype=np.float32)
     out_arr = q.astype(np.float32) * (scale.reshape((q.shape[0],) + (1,) * (q.ndim - 1)) if scale.ndim > 0 else float(scale))
     if o is not None:
@@ -1189,14 +1204,6 @@ def should_activate_quant_aware(args: Hyperparameters, step: int, elapsed_ms: fl
     if max_wallclock_ms is None:
         return args.quant_aware_iters > 0 and step >= max(args.iterations - args.quant_aware_iters, 0)
     return elapsed_ms >= max(max_wallclock_ms - reserved_final_ms - 1000.0 * args.quant_aware_train_seconds, 0.0)
-def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tuple[float, float, float]:
-    if not quant_aware_active:
-        return 1.0, 1.0, 1.0
-    return (
-        args.quant_aware_embed_lr_mul,
-        args.quant_aware_matrix_lr_mul,
-        args.quant_aware_scalar_lr_mul,
-    )
 def main() -> None:
     args = Hyperparameters()
     out_dir = Path(args.out_dir)
@@ -1379,7 +1386,10 @@ def main() -> None:
             last_quant_aware_step is not None
             or should_activate_quant_aware(args, step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms)
         )
-        embed_lr_mul, matrix_lr_mul, scalar_lr_mul = quant_aware_lr_muls(args, quant_aware_active)
+        embed_lr_mul, matrix_lr_mul, scalar_lr_mul = (
+            (args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul)
+            if quant_aware_active else (1.0, 1.0, 1.0)
+        )
         step_t0 = time.perf_counter()
         should_log_train = args.train_log_every > 0 and (
             step < 10 or (step + 1) % args.train_log_every == 0 or stop_after_step is not None
