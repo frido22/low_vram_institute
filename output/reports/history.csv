@@ -81,3 +81,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0055,1.574369,True,False,Late MLP FP16 Reallocation Over Tail QKV
 2026_03_24_run_0056,1.582112,True,False,Adaptive Axis-Choice Int8 With Projection EMA
 2026_03_24_run_0057,1.583290,True,False,EMA Over Transposed MLP Expansion Finalizer
+2026_03_24_run_0058,1.573534,True,False,Transpose-Tuned MLP Expansion Int8

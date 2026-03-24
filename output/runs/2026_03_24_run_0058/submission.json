@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15933882,
+  "code_bytes": 74618,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15859264,
+  "rationale": "Build directly on the current best columnwise `mlp.fc.weight` quantization path instead of spending another run on projection-EMA schedule tweaks. This keeps the winning axis change, but tunes the transposed MLP-expansion path itself with a dedicated clip percentile and a looser row-offset gate, so the largest still-int8 matrices get a quantizer matched to their new per-input-channel statistics during both late roundtrip training and final serialization.",
+  "run_id": "2026_03_24_run_0058",
+  "runtime_seconds": 601.529897,
+  "submitter": "frido22",
+  "title": "Transpose-Tuned MLP Expansion Int8",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534507,
+  "under_16mb": true,
+  "val_bpb": 1.5735338,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
