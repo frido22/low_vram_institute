@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""
+The `train_gpt.py` and `train_gpt_mlx.py` scripts are intended as good launching-off points for new participants, not SOTA configs. We'll accept PRs that tune, improve, or simplify these scripts without significantly increasing complexity, but competitive submissions should stay in the `/records` folder.
+Hard stop: To keep readable for newcomers, let's make sure `train_gpt.py` and `train_gpt_mlx.py` never are longer than 1500 lines.
+"""
 from __future__ import annotations
 import glob
 import json
@@ -84,7 +88,10 @@ class Hyperparameters:
         return self.train_batch_tokens // self.grad_accum_steps
     @property
     def use_single_microbatch_path(self) -> bool:
-        return self.grad_accum_steps == 1 and self.microbatch_tokens <= self.mlx_max_microbatch_tokens
+        return (
+            self.grad_accum_steps == 1
+            and self.microbatch_tokens <= self.mlx_max_microbatch_tokens
+        )
     def lr_mul(self, step: int, elapsed_ms: float) -> float:
         if self.warmdown_iters <= 0:
             return 1.0
@@ -484,21 +491,10 @@ BLOCK_FP16_PROJ_SUFFIXES = (
     "attn.proj.weight",
     "mlp.proj.weight",
 )
-QUANT_AWARE_TARGET_SUFFIXES = tuple(
-    suffix
-    for suffix in os.environ.get(
-        "QUANT_AWARE_TARGET_SUFFIXES",
-        ",".join(BLOCK_FP16_PROJ_SUFFIXES),
-    ).split(",")
-    if suffix
-)
-QUANT_AWARE_NON_TARGET_MIX = float(os.environ.get("QUANT_AWARE_NON_TARGET_MIX", 0.15))
 def _np_float32(arr: mx.array) -> np.ndarray:
     return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
 def int8_clip_q(name: str) -> float:
     return INT8_PROJ_CLIP_Q if name.endswith(BLOCK_FP16_PROJ_SUFFIXES) else INT8_CLIP_Q
-def tensor_name_matches_suffixes(name: str, suffixes: tuple[str, ...]) -> bool:
-    return any(name.endswith(suffix) for suffix in suffixes)
 def build_int8_fp16_keep_names(num_layers: int) -> set[str]:
     keep = set(INT8_FP16_KEEP_NAMES)
     for block_idx in range(max(num_layers - INT8_FP16_TAIL_FULL_BLOCKS, 0), num_layers):
@@ -637,31 +633,15 @@ def blend_tensor_toward_final(
     int8_fp16_keep_names: set[str],
     mix: float,
 ) -> mx.array:
-    if mix <= 0.0:
-        return arr
     target = roundtrip_tensor_like_final(name, arr, int8_fp16_keep_names)
     if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names):
         return target
     return arr + (target - arr) * mix
-def apply_final_roundtrip_to_state(
-    model: GPT,
-    int8_fp16_keep_names: set[str],
-    mix: float = 1.0,
-    target_suffixes: tuple[str, ...] | None = None,
-    non_target_mix: float = 1.0,
-) -> None:
+def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
     model.update(
         tree_unflatten(
             [
-                (
-                    name,
-                    blend_tensor_toward_final(
-                        name,
-                        arr,
-                        int8_fp16_keep_names,
-                        mix if target_suffixes is None or tensor_name_matches_suffixes(name, target_suffixes) else non_target_mix,
-                    ),
-                )
+                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix))
                 for name, arr in tree_flatten(model.state)
             ]
         )
@@ -1229,8 +1209,10 @@ def main() -> None:
     logfile = out_dir / f"{args.run_id}.txt"
     print(logfile)
     def log(msg: str, console: bool = True) -> None:
-        if console: print(msg)
-        with logfile.open("a", encoding="utf-8") as f: print(msg, file=f)
+        if console:
+            print(msg)
+        with logfile.open("a", encoding="utf-8") as f:
+            print(msg, file=f)
     code = Path(__file__).read_text(encoding="utf-8")
     log(code, console=False)
     log("=" * 100, console=False)
@@ -1246,20 +1228,44 @@ def main() -> None:
         raise ValueError(
             f"VOCAB_SIZE={args.vocab_size} does not match tokenizer vocab_size={int(sp.vocab_size())}"
         )
-    dataset_name, actual_train_files, expected_train_files = validate_dataset_tokenizer_pair(args.data_path, args.tokenizer_path)
+    dataset_name, actual_train_files, expected_train_files = validate_dataset_tokenizer_pair(
+        args.data_path,
+        args.tokenizer_path,
+    )
     val_tokens = load_validation_tokens(args.val_files, args.train_seq_len)
     bos_token_id = int(sp.bos_id())
     doc_spans = build_validation_doc_spans(val_tokens, bos_token_id) if bos_token_id >= 0 else None
-    base_bytes_lut, has_leading_space_lut, is_boundary_token_lut = build_sentencepiece_luts(sp, args.vocab_size)
+    base_bytes_lut, has_leading_space_lut, is_boundary_token_lut = build_sentencepiece_luts(
+        sp, args.vocab_size
+    )
     mx.random.seed(args.seed)
     train_loader = TokenLoader(args.train_files, log_fn=log, dataset_name=dataset_name)
-    model = GPT(args.vocab_size, args.num_layers, args.model_dim, args.num_heads, args.num_kv_heads, args.mlp_mult,
-                args.logit_chunk_tokens, args.logit_softcap, args.rope_base, args.tied_embed_init_std, args.qk_gain_init)
+    model = GPT(
+        vocab_size=args.vocab_size,
+        num_layers=args.num_layers,
+        dim=args.model_dim,
+        num_heads=args.num_heads,
+        num_kv_heads=args.num_kv_heads,
+        mlp_mult=args.mlp_mult,
+        logit_chunk_tokens=args.logit_chunk_tokens,
+        logit_softcap=args.logit_softcap,
+        rope_base=args.rope_base,
+        tied_embed_init_std=args.tied_embed_init_std,
+        qk_gain_init=args.qk_gain_init,
+    )
     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers)
     opt = SplitOptimizers(model, args)
     compiled_loss = mx.compile(lambda x, y: model.loss(x, y), inputs=model.state, outputs=model.state)
-    compiled_masked_loss = mx.compile(lambda x, y, m: model.masked_loss(x, y, m), inputs=model.state, outputs=model.state)
-    compiled_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y: model.loss(x, y)), inputs=model.state, outputs=model.state)
+    compiled_masked_loss = mx.compile(
+        lambda x, y, m: model.masked_loss(x, y, m),
+        inputs=model.state,
+        outputs=model.state,
+    )
+    compiled_loss_and_grad = mx.compile(
+        nn.value_and_grad(model, lambda x, y: model.loss(x, y)),
+        inputs=model.state,
+        outputs=model.state,
+    )
     if "MLX_EAGER_EVAL" not in os.environ:
         args.mlx_eager_eval = not args.use_single_microbatch_path
     elif args.use_single_microbatch_path and args.mlx_eager_eval:
@@ -1274,31 +1280,71 @@ def main() -> None:
     if expected_train_files is None:
         log(f"train_loader:dataset:{dataset_name} train_shards:{actual_train_files}")
     elif actual_train_files < expected_train_files:
-        log(f"WARNING: train_loader:subset dataset:{dataset_name} train_shards:{actual_train_files}/{expected_train_files} new epochs will arrive sooner than the full dataset")
+        log(
+            f"WARNING: train_loader:subset dataset:{dataset_name} "
+            f"train_shards:{actual_train_files}/{expected_train_files} "
+            f"new epochs will arrive sooner than the full dataset"
+        )
     else:
         log(f"train_loader:dataset:{dataset_name} train_shards:{actual_train_files}/{expected_train_files}")
     log(f"tokenizer_path:{args.tokenizer_path}")
-    log(f"model_params:{n_params} vocab_size:{args.vocab_size} layers:{args.num_layers} dim:{args.model_dim} heads:{args.num_heads} kv_heads:{args.num_kv_heads} seq_len:{args.train_seq_len} tie_embeddings:{args.tie_embeddings}")
-    log(f"iterations:{args.iterations} train_batch_tokens:{args.train_batch_tokens} grad_accum_steps:{args.grad_accum_steps} microbatch_tokens:{args.microbatch_tokens} microbatch_batch_size:{args.microbatch_tokens // args.train_seq_len} val_batch_size:{args.val_batch_size} max_wallclock_seconds:{args.max_wallclock_seconds:.3f}")
+    log(
+        f"model_params:{n_params} vocab_size:{args.vocab_size} layers:{args.num_layers} "
+        f"dim:{args.model_dim} heads:{args.num_heads} kv_heads:{args.num_kv_heads} "
+        f"seq_len:{args.train_seq_len} tie_embeddings:{args.tie_embeddings}"
+    )
+    log(
+        f"iterations:{args.iterations} train_batch_tokens:{args.train_batch_tokens} grad_accum_steps:{args.grad_accum_steps} "
+        f"microbatch_tokens:{args.microbatch_tokens} microbatch_batch_size:{args.microbatch_tokens // args.train_seq_len} "
+        f"val_batch_size:{args.val_batch_size} "
+        f"max_wallclock_seconds:{args.max_wallclock_seconds:.3f}"
+    )
     log(f"mlx_max_microbatch_tokens:{args.mlx_max_microbatch_tokens}")
-    log(f"optimizer:muon+adam muon_matrix_params:{len(opt.matrix_keys)} scalar_params:{len(opt.scalar_keys)} embed_lr:{args.tied_embed_lr} matrix_lr:{args.matrix_lr} scalar_lr:{args.scalar_lr} muon_momentum:{args.muon_momentum} muon_steps:{args.muon_backend_steps}")
+    log(
+        f"optimizer:muon+adam muon_matrix_params:{len(opt.matrix_keys)} scalar_params:{len(opt.scalar_keys)} "
+        f"embed_lr:{args.tied_embed_lr} "
+        f"matrix_lr:{args.matrix_lr} scalar_lr:{args.scalar_lr} "
+        f"muon_momentum:{args.muon_momentum} muon_steps:{args.muon_backend_steps}"
+    )
     log(f"val_bpb:enabled tokenizer_kind=sentencepiece tokenizer_path={args.tokenizer_path}")
     eval_mode = "doc_isolated_sliding" if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0 else "flat_stream"
     log(f"eval_mode:{eval_mode} bos_token_id:{bos_token_id} val_docs:{0 if doc_spans is None else len(doc_spans)}")
     log(f"eval_stride:{args.eval_stride}")
     log(f"compute_dtype:{COMPUTE_DTYPE} compile:True")
-    log(f"dtypes tok_emb:{model.tok_emb.weight.dtype} linear_weight:{model.blocks[0].attn.c_q.weight.dtype} skip_weights:{model.skip_weights.dtype}")
-    estimated_final_eval_ms = estimate_eval_time_ms(args, compiled_loss, compiled_masked_loss, val_tokens, doc_spans, bos_token_id)
+    log(
+        f"dtypes tok_emb:{model.tok_emb.weight.dtype} "
+        f"linear_weight:{model.blocks[0].attn.c_q.weight.dtype} "
+        f"skip_weights:{model.skip_weights.dtype}"
+    )
+    estimated_final_eval_ms = estimate_eval_time_ms(
+        args,
+        compiled_loss,
+        compiled_masked_loss,
+        val_tokens,
+        doc_spans,
+        bos_token_id,
+    )
     reserved_final_ms = max(
         1000.0 * args.final_eval_reserve_seconds,
         estimated_final_eval_ms * args.final_eval_reserve_scale + 1000.0 * args.final_eval_serialization_seconds,
     )
-    log(f"final_eval_budget:estimate_ms:{estimated_final_eval_ms:.0f} reserve_ms:{reserved_final_ms:.0f} estimate_batches:{args.final_eval_estimate_batches}")
+    log(
+        f"final_eval_budget:estimate_ms:{estimated_final_eval_ms:.0f} "
+        f"reserve_ms:{reserved_final_ms:.0f} estimate_batches:{args.final_eval_estimate_batches}"
+    )
     log(f"quant_aware:train_seconds:{args.quant_aware_train_seconds:.1f} iters:{args.quant_aware_iters} every:{args.quant_aware_every}")
-    log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
-    log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
-    log(f"quant_aware_targets:{','.join(QUANT_AWARE_TARGET_SUFFIXES)} non_target_mix:{QUANT_AWARE_NON_TARGET_MIX}")
-    log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
+    log(
+        f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} "
+        f"matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}"
+    )
+    log(
+        f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} "
+        f"step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}"
+    )
+    log(
+        f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} "
+        f"tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}"
+    )
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
     stop_after_step: int | None = None
@@ -1375,13 +1421,7 @@ def main() -> None:
         if should_activate_quant_aware(args, next_step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms) and (
             last_quant_aware_step is None or next_step - last_quant_aware_step >= args.quant_aware_every
         ):
-            apply_final_roundtrip_to_state(
-                model,
-                int8_fp16_keep_names,
-                mix=quant_aware_proj_mix,
-                target_suffixes=QUANT_AWARE_TARGET_SUFFIXES,
-                non_target_mix=QUANT_AWARE_NON_TARGET_MIX,
-            )
+            apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix)
             last_quant_aware_step = next_step
             quant_aware_proj_mix = min(quant_aware_proj_mix + args.quant_aware_proj_step, args.quant_aware_proj_end)
             did_quant_aware_roundtrip = True
