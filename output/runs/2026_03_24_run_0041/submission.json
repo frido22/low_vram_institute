@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15973547,
+  "code_bytes": 77344,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15896203,
+  "rationale": "Builds on the current best late projection EMA path, but pivots from more EMA/clip variants to a size-aware serialization change: after normal int8 quantization, score projection rows by actual roundtrip MSE, then binary-search the largest top row set whose compressed artifact still fits under 16,000,000 bytes. This spends the tiny remaining artifact budget on exact fp16 rescue only where projection quantization is worst, directly targeting final_int8_zlib_roundtrip_exact val_bpb without touching validation or the 600s wallclock path.",
+  "run_id": "2026_03_24_run_0041",
+  "runtime_seconds": 602.934706,
+  "submitter": "frido22",
+  "title": "Budgeted Projection Row Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534156,
+  "under_16mb": true,
+  "val_bpb": 1.58075405,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
