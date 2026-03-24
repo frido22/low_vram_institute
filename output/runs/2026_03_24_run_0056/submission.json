@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15956264,
+  "code_bytes": 75182,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15881082,
+  "rationale": "Build on the run-0053 win instead of resetting. The best result came from transposing `mlp.fc.weight` before per-row int8, which suggests some matrices compress better columnwise than rowwise. This variant keeps the late projection EMA path intact but replaces the fixed transpose rule with an adaptive chooser that compares direct vs transposed quantization error for eligible matrices (`mlp.fc` plus Q/K/V) and takes the better orientation only when it clears a small gain threshold. That preserves the proven columnwise MLP benefit, lets other matrices opt in only if they actually roundtrip better, and removes the now-unused fixed-transpose code path while staying under the 1500-line cap.",
+  "run_id": "2026_03_24_run_0056",
+  "runtime_seconds": 601.418526,
+  "submitter": "frido22",
+  "title": "Adaptive Axis-Choice Int8 With Projection EMA",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534478,
+  "under_16mb": true,
+  "val_bpb": 1.58211237,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

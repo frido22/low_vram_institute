@@ -79,3 +79,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0053,1.565410,True,True,Columnwise MLP Expansion Int8 With Projection EMA
 2026_03_24_run_0054,1.575845,True,False,Second-Snap Columnwise MLP Projection EMA
 2026_03_24_run_0055,1.574369,True,False,Late MLP FP16 Reallocation Over Tail QKV
+2026_03_24_run_0056,1.582112,True,False,Adaptive Axis-Choice Int8 With Projection EMA
