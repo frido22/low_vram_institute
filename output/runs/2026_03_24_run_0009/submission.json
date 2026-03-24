@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15961011,
+  "code_bytes": 73318,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15887693,
+  "rationale": "Builds directly on the current best soft quant-aware projection ramp, but replaces some of the endgame dead time between full roundtrip snaps with a lighter projection-only pull. The hypothesis is that the best script already identified non-FP16 projection weights as the highest-value int8 adaptation target, and nudging only those tensors toward their exact final roundtrip every few quant-aware steps should reduce last-mile quantization mismatch without paying the instability cost of more frequent whole-model snaps or the artifact cost of more FP16 rescue.",
+  "run_id": "2026_03_24_run_0009",
+  "runtime_seconds": 595.029837,
+  "submitter": "frido22",
+  "title": "Quant-Aware Projection Micro-Pull",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 528027,
+  "under_16mb": true,
+  "val_bpb": 1.59240012,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
