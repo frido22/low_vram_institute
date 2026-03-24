@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15956505,
+  "code_bytes": 73884,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15882621,
+  "rationale": "Builds on the late projection EMA path, but moves the EMA into final roundtrip space instead of raw weight space. The score is computed after exact int8+zlib roundtrip, so tracking projection weights as their dequantized final targets should reduce last-step quantization drift more directly than averaging pre-quantized weights.",
+  "run_id": "2026_03_24_run_0036",
+  "runtime_seconds": 595.573024,
+  "submitter": "frido22",
+  "title": "Projection Lattice EMA Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 528489,
+  "under_16mb": true,
+  "val_bpb": 1.59050399,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

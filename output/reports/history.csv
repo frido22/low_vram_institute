@@ -59,3 +59,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0033,1.567200,True,True,Late Projection EMA Finalizer
 2026_03_24_run_0034,1.582663,True,False,Projection EMA Distortion-Gated Finalizer
 2026_03_24_run_0035,1.579529,True,False,Selective Projection EMA Row Finalizer
+2026_03_24_run_0036,1.590504,True,False,Projection Lattice EMA Finalizer
