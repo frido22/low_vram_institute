@@ -75,3 +75,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0049,1.595633,True,False,Recovered Endgame Budget With Delayed Projection EMA
 2026_03_24_run_0050,1.575026,True,False,Dual-Rate Projection EMA Finalizer
 2026_03_24_run_0051,1.578111,True,False,Projection Quant-Bias EMA Finalizer
+2026_03_24_run_0052,1.582423,True,False,Selective Muon Reset On Quant-Aware Entry

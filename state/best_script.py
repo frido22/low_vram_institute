@@ -45,7 +45,6 @@ class Hyperparameters:
     quant_aware_train_seconds: float = float(os.environ.get("QUANT_AWARE_TRAIN_SECONDS", 48.0))
     quant_aware_iters: int = int(os.environ.get("QUANT_AWARE_ITERS", 96))
     quant_aware_every: int = int(os.environ.get("QUANT_AWARE_EVERY", 24))
-    quant_aware_reset_muon: bool = bool(int(os.environ.get("QUANT_AWARE_RESET_MUON", "1")))
     quant_aware_embed_lr_mul: float = float(os.environ.get("QUANT_AWARE_EMBED_LR_MUL", 0.6))
     quant_aware_matrix_lr_mul: float = float(os.environ.get("QUANT_AWARE_MATRIX_LR_MUL", 0.35))
     quant_aware_scalar_lr_mul: float = float(os.environ.get("QUANT_AWARE_SCALAR_LR_MUL", 0.8))
@@ -387,7 +386,6 @@ class Muon:
         self.keys = keys
         self.args = args
         self.buffers = {k: mx.zeros_like(params[k]) for k in keys}
-    def reset(self) -> None: self.buffers = {k: mx.zeros_like(buf) for k, buf in self.buffers.items()}
     def step(self, params: dict[str, mx.array], grads: dict[str, mx.array], step: int, lr_mul: float) -> dict[str, mx.array]:
         if self.args.muon_momentum_warmup_steps:
             t = min(step / self.args.muon_momentum_warmup_steps, 1.0)
@@ -434,7 +432,6 @@ class SplitOptimizers:
             eps=args.adam_eps,
             bias_correction=True,
         )
-    def reset_matrix_state(self) -> None: self.muon.reset()
     def step(
         self,
         model: GPT,
@@ -1331,7 +1328,7 @@ def main() -> None:
         estimated_final_eval_ms * args.final_eval_reserve_scale + 1000.0 * args.final_eval_serialization_seconds,
     )
     log(f"final_eval_budget:estimate_ms:{estimated_final_eval_ms:.0f} reserve_ms:{reserved_final_ms:.0f} estimate_batches:{args.final_eval_estimate_batches}")
-    log(f"quant_aware:train_seconds:{args.quant_aware_train_seconds:.1f} iters:{args.quant_aware_iters} every:{args.quant_aware_every} reset_muon:{args.quant_aware_reset_muon}")
+    log(f"quant_aware:train_seconds:{args.quant_aware_train_seconds:.1f} iters:{args.quant_aware_iters} every:{args.quant_aware_every}")
     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
     log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
@@ -1410,14 +1407,10 @@ def main() -> None:
         next_step = step + 1
         approx_train_time_ms = train_time_ms + 1000.0 * (time.perf_counter() - t0)
         did_quant_aware_roundtrip = False
-        did_quant_aware_matrix_reset = False
         if should_activate_quant_aware(args, next_step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms) and (
             last_quant_aware_step is None or next_step - last_quant_aware_step >= args.quant_aware_every
         ):
             apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix)
-            if last_quant_aware_step is None and args.quant_aware_reset_muon:
-                opt.reset_matrix_state()
-                did_quant_aware_matrix_reset = True
             last_quant_aware_step = next_step
             quant_aware_proj_mix = min(quant_aware_proj_mix + args.quant_aware_proj_step, args.quant_aware_proj_end)
             did_quant_aware_roundtrip = True
@@ -1434,8 +1427,6 @@ def main() -> None:
         tok_s = args.train_batch_tokens / (step_ms / 1000.0)
         step = next_step
         if did_quant_aware_roundtrip:
-            if did_quant_aware_matrix_reset:
-                log(f"quant_aware_matrix_reset:step:{step}")
             log(f"quant_aware_roundtrip:step:{step}")
         if should_log_train:
             train_loss_value = float(train_loss.item())

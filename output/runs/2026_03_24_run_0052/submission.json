@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15951484,
+  "code_bytes": 74295,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15877189,
+  "rationale": "Builds directly on the current best late projection EMA finalizer without repeating another EMA-shape experiment. The new change resets only Muon's matrix momentum on the first quant-aware roundtrip, so stale pre-quant optimizer state stops pushing the int8-sensitive matrices away from the late quantized basin while embedding and scalar Adam state stay intact. That specifically targets final_int8_zlib_roundtrip_exact val_bpb with minimal hot-loop overhead and keeps the proven projection EMA path otherwise unchanged.",
+  "run_id": "2026_03_24_run_0052",
+  "runtime_seconds": 601.437521,
+  "submitter": "frido22",
+  "title": "Selective Muon Reset On Quant-Aware Entry",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534487,
+  "under_16mb": true,
+  "val_bpb": 1.58242311,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
