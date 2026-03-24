@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15963123,
+  "code_bytes": 73092,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15890031,
+  "rationale": "The current best script already benefits from late soft roundtrips, but it hard-snaps fp16-kept tensors like the tied embedding and fp16 rescue blocks on every quant-aware pass. This change compounds that path by keeping the existing projection ramp while turning fp16-kept tensors into a softer nudge toward their final cast until the final exact roundtrip, which should preserve late training dynamics while still aligning the weights with the artifact that is actually scored.",
+  "run_id": "2026_03_24_run_0013",
+  "runtime_seconds": 601.26864,
+  "submitter": "frido22",
+  "title": "Soft FP16-Keep Quant-Aware Ramp",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534493,
+  "under_16mb": true,
+  "val_bpb": 1.58420901,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
