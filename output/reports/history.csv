@@ -67,3 +67,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0041,1.580754,True,False,Budgeted Projection Row Rescue
 2026_03_24_run_0042,1.591804,True,False,MLP-Only Projection EMA Finalizer
 2026_03_24_run_0043,1.576713,True,False,Projection EMA With FP32 Metadata
+2026_03_24_run_0044,1.580121,True,False,Projection EMA With FP32 Metadata

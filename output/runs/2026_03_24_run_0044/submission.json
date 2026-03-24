@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15973365,
+  "code_bytes": 73929,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15899436,
+  "rationale": "Builds on the current best late projection EMA path while pivoting away from more projection-EMA selection heuristics. Projection matrices already look like the quantization-sensitive slice, so this keeps their int8 payload unchanged but stores per-row scales and offsets in fp32 for the exact final roundtrip, spending only a small amount of the remaining size budget on lower dequantization error with no hot-loop cost.",
+  "run_id": "2026_03_24_run_0044",
+  "runtime_seconds": 602.092287,
+  "submitter": "frido22",
+  "title": "Projection EMA With FP32 Metadata",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534913,
+  "under_16mb": true,
+  "val_bpb": 1.5801208,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
