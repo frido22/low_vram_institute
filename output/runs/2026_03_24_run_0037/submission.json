@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 18743506,
+  "code_bytes": 76607,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 18666899,
+  "rationale": "Builds directly on the current best late projection EMA plus fp16-row rescue path instead of restarting. The new change only alters projection quantization: each int8 projection row now tries the current gentle clip and a looser alternative clip, then keeps whichever reconstructs that row with lower quantization error before the existing final roundtrip and EMA finalizer. That compounds the winning endgame while exploring a new category the recent runs have not exhausted: row-wise clip selection inside the real final quantizer, with negligible training-loop cost and no change to evaluation or artifact format.",
+  "run_id": "2026_03_24_run_0037",
+  "runtime_seconds": 600.851661,
+  "submitter": "frido22",
+  "title": "Projection Dual-Clip Row Chooser",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534028,
+  "under_16mb": false,
+  "val_bpb": 1.57878441,
+  "valid_main_track": false,
+  "within_train_wallclock": true
+}
