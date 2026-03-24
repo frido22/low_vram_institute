@@ -63,3 +63,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0037,1.578784,True,False,Projection Dual-Clip Row Chooser
 2026_03_24_run_0038,1.574050,True,False,Second-Snap Projection EMA Finalizer
 2026_03_24_run_0039,2.217432,False,False,Projection Affine Refit Int8
+2026_03_24_run_0040,1.584852,True,False,Late MLP-FC LR Damping With Projection EMA

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15956387,
+  "code_bytes": 74110,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15882277,
+  "rationale": "The current best already exploits late projection roundtrips plus projection EMA, but the largest remaining quantized matrices are the unkept `mlp.fc.weight` tensors. This change keeps the winning endgame intact and adds a new family-specific quant-aware rebalance: once late quant-aware mode starts, Muon updates on `mlp.fc.weight` are damped further than other matrices. The hypothesis is that these wide expansion matrices are still moving enough in the last ~50s to hurt their final per-row int8 fit, so reducing only their late-step velocity should lower roundtrip distortion without sacrificing the projection-focused gains that produced run 0033.",
+  "run_id": "2026_03_24_run_0040",
+  "runtime_seconds": 600.445235,
+  "submitter": "frido22",
+  "title": "Late MLP-FC LR Damping With Projection EMA",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533765,
+  "under_16mb": true,
+  "val_bpb": 1.58485208,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
