@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12591886,
+  "code_bytes": 73703,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12518183,
+  "rationale": "Builds directly on the current best late projection EMA path, but pivots away from the recent EMA chooser variants toward a lower-byte quantizer improvement. The change keeps the winning training loop intact and only upgrades the final roundtrip math: int8 rows now get a least-squares affine refit for scale, projection matrices always keep the affine offset, and projection rows get one extra requantization/refit pass before serialization. That targets the real objective by reducing projection reconstruction error under the same int8 format and nearly the same artifact budget.",
+  "run_id": "2026_03_24_run_0039",
+  "runtime_seconds": 577.355593,
+  "submitter": "frido22",
+  "title": "Projection Affine Refit Int8",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 510685,
+  "under_16mb": true,
+  "val_bpb": 2.21743217,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
