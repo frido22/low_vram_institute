@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 17086561,
+  "code_bytes": 74657,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 17011904,
+  "rationale": "Builds on the current late projection EMA winner but pivots to a new idea category instead of another EMA-selection replay. Projection matrices now get tiny float row_gain vectors, and each late quant-aware snap renormalizes projection rows so magnitude lives mostly in those float controls while the int8-quantized weights stay row-equalized. That preserves the model function, compounds with the existing projection EMA/final snap path, adds only a small artifact payload, and directly targets the final int8 roundtrip score by making the highest-value matrices intrinsically easier to quantize.",
+  "run_id": "2026_03_24_run_0047",
+  "runtime_seconds": 594.06336,
+  "submitter": "frido22",
+  "title": "Projection Row-Gain Equalized EMA Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 527083,
+  "under_16mb": false,
+  "val_bpb": 1.59013347,
+  "valid_main_track": false,
+  "within_train_wallclock": true
+}
