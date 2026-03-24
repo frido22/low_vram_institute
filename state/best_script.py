@@ -629,10 +629,9 @@ def blend_tensor_toward_final(
     mix: float,
 ) -> mx.array:
     target = roundtrip_tensor_like_final(name, arr, int8_fp16_keep_names)
-    if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating):
+    if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names):
         return target
-    local_mix = mix if any(name.endswith(suffix) for suffix in BLOCK_FP16_PROJ_SUFFIXES) else mix * mix
-    return arr + (target - arr) * local_mix
+    return arr + (target - arr) * mix
 def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
     model.update(
         tree_unflatten(

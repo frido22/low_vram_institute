@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15964326,
+  "code_bytes": 72726,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15891600,
+  "rationale": "The current winner already benefits from late soft roundtrip snaps, but it still pushes every floating tensor equally and hard-snaps fp16-rescued tensors on the first quant-aware pass. This change keeps full-strength pressure on projection weights, which are the highest-leverage path for final int8 error, while delaying all other floating tensors with a squared mix so the model spends less of the short late-training budget overfitting to broad quantization noise.",
+  "run_id": "2026_03_24_run_0002",
+  "runtime_seconds": 600.680481,
+  "submitter": "frido22",
+  "title": "Projection-First Quant-Aware Power Ramp",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534157,
+  "under_16mb": true,
+  "val_bpb": 1.58899014,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
