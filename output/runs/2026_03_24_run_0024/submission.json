@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15972748,
+  "code_bytes": 73738,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15899010,
+  "rationale": "Builds on the current best by keeping the training path unchanged and only refining the final int8 quantizer where recent near-misses were strongest: projection weights. For projection matrices, quantization now chooses per row between the existing mean-centered offset, a midpoint-centered offset, and no offset, instead of forcing one tensor-wide center. That targets heterogeneous row asymmetry in the most quantization-sensitive tensors without repeating the broader all-matrix multi-center change that regressed. I also removed the now-unnecessary quant-aware LR helper to keep the script under the 1500-line cap.",
+  "run_id": "2026_03_24_run_0024",
+  "runtime_seconds": 601.41117,
+  "submitter": "frido22",
+  "title": "Selective Projection Row-Center Choice",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534688,
+  "under_16mb": true,
+  "val_bpb": 1.5911899,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
