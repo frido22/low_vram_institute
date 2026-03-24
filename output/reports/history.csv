@@ -31,3 +31,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0005,1.597732,True,False,Reserve Reclaim By Skipping Default Final Float Eval
 2026_03_24_run_0006,1.583852,True,False,Terminal Float-Eval Skip With Tighter Endgame Reserve
 2026_03_24_run_0007,1.709163,True,False,Projection Row-Mean Reparameterization
+2026_03_24_run_0008,1.680782,True,False,Projection Row-Mean Reparameterization
