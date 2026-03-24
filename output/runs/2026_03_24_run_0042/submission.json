@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15958946,
+  "code_bytes": 73858,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15885088,
+  "rationale": "The current best run already gets most of its gain from late projection EMA plus late quant-aware snaps. This variant keeps that path but narrows the EMA target set to `mlp.proj.weight`, which should preserve the quantization-smoothing benefit on the heaviest-tailed projection family while avoiding extra averaging on attention output projections that are more routing-sensitive. The change is small, compounds cleanly with the current best script, and stays inside the 1500-line limit.",
+  "run_id": "2026_03_24_run_0042",
+  "runtime_seconds": 600.738953,
+  "submitter": "frido22",
+  "title": "MLP-Only Projection EMA Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533941,
+  "under_16mb": true,
+  "val_bpb": 1.59180383,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
