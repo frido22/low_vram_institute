@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15960489,
+  "code_bytes": 75239,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15885250,
+  "rationale": "Builds on the current late projection EMA path, but replaces the fixed all-EMA handoff with a cheap post-training train-split calibration pass that greedily chooses live-vs-EMA projection blocks after exact roundtrip. This directly targets final_int8_zlib_roundtrip_exact behavior without touching validation, keeps the 600s budget intact, and trims unused helper code to stay lean.",
+  "run_id": "2026_03_24_run_0045",
+  "runtime_seconds": 603.731551,
+  "submitter": "frido22",
+  "title": "Train-Calibrated Projection EMA Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534816,
+  "under_16mb": true,
+  "val_bpb": 1.57774972,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
