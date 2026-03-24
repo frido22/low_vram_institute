@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-The `train_gpt.py` and `train_gpt_mlx.py` scripts are intended as good launching-off points for new participants, not SOTA configs. We'll accept PRs that tune, improve, or simplify these scripts without significantly increasing complexity, but competitive submissions should stay in the `/records` folder.
-Hard stop: To keep readable for newcomers, let's make sure `train_gpt.py` and `train_gpt_mlx.py` never are longer than 1500 lines.
-"""
 from __future__ import annotations
 import glob
 import json
@@ -473,6 +469,7 @@ INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.
 INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 1))
 INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
 PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
+INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
 INT8_FP16_KEEP_NAMES = tuple(
     name
     for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
@@ -486,14 +483,12 @@ BLOCK_FP16_MATRIX_SUFFIXES = (
     "mlp.fc.weight",
     "mlp.proj.weight",
 )
-BLOCK_FP16_PROJ_SUFFIXES = (
-    "attn.proj.weight",
-    "mlp.proj.weight",
-)
+BLOCK_FP16_PROJ_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
 def _np_float32(arr: mx.array) -> np.ndarray:
     return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
 def int8_clip_q(name: str) -> float:
     return INT8_PROJ_CLIP_Q if name.endswith(BLOCK_FP16_PROJ_SUFFIXES) else INT8_CLIP_Q
+def should_transpose_quantize(name: str, arr_ndim: int) -> bool: return arr_ndim == 2 and any(name.endswith(suffix) for suffix in INT8_TRANSPOSE_SUFFIXES)
 def build_int8_fp16_keep_names(num_layers: int) -> set[str]:
     keep = set(INT8_FP16_KEEP_NAMES)
     for block_idx in range(max(num_layers - INT8_FP16_TAIL_FULL_BLOCKS, 0), num_layers):
@@ -512,8 +507,11 @@ def keep_float_array(name: str, arr: mx.array, passthrough_orig_dtypes: dict[str
         passthrough_orig_dtypes[name] = str(arr.dtype).split(".")[-1]
         return np.ascontiguousarray(np.array(arr.astype(mx.float16), dtype=INT8_KEEP_FLOAT_STORE_DTYPE, copy=False))
     return np.ascontiguousarray(np.array(arr, copy=True))
-def quantize_float_array(name: str, arr: mx.array) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+def quantize_float_array(name: str, arr: mx.array) -> tuple[np.ndarray, np.ndarray, np.ndarray | None, bool]:
     f32 = _np_float32(arr)
+    transposed = should_transpose_quantize(name, f32.ndim)
+    if transposed:
+        f32 = np.ascontiguousarray(f32.T)
     clip_q = int8_clip_q(name)
     if f32.ndim == 2:
         row_offset = np.mean(f32, axis=1, dtype=np.float32) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
@@ -529,16 +527,17 @@ def quantize_float_array(name: str, arr: mx.array) -> tuple[np.ndarray, np.ndarr
                 np.ascontiguousarray(q),
                 np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False)),
                 np.ascontiguousarray(row_offset.astype(INT8_PER_ROW_OFFSET_DTYPE, copy=False)),
+                transposed,
             )
         clip_abs = np.quantile(np.abs(f32), clip_q, axis=1) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
         clipped = np.clip(f32, -clip_abs[:, None], clip_abs[:, None])
         scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
         q = np.clip(np.round(clipped / scale[:, None]), -127, 127).astype(np.int8, copy=False)
-        return np.ascontiguousarray(q), np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False)), None
+        return np.ascontiguousarray(q), np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False)), None, transposed
     clip_abs = float(np.quantile(np.abs(f32).reshape(-1), clip_q)) if f32.size else 0.0
     scale = np.array(clip_abs / 127.0 if clip_abs > 0.0 else 1.0, dtype=np.float32)
     q = np.clip(np.round(np.clip(f32, -clip_abs, clip_abs) / scale), -127, 127).astype(np.int8, copy=False)
-    return np.ascontiguousarray(q), scale, None
+    return np.ascontiguousarray(q), scale, None, transposed
 def quantize_state_dict_int8(
     flat_state: dict[str, mx.array],
     int8_fp16_keep_names: set[str],
@@ -547,6 +546,7 @@ def quantize_state_dict_int8(
     scales: dict[str, np.ndarray] = {}
     offsets: dict[str, np.ndarray] = {}
     dtypes: dict[str, str] = {}
+    transposed_names: list[str] = []
     passthrough: dict[str, np.ndarray] = {}
     passthrough_orig_dtypes: dict[str, str] = {}
     stats = dict.fromkeys(
@@ -568,15 +568,17 @@ def quantize_state_dict_int8(
             stats["int8_payload_bytes"] += int(kept.nbytes)
             continue
         stats["num_float_tensors"] += 1
-        q, s, o = quantize_float_array(name, arr)
+        q, s, o, transposed = quantize_float_array(name, arr)
         quantized[name] = q
         scales[name] = s
         if o is not None:
             offsets[name] = o
+        if transposed:
+            transposed_names.append(name)
         dtypes[name] = str(arr.dtype).split(".")[-1]
         stats["int8_payload_bytes"] += int(q.nbytes + s.nbytes + (0 if o is None else o.nbytes))
     obj: dict[str, object] = {
-        "__quant_format__": "int8_clean_per_row_offset_v2",
+        "__quant_format__": "int8_clean_per_row_offset_v3",
         "quantized": quantized,
         "scales": scales,
         "dtypes": dtypes,
@@ -584,6 +586,8 @@ def quantize_state_dict_int8(
     }
     if offsets:
         obj["offsets"] = offsets
+    if transposed_names:
+        obj["transposed_names"] = tuple(transposed_names)
     if passthrough_orig_dtypes:
         obj["passthrough_orig_dtypes"] = passthrough_orig_dtypes
     return obj, stats
@@ -591,6 +595,7 @@ def dequantize_state_dict_int8(quant_obj: dict[str, object]) -> dict[str, mx.arr
     out: dict[str, mx.array] = {}
     offsets = quant_obj.get("offsets", {})
     passthrough_orig_dtypes = quant_obj.get("passthrough_orig_dtypes", {})
+    transposed_names = frozenset(quant_obj.get("transposed_names", ()))
     for name, q in quant_obj["quantized"].items():
         q_np = np.asarray(q, dtype=np.int8)
         dtype_name = quant_obj["dtypes"][name]
@@ -601,6 +606,8 @@ def dequantize_state_dict_int8(quant_obj: dict[str, object]) -> dict[str, mx.arr
                 out_arr = out_arr + np.asarray(offsets[name], dtype=np.float32).reshape((q_np.shape[0],) + (1,) * (q_np.ndim - 1))
         else:
             out_arr = q_np.astype(np.float32) * float(scale)
+        if name in transposed_names:
+            out_arr = np.ascontiguousarray(out_arr.T)
         out[name] = mx.array(out_arr, dtype=MX_DTYPE_FROM_NAME[dtype_name])
     for name, arr in quant_obj["passthrough"].items():
         out_arr = np.array(arr, copy=True)
@@ -620,11 +627,13 @@ def roundtrip_tensor_like_final(
         if arr.dtype in {mx.float32, mx.bfloat16}:
             return mx.array(np.array(arr.astype(mx.float16), dtype=INT8_KEEP_FLOAT_STORE_DTYPE, copy=False), dtype=arr.dtype)
         return mx.array(np.array(arr, copy=True), dtype=arr.dtype)
-    q, s, o = quantize_float_array(name, arr)
+    q, s, o, transposed = quantize_float_array(name, arr)
     scale = np.asarray(s, dtype=np.float32)
     out_arr = q.astype(np.float32) * (scale.reshape((q.shape[0],) + (1,) * (q.ndim - 1)) if scale.ndim > 0 else float(scale))
     if o is not None:
         out_arr = out_arr + np.asarray(o, dtype=np.float32).reshape((q.shape[0],) + (1,) * (q.ndim - 1))
+    if transposed:
+        out_arr = np.ascontiguousarray(out_arr.T)
     return mx.array(np.ascontiguousarray(out_arr), dtype=arr.dtype)
 def blend_tensor_toward_final(
     name: str,
@@ -1196,11 +1205,7 @@ def should_activate_quant_aware(args: Hyperparameters, step: int, elapsed_ms: fl
 def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tuple[float, float, float]:
     if not quant_aware_active:
         return 1.0, 1.0, 1.0
-    return (
-        args.quant_aware_embed_lr_mul,
-        args.quant_aware_matrix_lr_mul,
-        args.quant_aware_scalar_lr_mul,
-    )
+    return args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul
 def main() -> None:
     args = Hyperparameters()
     out_dir = Path(args.out_dir)
@@ -1331,6 +1336,7 @@ def main() -> None:
     log(f"quant_aware:train_seconds:{args.quant_aware_train_seconds:.1f} iters:{args.quant_aware_iters} every:{args.quant_aware_every}")
     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
+    log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
     log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15938797,
+  "code_bytes": 74207,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15864590,
+  "rationale": "Build on the current best late projection EMA finalizer, but pivot away from more projection-EMA scheduling tweaks. This changes the quantization axis for `mlp.fc.weight` during both roundtrip training and final serialization, so the largest non-projection matrices get per-input-channel scales/offsets instead of per-output-row ones. That is a different error shape at essentially flat compressed size, while keeping the proven late projection EMA path intact.",
+  "run_id": "2026_03_24_run_0053",
+  "runtime_seconds": 601.841301,
+  "submitter": "frido22",
+  "title": "Columnwise MLP Expansion Int8 With Projection EMA",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534801,
+  "under_16mb": true,
+  "val_bpb": 1.56540956,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
