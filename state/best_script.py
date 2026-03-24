@@ -38,8 +38,8 @@ class Hyperparameters:
     mlx_eager_eval: bool = bool(int(os.environ.get("MLX_EAGER_EVAL", "0")))
     warmdown_iters: int = int(os.environ.get("WARMDOWN_ITERS", 64))
     max_wallclock_seconds: float = float(os.environ.get("MAX_WALLCLOCK_SECONDS", 600.0))
-    final_eval_reserve_seconds: float = float(os.environ.get("FINAL_EVAL_RESERVE_SECONDS", 40.0))
-    final_eval_reserve_scale: float = float(os.environ.get("FINAL_EVAL_RESERVE_SCALE", 1.2))
+    final_eval_reserve_seconds: float = float(os.environ.get("FINAL_EVAL_RESERVE_SECONDS", 72.0))
+    final_eval_reserve_scale: float = float(os.environ.get("FINAL_EVAL_RESERVE_SCALE", 1.35))
     final_eval_estimate_batches: int = int(os.environ.get("FINAL_EVAL_ESTIMATE_BATCHES", 2))
     final_eval_serialization_seconds: float = float(os.environ.get("FINAL_EVAL_SERIALIZATION_SECONDS", 5.0))
     quant_aware_train_seconds: float = float(os.environ.get("QUANT_AWARE_TRAIN_SECONDS", 48.0))
@@ -106,7 +106,7 @@ CONTROL_TENSOR_NAME_PATTERNS = tuple(
     pattern
     for pattern in os.environ.get(
         "CONTROL_TENSOR_NAME_PATTERNS",
-        "attn_scale,attn_scales,mlp_scale,mlp_scales,resid_mix,resid_mixes,q_gain,skip_weight,skip_weights",
+        "attn_scale,attn_scales,mlp_scale,mlp_scales,resid_mix,resid_mixes,q_gain,skip_weight,skip_weights,row_mean",
     ).split(",")
     if pattern
 )
@@ -225,11 +225,18 @@ class TokenLoader:
         y = chunk[1:].reshape(-1, seq_len)
         return mx.array(x, dtype=mx.int32), mx.array(y, dtype=mx.int32)
 class CastedLinear(nn.Module):
-    def __init__(self, in_dim: int, out_dim: int):
+    def __init__(self, in_dim: int, out_dim: int, with_row_mean: bool = False):
         super().__init__()
         self.weight = nn.Linear(in_dim, out_dim, bias=False).weight.astype(mx.float32)
+        self.row_mean = mx.zeros((out_dim,), dtype=mx.float32) if with_row_mean else None
     def __call__(self, x: mx.array) -> mx.array:
-        return x @ self.weight.astype(x.dtype).T
+        y = x @ self.weight.astype(x.dtype).T
+        return y if self.row_mean is None else y + mx.sum(x, axis=-1, keepdims=True) * self.row_mean.astype(x.dtype)
+    def recenter_rows(self) -> None:
+        if self.row_mean is None: return
+        row_mean = mx.mean(self.weight, axis=1)
+        self.weight = self.weight - row_mean[:, None]
+        self.row_mean = self.row_mean + row_mean
 class RMSNormNoWeight(nn.Module):
     def __call__(self, x: mx.array) -> mx.array:
         return rms_norm(x)
@@ -256,7 +263,7 @@ class CausalSelfAttention(nn.Module):
         self.c_q = CastedLinear(dim, dim)
         self.c_k = CastedLinear(dim, kv_dim)
         self.c_v = CastedLinear(dim, kv_dim)
-        self.proj = CastedLinear(dim, dim)
+        self.proj = CastedLinear(dim, dim, with_row_mean=True)
         self.q_gain = mx.ones((num_heads,), dtype=mx.float32) * qk_gain_init
         self.rope = nn.RoPE(self.head_dim, traditional=False, base=rope_base)
         self.scale = self.head_dim ** -0.5
@@ -276,7 +283,7 @@ class MLP(nn.Module):
         super().__init__()
         hidden = dim * mlp_mult
         self.fc = CastedLinear(dim, hidden)
-        self.proj = CastedLinear(hidden, dim)
+        self.proj = CastedLinear(hidden, dim, with_row_mean=True)
     def __call__(self, x: mx.array) -> mx.array:
         x = nn.relu(self.fc(x))
         return self.proj(x * x)
@@ -641,6 +648,10 @@ def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], m
             ]
         )
     )
+def recenter_projection_rows(model: GPT) -> None:
+    for block in model.blocks:
+        block.attn.proj.recenter_rows()
+        block.mlp.proj.recenter_rows()
 def build_sentencepiece_luts(
     sp: spm.SentencePieceProcessor, vocab_size: int
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -1319,14 +1330,9 @@ def main() -> None:
         doc_spans,
         bos_token_id,
     )
-    needs_terminal_float_eval = args.val_loss_every > 0
-    terminal_eval_count = 1 + int(needs_terminal_float_eval)
     reserved_final_ms = max(
         1000.0 * args.final_eval_reserve_seconds,
-        (
-            estimated_final_eval_ms * args.final_eval_reserve_scale * terminal_eval_count
-            + 1000.0 * args.final_eval_serialization_seconds
-        ),
+        estimated_final_eval_ms * args.final_eval_reserve_scale + 1000.0 * args.final_eval_serialization_seconds,
     )
     log(
         f"final_eval_budget:estimate_ms:{estimated_final_eval_ms:.0f} "
@@ -1354,8 +1360,7 @@ def main() -> None:
     quant_aware_proj_mix = args.quant_aware_proj_start
     while True:
         last_step = step == args.iterations or (stop_after_step is not None and step >= stop_after_step)
-        should_run_val = args.val_loss_every > 0 and (last_step or step % args.val_loss_every == 0)
-        if should_run_val:
+        if last_step or (args.val_loss_every > 0 and step % args.val_loss_every == 0):
             train_time_ms += 1000.0 * (time.perf_counter() - t0)
             val_loss, val_bpb = eval_val(
                 args,
@@ -1376,8 +1381,6 @@ def main() -> None:
                 )
             t0 = time.perf_counter()
         if last_step:
-            if not should_run_val:
-                train_time_ms += 1000.0 * (time.perf_counter() - t0)
             if stop_after_step is not None and step < args.iterations:
                 log(f"stopping_early: wallclock_cap train_time:{train_time_ms:.0f}ms step:{step}/{args.iterations}")
             break
@@ -1424,6 +1427,7 @@ def main() -> None:
         if should_activate_quant_aware(args, next_step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms) and (
             last_quant_aware_step is None or next_step - last_quant_aware_step >= args.quant_aware_every
         ):
+            recenter_projection_rows(model)
             apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix)
             last_quant_aware_step = next_step
             quant_aware_proj_mix = min(quant_aware_proj_mix + args.quant_aware_proj_step, args.quant_aware_proj_end)
@@ -1448,9 +1452,10 @@ def main() -> None:
         ):
             stop_after_step = step
     if last_quant_aware_step is not None and last_quant_aware_step != step:
+        recenter_projection_rows(model)
         apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
-        mx.synchronize()
-        log(f"quant_aware_roundtrip:step:{step} final_pre_save")
+        mx.synchronize(); log(f"quant_aware_roundtrip:step:{step} final_pre_save")
+    recenter_projection_rows(model)
     out_path = out_dir / f"{args.run_id}_mlx_model.npz"
     flat_state = {k: v for k, v in tree_flatten(model.state)}
     mx.savez(str(out_path), **flat_state)

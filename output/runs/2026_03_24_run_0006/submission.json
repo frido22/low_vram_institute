@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 16044068,
+  "code_bytes": 72995,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15971073,
+  "rationale": "Builds directly on the current best script by reclaiming wallclock from an unscored terminal float validation pass and by sizing the stop reserve for the number of end-of-run evals actually needed. The required final int8 roundtrip path is untouched, but the default run should buy back meaningful training time for extra updates on the 600s Mac mini budget.",
+  "run_id": "2026_03_24_run_0006",
+  "runtime_seconds": 597.492983,
+  "submitter": "frido22",
+  "title": "Terminal Float-Eval Skip With Tighter Endgame Reserve",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 563728,
+  "under_16mb": false,
+  "val_bpb": 1.58385169,
+  "valid_main_track": false,
+  "within_train_wallclock": true
+}
