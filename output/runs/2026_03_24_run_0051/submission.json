@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15959913,
+  "code_bytes": 74438,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15885475,
+  "rationale": "Build on the current best late projection EMA path, but feed the EMA a pre-compensated projection sample on quant-aware roundtrip steps. The added residual term targets the final int8 roundtrip bias directly without changing artifact format, eval, data paths, or the size cap.",
+  "run_id": "2026_03_24_run_0051",
+  "runtime_seconds": 601.018976,
+  "submitter": "frido22",
+  "title": "Projection Quant-Bias EMA Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534256,
+  "under_16mb": true,
+  "val_bpb": 1.5781113,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
