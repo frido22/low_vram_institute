@@ -90,3 +90,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_25_run_0002,1.576266,True,False,Hybrid FP16 Rescue Rows For Transposed MLP Int8
 2026_03_25_run_0003,1.578299,True,False,Cross-Layer MLP Channel Equalization Int8 Finalizer
 2026_03_25_run_0004,1.582212,True,False,Longer Gentle Quant-Aware Tail with Mix-Damped Matrix LR
+2026_03_25_run_0005,1.583573,True,False,Embedded Payload Runner With Quant-Aware Snapshot Averaging Patch

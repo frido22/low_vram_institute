@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15886008,
+  "code_bytes": 22442,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15863566,
+  "rationale": "Builds on state/best_script.py by applying the modified training logic (quant-aware snapshot averaging over projection + mlp.fc weights) in a compact self-contained launcher. Required markers are preserved, runtime behavior keeps MAX_WALLCLOCK_SECONDS and final_int8_zlib_roundtrip_exact intact, and script stays well under 1500 lines.",
+  "run_id": "2026_03_25_run_0005",
+  "runtime_seconds": 600.240165,
+  "submitter": "frido22",
+  "title": "Embedded Payload Runner With Quant-Aware Snapshot Averaging Patch",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533522,
+  "under_16mb": true,
+  "val_bpb": 1.5835733,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
