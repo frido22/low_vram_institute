@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12586716,
+  "code_bytes": 73703,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12513013,
+  "rationale": "I detected unexpected concurrent edits to `state/best_script.py` while working: it changed from 1497 lines / 74256 bytes to 1545 lines / 76033 bytes and introduced new sections (for example `tensor_roundtrip_mse` / `apply_projection_ema_selective`) that I did not add. Per safety rules, I stopped. Please confirm which base I should use next: (1) the earlier 1497-line snapshot, or (2) the current mutated 1545-line file (which violates your <1500-line hard rule).",
+  "run_id": "2026_03_25_run_0006",
+  "runtime_seconds": 576.849637,
+  "submitter": "frido22",
+  "title": "Blocker: Concurrent Script Mutation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 510177,
+  "under_16mb": true,
+  "val_bpb": 2.20805965,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
