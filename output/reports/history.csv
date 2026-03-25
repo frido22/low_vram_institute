@@ -92,3 +92,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_25_run_0004,1.582212,True,False,Longer Gentle Quant-Aware Tail with Mix-Damped Matrix LR
 2026_03_25_run_0005,1.583573,True,False,Embedded Payload Runner With Quant-Aware Snapshot Averaging Patch
 2026_03_25_run_0006,2.208060,False,False,Blocker: Concurrent Script Mutation
+2026_03_25_run_0007,1.580373,True,False,MSE-Gated Row-Offset Int8 Selection

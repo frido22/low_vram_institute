@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15914263,
+  "code_bytes": 74191,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15840072,
+  "rationale": "Replaced the 2D int8 path with direct error-based selection between plain per-row quantization and row-offset per-row quantization, using a small margin (`plain_err <= centered_err * 1.002`) to prefer plain when nearly tied. This keeps the current best columnwise/transposed setup, directly optimizes roundtrip fidelity for final int8 eval, and removes now-unused ratio gating code.",
+  "run_id": "2026_03_25_run_0007",
+  "runtime_seconds": 601.187158,
+  "submitter": "frido22",
+  "title": "MSE-Gated Row-Offset Int8 Selection",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534260,
+  "under_16mb": true,
+  "val_bpb": 1.58037335,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
