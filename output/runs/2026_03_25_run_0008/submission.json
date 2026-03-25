@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15939275,
+  "code_bytes": 74269,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15865006,
+  "rationale": "Builds on the current best by extending late quant-aware EMA from projection-only matrices to also include `mlp.fc.weight`, targeting better final int8 roundtrip fidelity with minimal runtime overhead and no metric/format path changes.",
+  "run_id": "2026_03_25_run_0008",
+  "runtime_seconds": 600.630442,
+  "submitter": "frido22",
+  "title": "Expand EMA Coverage to MLP Expansion Weights",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533897,
+  "under_16mb": true,
+  "val_bpb": 1.57836426,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
