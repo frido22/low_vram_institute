@@ -415,6 +415,7 @@ def _call_codex(
     model: str | None = None,
     reasoning_effort: str | None = None,
     service_tier: str | None = None,
+    timeout_seconds: float | None = None,
 ) -> dict:
     binary = shutil.which("codex")
     if not binary:
@@ -447,7 +448,20 @@ def _call_codex(
         if service_tier:
             cmd.extend(["-c", f'service_tier=\"{service_tier}\"'])
 
-        r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, check=False)  # noqa: S603
+        try:
+            r = subprocess.run(
+                cmd,
+                input=prompt,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=timeout_seconds,
+            )  # noqa: S603
+        except subprocess.TimeoutExpired as exc:
+            raise CodexError(
+                f"Codex timed out after {timeout_seconds:.0f}s",
+                retryable=True,
+            ) from exc
         if r.returncode != 0:
             detail = "\n".join(filter(None, [r.stdout.strip(), r.stderr.strip()]))
             retryable = _is_retryable_codex_failure(detail)
@@ -512,12 +526,20 @@ def plan(run_errors: list[str] | None = None) -> dict:
         }
 
     if codex_cfg.get("enabled"):
+        timeout_seconds = codex_cfg.get("timeout_seconds", 900)
+        try:
+            timeout_seconds = float(timeout_seconds)
+        except (TypeError, ValueError):
+            timeout_seconds = 900.0
+        if timeout_seconds <= 0:
+            timeout_seconds = None
         prompt = _build_prompt(run_errors)
         payload = _call_codex(
             prompt,
             model=codex_cfg.get("model"),
             reasoning_effort=codex_cfg.get("reasoning_effort"),
             service_tier=codex_cfg.get("service_tier"),
+            timeout_seconds=timeout_seconds,
         )
         return {
             "title": payload["title"],

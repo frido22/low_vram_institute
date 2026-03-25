@@ -6,8 +6,9 @@
   },
   "codex": {
     "enabled": true,
-    "model": "gpt-5.4",
-    "reasoning_effort": "high"
+    "model": "gpt-5.3-codex",
+    "reasoning_effort": "high",
+    "timeout_seconds": 1800
   },
   "parameter_golf": {
     "workspace": "/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf",
