@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15847791,
+  "code_bytes": 74397,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15773394,
+  "rationale": "Extended and smoothed quant-aware scheduling, added an iteration-tail activation fallback under wallclock mode, and damped matrix LR in proportion to quantization mix during the quant-aware phase to bias training toward final int8 roundtrip robustness.",
+  "run_id": "2026_03_25_run_0004",
+  "runtime_seconds": 600.417499,
+  "submitter": "frido22",
+  "title": "Longer Gentle Quant-Aware Tail with Mix-Damped Matrix LR",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533671,
+  "under_16mb": true,
+  "val_bpb": 1.5822122,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
