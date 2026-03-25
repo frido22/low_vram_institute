@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 16018332,
+  "code_bytes": 77271,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15941061,
+  "rationale": "Build on the current best columnwise MLP-fc int8 path by spending a small slice of the remaining 16MB budget on the worst per-row quantization errors. The script now stores a tiny fp16 rescue set for high-error rows in selected int8 matrices, wires that through dequantization and quant-aware roundtrip training, and keeps the file under 1500 lines. This directly targets the final int8 zlib roundtrip metric instead of training loss.",
+  "run_id": "2026_03_24_run_0062",
+  "runtime_seconds": 601.854893,
+  "submitter": "frido22",
+  "title": "Hybrid FP16 Rescue Rows For Transposed MLP Int8",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534678,
+  "under_16mb": false,
+  "val_bpb": 1.58553563,
+  "valid_main_track": false,
+  "within_train_wallclock": true
+}
