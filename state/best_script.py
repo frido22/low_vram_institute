@@ -38,13 +38,13 @@ class Hyperparameters:
     final_eval_reserve_scale: float = float(os.environ.get("FINAL_EVAL_RESERVE_SCALE", 1.35))
     final_eval_estimate_batches: int = int(os.environ.get("FINAL_EVAL_ESTIMATE_BATCHES", 2))
     final_eval_serialization_seconds: float = float(os.environ.get("FINAL_EVAL_SERIALIZATION_SECONDS", 5.0))
-    quant_aware_train_seconds: float = float(os.environ.get("QUANT_AWARE_TRAIN_SECONDS", 96.0))
+    quant_aware_train_seconds: float = float(os.environ.get("QUANT_AWARE_TRAIN_SECONDS", 48.0))
     quant_aware_iters: int = int(os.environ.get("QUANT_AWARE_ITERS", 96))
     quant_aware_every: int = int(os.environ.get("QUANT_AWARE_EVERY", 24))
     quant_aware_embed_lr_mul: float = float(os.environ.get("QUANT_AWARE_EMBED_LR_MUL", 0.6))
     quant_aware_matrix_lr_mul: float = float(os.environ.get("QUANT_AWARE_MATRIX_LR_MUL", 0.35))
     quant_aware_scalar_lr_mul: float = float(os.environ.get("QUANT_AWARE_SCALAR_LR_MUL", 0.8))
-    quant_aware_proj_start: float = float(os.environ.get("QUANT_AWARE_PROJ_START", 0.60))
+    quant_aware_proj_start: float = float(os.environ.get("QUANT_AWARE_PROJ_START", 0.55))
     quant_aware_proj_step: float = float(os.environ.get("QUANT_AWARE_PROJ_STEP", 0.2))
     quant_aware_proj_end: float = float(os.environ.get("QUANT_AWARE_PROJ_END", 0.95))
     vocab_size: int = int(os.environ.get("VOCAB_SIZE", 1024))
@@ -469,22 +469,7 @@ INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.
 INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 1))
 INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
 PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
-INT8_TRANSPOSE_SUFFIXES = tuple(
-    suffix
-    for suffix in os.environ.get(
-        "INT8_TRANSPOSE_SUFFIXES",
-        "attn.c_q.weight,attn.c_k.weight,attn.c_v.weight,mlp.fc.weight,mlp.proj.weight",
-    ).split(",")
-    if suffix
-)
-INT8_PROJ_EMA_SUFFIXES = tuple(
-    suffix
-    for suffix in os.environ.get(
-        "INT8_PROJ_EMA_SUFFIXES",
-        "attn.c_q.weight,attn.c_k.weight,attn.c_v.weight,attn.proj.weight,mlp.fc.weight,mlp.proj.weight",
-    ).split(",")
-    if suffix
-)
+INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
 INT8_FP16_KEEP_NAMES = tuple(
     name
     for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
@@ -1352,7 +1337,6 @@ def main() -> None:
     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
     log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
-    log(f"int8_proj_ema_suffixes:{','.join(INT8_PROJ_EMA_SUFFIXES) if INT8_PROJ_EMA_SUFFIXES else 'none'}")
     log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
@@ -1439,7 +1423,7 @@ def main() -> None:
         if last_quant_aware_step is not None:
             flat_params = dict(tree_flatten(model.parameters()))
             if proj_ema is None:
-                proj_ema = {name: arr + mx.zeros_like(arr) for name, arr in flat_params.items() if name.endswith(INT8_PROJ_EMA_SUFFIXES) and not should_keep_float_tensor(name, arr, int8_fp16_keep_names)}
+                proj_ema = {name: arr + mx.zeros_like(arr) for name, arr in flat_params.items() if name.endswith(BLOCK_FP16_PROJ_SUFFIXES) and not should_keep_float_tensor(name, arr, int8_fp16_keep_names)}
             else:
                 for name in proj_ema:
                     proj_ema[name] = proj_ema[name] + (flat_params[name] - proj_ema[name]) * proj_ema_keep
