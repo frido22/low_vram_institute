@@ -95,3 +95,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_25_run_0007,1.580373,True,False,MSE-Gated Row-Offset Int8 Selection
 2026_03_25_run_0008,1.578364,True,False,Expand EMA Coverage to MLP Expansion Weights
 2026_03_25_run_0009,1.573579,True,False,Transpose-Specific Mild MLP-FC Clip
+2026_03_25_run_0010,1.578761,True,False,Set INT8 row-offset minimum ratio default to zero

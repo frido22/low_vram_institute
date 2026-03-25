@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15937548,
+  "code_bytes": 74207,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15863341,
+  "rationale": "Disable row-mean gating in INT8 quantization so projections always apply per-row offsetting, aligning with prior best behavior without changing interfaces.",
+  "run_id": "2026_03_25_run_0010",
+  "runtime_seconds": 600.505971,
+  "submitter": "frido22",
+  "title": "Set INT8 row-offset minimum ratio default to zero",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533756,
+  "under_16mb": true,
+  "val_bpb": 1.5787606,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
