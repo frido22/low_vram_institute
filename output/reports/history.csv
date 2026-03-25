@@ -86,3 +86,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_03_24_run_0060,1.586623,True,False,Selective Quant-Aware MLP Expansion Plus Projection Endgame
 2026_03_24_run_0061,1.584904,True,False,Advanced Columnwise MLP Quant-Aware Ramp
 2026_03_24_run_0062,1.585536,True,False,Hybrid FP16 Rescue Rows For Transposed MLP Int8
+2026_03_25_run_0001,1.579766,True,False,Calibration-Selected Dual EMA Quant Finalizer
