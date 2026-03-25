@@ -469,7 +469,7 @@ INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.
 INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 1))
 INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
 PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
-INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
+INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight,attn.c_k.weight,attn.c_v.weight").split(",") if suffix)
 INT8_FP16_KEEP_NAMES = tuple(
     name
     for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
@@ -487,7 +487,7 @@ BLOCK_FP16_PROJ_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
 def _np_float32(arr: mx.array) -> np.ndarray:
     return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
 def int8_clip_q(name: str) -> float:
-    return INT8_PROJ_CLIP_Q if name.endswith(BLOCK_FP16_PROJ_SUFFIXES) else INT8_CLIP_Q
+    return 0.999992 if name.endswith("mlp.fc.weight") else (INT8_PROJ_CLIP_Q if name.endswith(BLOCK_FP16_PROJ_SUFFIXES) else INT8_CLIP_Q)
 def should_transpose_quantize(name: str, arr_ndim: int) -> bool: return arr_ndim == 2 and any(name.endswith(suffix) for suffix in INT8_TRANSPOSE_SUFFIXES)
 def build_int8_fp16_keep_names(num_layers: int) -> set[str]:
     keep = set(INT8_FP16_KEEP_NAMES)
@@ -518,7 +518,7 @@ def quantize_float_array(name: str, arr: mx.array) -> tuple[np.ndarray, np.ndarr
         centered = f32 - row_offset[:, None]
         mean_abs = float(np.mean(np.abs(row_offset), dtype=np.float64)) if row_offset.size else 0.0
         resid_abs = float(np.mean(np.abs(centered), dtype=np.float64)) if centered.size else 0.0
-        if mean_abs >= INT8_ROW_OFFSET_MIN_RATIO * max(resid_abs, 1e-12):
+        if transposed or mean_abs >= INT8_ROW_OFFSET_MIN_RATIO * max(resid_abs, 1e-12):
             clip_abs = np.quantile(np.abs(centered), clip_q, axis=1) if centered.size else np.empty((centered.shape[0],), dtype=np.float32)
             clipped = np.clip(centered, -clip_abs[:, None], clip_abs[:, None])
             scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)

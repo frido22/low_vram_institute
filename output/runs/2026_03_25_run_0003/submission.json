@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15970307,
+  "code_bytes": 75537,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15894770,
+  "rationale": "Build on the current best transpose-quantized MLP expansion plus projection EMA path by adding an exact-function-preserving cross-layer equalization pass across each MLP hidden channel before quant-aware roundtrips and final serialization. Rebalancing `mlp.fc.weight` rows against `mlp.proj.weight` columns should reduce late-stage int8 error without spending meaningful size budget, and the script stays lean and under the 1500-line cap.",
+  "run_id": "2026_03_25_run_0003",
+  "runtime_seconds": 601.09529,
+  "submitter": "frido22",
+  "title": "Cross-Layer MLP Channel Equalization Int8 Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534307,
+  "under_16mb": true,
+  "val_bpb": 1.57829915,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
