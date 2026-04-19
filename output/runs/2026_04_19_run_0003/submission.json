@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15772037,
+  "code_bytes": 75293,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15696744,
+  "rationale": "Builds directly on the current best quant-aware int8 path and pivots to a new idea category: a minimal shared-weight recurrence transplant. The change reuses the last two MLP sublayers once more with learned per-channel gates, adding only tiny control tensors while keeping the existing final exact int8+zlib evaluation and endgame quantization logic intact. This targets better final roundtrip val_bpb through deeper late computation without a full architecture rewrite, and it stays safely under the 16MB artifact cap because the added parameters are negligible.",
+  "run_id": "2026_04_19_run_0003",
+  "runtime_seconds": 580.342525,
+  "submitter": "frido22",
+  "title": "Gated Tail MLP Recurrence On Best Quant Path",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 507756,
+  "under_16mb": true,
+  "val_bpb": 1.56857002,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
