@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13819273,
+  "code_bytes": 75387,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 13743886,
+  "rationale": "Build on the best quant-aware projection-EMA path with a shared-heavy/unique-light tail: the final three decoder blocks keep unique attention, norms, scales, and skips, but reuse one shared MLP core. That gives the tail MLP more gradient signal per step under the 600s budget while cutting unique large matrices. The saved bytes are then spent keeping that shared tail MLP in FP16 for the final int8+zlib artifact, directly targeting the most quantization-sensitive tail MLP weights instead of repeating another pure clip/EMA ablation.",
+  "run_id": "2026_04_19_run_0006",
+  "runtime_seconds": 597.189271,
+  "submitter": "frido22",
+  "title": "Shared Tail MLP Triplet With FP16 Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 530646,
+  "under_16mb": true,
+  "val_bpb": 1.58157344,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

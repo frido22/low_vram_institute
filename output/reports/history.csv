@@ -102,3 +102,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_19_run_0003,1.568570,True,False,Gated Tail MLP Recurrence On Best Quant Path
 2026_04_19_run_0004,1.571761,True,False,Tail-Block Gated Recurrence On Best Quant Path
 2026_04_19_run_0005,1.587011,True,False,Tail-Block Gated Recurrence On Best Quant Path
+2026_04_19_run_0006,1.581573,True,False,Shared Tail MLP Triplet With FP16 Reallocation
