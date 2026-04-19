@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 16059655,
+  "code_bytes": 74316,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15985339,
+  "rationale": "Builds directly on the current best quantization path while finally testing the two highest-priority untried local-MLX hyperparameter directions from PR #1612. The script already matches MATRIX_LR=0.02 and MUON_MOMENTUM=0.95; this run lifts QK_GAIN_INIT to 4.0 and raises MUON_MOMENTUM_WARMUP_START to 0.90 so attention sharpens earlier without changing artifact size, eval logic, or hot-path structure. Added logging records the transplanted settings for attribution.",
+  "run_id": "2026_04_19_run_0002",
+  "runtime_seconds": 599.47309,
+  "submitter": "frido22",
+  "title": "PR1612 QK Gain And Muon Warmup Transplant",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 532781,
+  "under_16mb": false,
+  "val_bpb": 1.59057172,
+  "valid_main_track": false,
+  "within_train_wallclock": true
+}
