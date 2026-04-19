@@ -101,3 +101,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_19_run_0002,1.590572,True,False,PR1612 QK Gain And Muon Warmup Transplant
 2026_04_19_run_0003,1.568570,True,False,Gated Tail MLP Recurrence On Best Quant Path
 2026_04_19_run_0004,1.571761,True,False,Tail-Block Gated Recurrence On Best Quant Path
+2026_04_19_run_0005,1.587011,True,False,Tail-Block Gated Recurrence On Best Quant Path
