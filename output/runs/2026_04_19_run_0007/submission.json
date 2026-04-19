@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15938104,
+  "code_bytes": 74443,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15863661,
+  "rationale": "Builds directly on the current best script instead of spending another run on broader recurrence or global MLP EMA. The current winner already proved that columnwise int8 handling of `mlp.fc.weight` matters, while the final block is already rescued in FP16; this change therefore extends the existing late projection EMA only to the remaining late quantized `mlp.fc.weight` tensors in the tail. That specifically targets the penultimate/antepenultimate MLP expansion matrices that still dominate final roundtrip error, keeps artifact size unchanged, preserves the exact final int8+zlib path, and avoids the over-smoothing that hurt the earlier all-MLP-expansion EMA run.",
+  "run_id": "2026_04_19_run_0007",
+  "runtime_seconds": 599.479343,
+  "submitter": "frido22",
+  "title": "Tail MLP-FC EMA On Best Quant Path",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 532814,
+  "under_16mb": true,
+  "val_bpb": 1.56960933,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
