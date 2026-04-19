@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 16061399,
+  "code_bytes": 74208,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15987191,
+  "rationale": "Recent misses were mostly quantization micro-ablations around the current best script, so this run pivots to the highest-priority unexplored Mac-mini idea category: the remaining transferable PR #1612 small-batch MLX hyperparameters. The best script already carries the winning quantization path and softer matrix LR/momentum defaults, but it still uses the older attention sharpness and Muon warm-start settings. This patch keeps the proven int8/projection-EMA endgame intact and changes only two defaults: QK gain init from 1.5 to 4.0 and Muon momentum warmup start from 0.85 to 0.90. That compounds on the best script instead of restarting, spends the run on a new training-dynamics hypothesis, and keeps code size, artifact behavior, and final exact evaluation plumbing essentially unchanged.",
+  "run_id": "2026_04_19_run_0001",
+  "runtime_seconds": 599.091111,
+  "submitter": "frido22",
+  "title": "PR1612 Hyperparameter Transfer On Best Quant Path",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 532475,
+  "under_16mb": false,
+  "val_bpb": 1.59016851,
+  "valid_main_track": false,
+  "within_train_wallclock": true
+}
