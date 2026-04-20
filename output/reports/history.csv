@@ -105,3 +105,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_19_run_0006,1.581573,True,False,Shared Tail MLP Triplet With FP16 Reallocation
 2026_04_19_run_0007,1.569609,True,False,Tail MLP-FC EMA On Best Quant Path
 2026_04_19_run_0008,1.587254,True,False,Shared Tail MLP-FC Reuse On Best Quant Path
+2026_04_20_run_0001,1.577770,True,False,Gated Tail State Carryover On Best Quant Path
