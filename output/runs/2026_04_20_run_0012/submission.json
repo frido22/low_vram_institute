@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15949690,
+  "code_bytes": 76626,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15873064,
+  "rationale": "Keep the new best rank-64 previous-token adapter and add a very small untied hidden-to-vocab residual head that should still fit under the artifact cap.",
+  "run_id": "2026_04_20_run_0012",
+  "runtime_seconds": 605.4203,
+  "submitter": "frido22",
+  "title": "Bigram Rank 64 Plus Tiny Output Head",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538187,
+  "under_16mb": true,
+  "val_bpb": 1.55098659,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
