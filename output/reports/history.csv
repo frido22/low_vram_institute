@@ -114,3 +114,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_20_run_0007,1.587857,True,False,Scored-Only Final Budget Reallocation
 2026_04_20_run_0008,1.559344,True,True,Logit Bias Gain On Best Quant Path
 2026_04_20_run_0009,1.556154,True,True,Projection-Only FP16 Tail Reallocation
+2026_04_20_run_0010,1.548231,True,True,Bigram Rank 32 On Projection-Only Tail
