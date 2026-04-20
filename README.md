@@ -44,6 +44,7 @@ python3 run.py daemon     # run continuously
 ## Hardware
 
 - Apple Silicon Mac mini, M4, 16 GB unified memory
+- Intentionally Mac-only: `run.py run-once` and `run.py daemon` refuse non-Apple-Silicon hosts
 - 10-minute wallclock cap, step count is an optimization target (not fixed)
 - Reproducible launch baseline: `ITERATIONS=200`, `TRAIN_BATCH_TOKENS=8192`, `VAL_BATCH_SIZE=8192`, `VAL_LOSS_EVERY=0`, `TRAIN_LOG_EVERY=25`, `MLX_EAGER_EVAL=1`
 - Designed to run continuously in a long-lived shell such as `screen`

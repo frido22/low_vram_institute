@@ -6,6 +6,7 @@ import argparse
 import base64
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -42,6 +43,16 @@ def _emit(msg: str) -> None:
 def _load_runtime() -> dict[str, Any]:
     p = CONFIG_DIR / "runtime.json"
     return json.loads(p.read_text()) if p.exists() else {}
+
+
+def _require_supported_host() -> None:
+    system = platform.system()
+    machine = platform.machine().lower()
+    if system != "Darwin" or machine not in {"arm64", "arm64e"}:
+        raise RuntimeError(
+            "Low VRAM Institute only supports Apple Silicon Mac hosts "
+            f"(got {system} {machine}). This repo is intentionally Mac-only."
+        )
 
 
 #Ledger (state/ledger.jsonl)
@@ -484,6 +495,13 @@ def _build_prompt(run_errors: list[str] | None = None) -> str:
     rules_path = CONFIG_DIR / "parameter_golf_rules.md"
     rules = rules_path.read_text().strip() if rules_path.exists() else ""
 
+    findings_path = CONFIG_DIR / "mlx_external_findings.md"
+    if findings_path.exists():
+        findings = findings_path.read_text().strip()
+        external_findings_section = f"## External MLX Findings\n{findings}\n" if findings else ""
+    else:
+        external_findings_section = ""
+
     best = best_script()
     if best:
         best_script_section = (
@@ -505,6 +523,7 @@ def _build_prompt(run_errors: list[str] | None = None) -> str:
 
     return template.format(
         rules=rules,
+        external_findings_section=external_findings_section,
         history=render_context(),
         best_script_section=best_script_section,
         errors_section=errors_section,
@@ -516,6 +535,13 @@ def plan(run_errors: list[str] | None = None) -> dict:
     codex_cfg = runtime.get("codex", {})
     track = runtime.get("parameter_golf", {}).get("local_track", "mac_mini_official_like")
     has_runs = best_score() is not None
+
+    heuristic_plan = {
+        "title": "Refine current best",
+        "rationale": "Exploiting current best.",
+        "modified_script": best_script(),
+        "track": track,
+    }
 
     if not has_runs:
         return {
@@ -534,13 +560,17 @@ def plan(run_errors: list[str] | None = None) -> dict:
         if timeout_seconds <= 0:
             timeout_seconds = None
         prompt = _build_prompt(run_errors)
-        payload = _call_codex(
-            prompt,
-            model=codex_cfg.get("model"),
-            reasoning_effort=codex_cfg.get("reasoning_effort"),
-            service_tier=codex_cfg.get("service_tier"),
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            payload = _call_codex(
+                prompt,
+                model=codex_cfg.get("model"),
+                reasoning_effort=codex_cfg.get("reasoning_effort"),
+                service_tier=codex_cfg.get("service_tier"),
+                timeout_seconds=timeout_seconds,
+            )
+        except CodexError as exc:
+            _emit(f"planner fallback: {exc}")
+            return heuristic_plan
         return {
             "title": payload["title"],
             "rationale": payload["rationale"],
@@ -549,12 +579,7 @@ def plan(run_errors: list[str] | None = None) -> dict:
         }
 
     # Heuristic fallback (codex disabled)
-    return {
-        "title": "Refine current best",
-        "rationale": "Exploiting current best.",
-        "modified_script": best_script(),
-        "track": track,
-    }
+    return heuristic_plan
 
 
 def plan_next() -> None:
@@ -937,8 +962,10 @@ if __name__ == "__main__":
     if args.cmd == "plan-next":
         plan_next()
     elif args.cmd == "run-once":
+        _require_supported_host()
         run_once()
     elif args.cmd == "daemon":
+        _require_supported_host()
         daemon(max_cycles=args.max_cycles)
     else:
         parser.print_help()

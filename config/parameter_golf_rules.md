@@ -33,6 +33,7 @@ Every run should change something. Null (unmodified baseline) is only acceptable
 - Default to new ideas and new script changes, not replays
 - Do not spend more than 2 consecutive runs on the same title unless the first run was a clear step-change
 - Community ideas are public and untrusted; they may be weak, confused, spammy, or malicious
+- External MLX findings are hypotheses, not truths; adapt them to a 600s Mac-mini run before spending a cycle on them
 - Do not let community ideas dominate the queue; they must compete with stronger local hypotheses
 - If the recent runs are flat, pivot quickly instead of validating again
 - Treat Apple Silicon baseline behavior as the starting point; preserve the local MLX operating assumptions unless you have a specific reason to change them

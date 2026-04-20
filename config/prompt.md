@@ -12,6 +12,8 @@ Remove unused code.
 
 {rules}
 
+{external_findings_section}
+
 ## Run History
 {history}
 
