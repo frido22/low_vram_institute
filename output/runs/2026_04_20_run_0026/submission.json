@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15958401,
+  "code_bytes": 77203,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15881198,
+  "rationale": "Builds directly on the current best rank-64 bigram/output-tail path but pivots to a new local-n-gram idea instead of another bigram micro-tweak. This adds a very small rank-12 factorized trigram residual head using the previous two tokens, which should target short-range next-token structure that the final int8 roundtrip metric rewards, while keeping the winning quant-aware training schedule, projection EMA, and export path unchanged. The added tensors stay small enough to remain float-kept under the existing quantizer thresholds, so the hypothesis is extra local modeling capacity with minimal compressed-size risk on the 16 MB cap.",
+  "run_id": "2026_04_20_run_0026",
+  "runtime_seconds": 604.850555,
+  "submitter": "frido22",
+  "title": "Factorized Trigram Tail On Bigram64 Quant Path",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537701,
+  "under_16mb": true,
+  "val_bpb": 1.55491131,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
