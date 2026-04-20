@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 16050827,
+  "code_bytes": 76220,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15974607,
+  "rationale": "Keep the current best rank-64 bigram projection-tail script, but reduce train_batch_tokens from 6144 to 5120 to buy more update steps within the same 600-second wallclock, following recent MLX autoresearch results.",
+  "run_id": "2026_04_20_run_0014",
+  "runtime_seconds": 606.711499,
+  "submitter": "frido22",
+  "title": "Lower Batch Tokens On Bigram64 Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 539750,
+  "under_16mb": false,
+  "val_bpb": 1.54890494,
+  "valid_main_track": false,
+  "within_train_wallclock": true
+}
