@@ -126,3 +126,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_20_run_0019,1.588873,True,False,Tiny Smear Gate On Bigram64 Tail
 2026_04_20_run_0020,1.553493,True,False,Muon Warmup Start 0.90 On Bigram64 Tail
 2026_04_20_run_0021,1.548754,True,False,Trainable Quantized Bigram Rank 128 Tail
+2026_04_20_run_0022,1.548079,True,False,Bigram Rank 80 With Explicit FP16 Tail

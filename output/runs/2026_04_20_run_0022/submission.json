@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15950365,
+  "code_bytes": 76123,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15874242,
+  "rationale": "Build on the current best rank-64 bigram projection-tail path by using the remaining artifact headroom for a slightly larger rank-80 previous-token residual head. The current script only keeps those factors trainable and fp16-preserved while they are at or below the old 65,536-element threshold; once rank grows past that boundary they would otherwise fall out of Adam and into int8 export. This patch makes all non-block trainable tensors stay on the Adam path and explicitly keeps the bigram factors in fp16, so the extra bigram capacity actually survives training and final roundtrip evaluation.",
+  "run_id": "2026_04_20_run_0022",
+  "runtime_seconds": 603.72826,
+  "submitter": "frido22",
+  "title": "Bigram Rank 80 With Explicit FP16 Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536675,
+  "under_16mb": true,
+  "val_bpb": 1.54807863,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
