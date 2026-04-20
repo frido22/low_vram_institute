@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15896060,
+  "code_bytes": 76220,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15819840,
+  "rationale": "Keep the new best rank-32 bigram path and test whether the recovered artifact headroom can buy a larger previous-token residual head without breaking the 16 MB export limit.",
+  "run_id": "2026_04_20_run_0011",
+  "runtime_seconds": 603.849277,
+  "submitter": "frido22",
+  "title": "Bigram Rank 64 On Projection-Only Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536950,
+  "under_16mb": true,
+  "val_bpb": 1.54293814,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
