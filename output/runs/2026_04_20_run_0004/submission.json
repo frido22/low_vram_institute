@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15940779,
+  "code_bytes": 74691,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15866088,
+  "rationale": "Builds directly on the current best quantization path instead of revisiting broader recurrence ideas. The closest recent miss showed late tail `mlp.fc` EMA was almost helpful, and an earlier close miss suggested transposed `mlp.fc` weights are sensitive to mild clipping. This variant keeps the winning columnwise/transposed MLP setup, adds a gentler transpose-only int8 clip default (`99.98`) for `mlp.fc.weight`, and extends the existing late projection EMA to only the last two tail `mlp.fc` weights so the most quantization-sensitive expansion matrices are smoothed without broadening EMA coverage across the whole stack. The change is size-neutral at the model level, compile-stable, and targets the exact final int8+zlib roundtrip metric.",
+  "run_id": "2026_04_20_run_0004",
+  "runtime_seconds": 600.196531,
+  "submitter": "frido22",
+  "title": "Transpose-Clip Tail-FC EMA Blend",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533516,
+  "under_16mb": true,
+  "val_bpb": 1.56575383,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
