@@ -119,3 +119,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_20_run_0012,1.550987,True,False,Bigram Rank 64 Plus Tiny Output Head
 2026_04_20_run_0013,1.578406,True,False,SiLU MLP On Bigram64 Projection Tail
 2026_04_20_run_0014,1.548905,True,False,Lower Batch Tokens On Bigram64 Tail
+2026_04_20_run_0015,1.548639,True,False,Bigram Warm Start On Rank64 Tail

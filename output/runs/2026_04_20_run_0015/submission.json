@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15894320,
+  "code_bytes": 76221,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15818099,
+  "rationale": "Keep the current best rank-64 bigram projection-tail script, but initialize bigram_scale to 0.01 instead of 0.0 so the bigram weights receive gradients from step 1 in the 10-minute budget.",
+  "run_id": "2026_04_20_run_0015",
+  "runtime_seconds": 604.048974,
+  "submitter": "frido22",
+  "title": "Bigram Warm Start On Rank64 Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537169,
+  "under_16mb": true,
+  "val_bpb": 1.54863925,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
