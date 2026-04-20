@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 16018700,
+  "code_bytes": 74122,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15944578,
+  "rationale": "Builds on the current best script by reclaiming wallclock from work that does not affect the score. The baseline spends roughly one full validation pass on an unscored final float-state eval, then still runs the scored int8 roundtrip eval. This variant skips that last float-only validation when `VAL_LOSS_EVERY=0`, lowers the default post-train reserve to match the exact scored path, and removes the unused `.npz` save plus disk reread before the final int8 roundtrip evaluation. The final `final_int8_zlib_roundtrip_exact` path and its print format stay intact; the hypothesis is that extra training steps on the best architecture are worth more than the discarded unscored validation pass.",
+  "run_id": "2026_04_20_run_0007",
+  "runtime_seconds": 596.497039,
+  "submitter": "frido22",
+  "title": "Scored-Only Final Budget Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 562614,
+  "under_16mb": false,
+  "val_bpb": 1.58785699,
+  "valid_main_track": false,
+  "within_train_wallclock": true
+}
