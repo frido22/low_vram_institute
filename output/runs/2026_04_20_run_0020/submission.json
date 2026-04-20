@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15989205,
+  "code_bytes": 76220,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15912985,
+  "rationale": "Keep the current best rank-64 bigram projection-tail script unchanged except for one MLX-derived hyperparameter isolate: raise MUON_MOMENTUM_WARMUP_START from 0.85 to 0.90.",
+  "run_id": "2026_04_20_run_0020",
+  "runtime_seconds": 603.850054,
+  "submitter": "frido22",
+  "title": "Muon Warmup Start 0.90 On Bigram64 Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536938,
+  "under_16mb": true,
+  "val_bpb": 1.55349258,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
