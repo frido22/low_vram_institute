@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15943081,
+  "code_bytes": 74615,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15868466,
+  "rationale": "Build on the current best quant-aware/FP16-tail/EMA path with a minimal deep-tail carry gate instead of another slower recurrent pass. Recent tail-reuse runs were close but lost wallclock to extra block work; this reuses a stabilized late decoder state across the last decoder blocks with fixed shapes, tiny FP32 control tensors, and no changes to the final int8 roundtrip path. I also removed an unused field and compressed a few helpers so the script stays under the 1500-line cap.",
+  "run_id": "2026_04_20_run_0002",
+  "runtime_seconds": 601.254308,
+  "submitter": "frido22",
+  "title": "Gated Tail State Carryover On Best Quant Path",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534399,
+  "under_16mb": true,
+  "val_bpb": 1.57384891,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
