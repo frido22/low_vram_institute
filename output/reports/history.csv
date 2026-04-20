@@ -125,3 +125,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_20_run_0018,1.557169,True,False,Longer Denser Quant-Aware Tail On Bigram64
 2026_04_20_run_0019,1.588873,True,False,Tiny Smear Gate On Bigram64 Tail
 2026_04_20_run_0020,1.553493,True,False,Muon Warmup Start 0.90 On Bigram64 Tail
+2026_04_20_run_0021,1.548754,True,False,Trainable Quantized Bigram Rank 128 Tail

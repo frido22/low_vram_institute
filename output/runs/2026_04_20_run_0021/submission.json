@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15888826,
+  "code_bytes": 76279,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15812547,
+  "rationale": "The current best path tops out at `BIGRAM_RANK=64` because that is exactly the last rank where both bigram matrices stay under the `<=65536` scalar/keep-float cutoff. Above that, the current optimizer stops updating them entirely, so the search has been blocked from testing larger quantized bigram tails. This change keeps the projection-only tail path intact, promotes oversized bigram matrices into the Adam bucket, and raises the default rank to 128 so the bigram branch can use more capacity while still adapting to the exact final int8 roundtrip.",
+  "run_id": "2026_04_20_run_0021",
+  "runtime_seconds": 604.400982,
+  "submitter": "frido22",
+  "title": "Trainable Quantized Bigram Rank 128 Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537263,
+  "under_16mb": true,
+  "val_bpb": 1.54875387,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

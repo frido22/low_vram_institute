@@ -1,0 +1,101 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -293,11 +293,11 @@
+         super().__init__()
+         if logit_softcap <= 0.0:
+             raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
+-        self.logit_chunk_tokens = logit_chunk_tokens
+-        self.logit_softcap = logit_softcap
++        self.logit_chunk_tokens = logit_chunk_tokens; self.logit_softcap = logit_softcap
+         self.tok_emb = nn.Embedding(vocab_size, dim)
+-        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32)
+-        self.logit_gain = mx.array(1.0, dtype=mx.float32)
++        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32); self.logit_gain = mx.array(1.0, dtype=mx.float32); self.bigram_rank = int(os.environ.get("BIGRAM_RANK", 128))
++        if self.bigram_rank > 0:
++            self.bigram_in = nn.Embedding(vocab_size, self.bigram_rank); self.bigram_out = CastedLinear(self.bigram_rank, vocab_size); self.bigram_scale = mx.array(0.0, dtype=mx.float32)
+         self.num_encoder_layers = num_layers // 2
+         self.num_decoder_layers = num_layers - self.num_encoder_layers
+         self.num_skip_weights = min(self.num_encoder_layers, self.num_decoder_layers)
+@@ -308,16 +308,13 @@
+         ]
+         self.final_norm = RMSNormNoWeight()
+         for b in self.blocks:
+-            b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight)
+-            b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
+-        self.tok_emb.weight = (
+-            mx.random.normal(self.tok_emb.weight.shape, dtype=mx.float32) * tied_embed_init_std
+-        ).astype(COMPUTE_DTYPE)
+-    def softcap(self, logits: mx.array) -> mx.array:
+-        c = self.logit_softcap
+-        return c * mx.tanh(logits / c)
+-    def project_logits(self, x: mx.array) -> mx.array:
++            b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight); b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
++        self.tok_emb.weight = (mx.random.normal(self.tok_emb.weight.shape, dtype=mx.float32) * tied_embed_init_std).astype(COMPUTE_DTYPE)
++    def softcap(self, logits: mx.array) -> mx.array: return self.logit_softcap * mx.tanh(logits / self.logit_softcap)
++    def project_logits(self, x: mx.array, prev_ids: mx.array | None = None) -> mx.array:
+         logits = self.logit_gain.astype(x.dtype) * (x @ self.tok_emb.weight.astype(x.dtype).T)
++        if self.bigram_rank > 0 and prev_ids is not None:
++            logits = logits + self.bigram_scale.astype(x.dtype) * self.bigram_out(self.bigram_in(prev_ids.reshape(-1)).astype(x.dtype))
+         return self.softcap(logits + self.logit_bias.astype(x.dtype))
+     def __call__(self, input_ids: mx.array) -> mx.array:
+         x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))
+@@ -332,25 +329,23 @@
+             x = self.blocks[self.num_encoder_layers + i](x, x0)
+         return self.final_norm(x)
+     def loss(self, input_ids: mx.array, target_ids: mx.array) -> mx.array:
+-        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1])
+-        y = target_ids.reshape(-1)
++        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
+-            logits = self.project_logits(x)
++            logits = self.project_logits(x, prev_ids)
+             return nn.losses.cross_entropy(logits.astype(mx.float32), y, reduction="mean")
+         loss_sum = mx.array(0.0, dtype=mx.float32)
+         n = int(x.shape[0])
+         for s in range(0, n, self.logit_chunk_tokens):
+             e = min(s + self.logit_chunk_tokens, n)
+-            logits = self.project_logits(x[s:e])
++            logits = self.project_logits(x[s:e], prev_ids[s:e])
+             loss_sum = loss_sum + nn.losses.cross_entropy(logits.astype(mx.float32), y[s:e], reduction="sum")
+         return loss_sum / float(n)
+     def masked_loss(self, input_ids: mx.array, target_ids: mx.array, loss_mask: mx.array) -> mx.array:
+-        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1])
+-        y = target_ids.reshape(-1)
++        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+         mask = loss_mask.reshape(-1).astype(mx.float32)
+         denom = mx.maximum(mx.sum(mask), mx.array(1.0, dtype=mx.float32))
+         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
+-            logits = self.project_logits(x)
++            logits = self.project_logits(x, prev_ids)
+             logits_f = logits.astype(mx.float32)
+             token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[:, None], axis=-1).reshape(-1)
+             return mx.sum(token_loss.astype(mx.float32) * mask) / denom
+@@ -358,7 +353,7 @@
+         n = int(x.shape[0])
+         for s in range(0, n, self.logit_chunk_tokens):
+             e = min(s + self.logit_chunk_tokens, n)
+-            logits = self.project_logits(x[s:e])
++            logits = self.project_logits(x[s:e], prev_ids[s:e])
+             logits_f = logits.astype(mx.float32)
+             token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[s:e, None], axis=-1).reshape(-1)
+             loss_sum = mx.sum(token_loss.astype(mx.float32) * mask[s:e])
+@@ -399,7 +394,7 @@
+         self.scalar_keys = [
+             k
+             for k, p in params.items()
+-            if k != self.embed_key and k not in self.matrix_keys and (k == "skip_weights" or p.ndim < 2 or any(pattern in k for pattern in CONTROL_TENSOR_NAME_PATTERNS) or int(p.size) <= 65_536)
++            if k != self.embed_key and k not in self.matrix_keys and (k == "skip_weights" or p.ndim < 2 or any(pattern in k for pattern in CONTROL_TENSOR_NAME_PATTERNS) or k.endswith(("bigram_in.weight", "bigram_out.weight")) or int(p.size) <= 65_536)
+         ]
+         self.muon = Muon(self.matrix_keys, params, args)
+         self.adam_embed = optim.Adam(
+@@ -452,8 +447,8 @@
+ INT8_CLIP_PERCENTILE = 99.99984; INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
+ INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99.9)); INT8_PROJ_CLIP_Q = INT8_PROJ_CLIP_PERCENTILE / 100.0
+ INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
+-INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 1))
+-INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
++INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
++INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 3))
+ PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
+ INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
+ INT8_FP16_KEEP_NAMES = tuple(
