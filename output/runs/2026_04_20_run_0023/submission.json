@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15952572,
+  "code_bytes": 76461,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15876111,
+  "rationale": "The current best script already shows that a rank-64 previous-token residual head is the highest-leverage use of the remaining byte budget. This change keeps that winning path intact but makes the bigram branch context-conditional: a zero-initialized hidden-to-rank gate modulates the existing bigram factors before projection, so the model can learn when each previous-token feature should matter without changing shapes, breaking compile stability, or paying for another full output head. The added matrix stays under the <=65536 keep-float cutoff, so it should remain export-friendly while giving the strongest existing tail more expressive power.",
+  "run_id": "2026_04_20_run_0023",
+  "runtime_seconds": 604.261899,
+  "submitter": "frido22",
+  "title": "Hidden-Gated Bigram Rank 64 Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537237,
+  "under_16mb": true,
+  "val_bpb": 1.55452891,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
