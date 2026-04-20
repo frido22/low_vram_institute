@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15951592,
+  "code_bytes": 76203,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15875389,
+  "rationale": "The current best already showed that a direct bigram tail is the highest-leverage addition, but rank values above 64 were being handicapped: the optimizer only assigned small non-block tensors to Adam, so larger bigram matrices could fall out of every optimizer group. This patch fixes that by training all remaining non-block parameters with Adam, raises the default bigram rank from 64 to 80, and explicitly keeps the larger bigram matrices in float form up to rank 80 so the extra tail capacity survives the final int8+zlib roundtrip instead of being spent on a partially frozen, newly quantized head.",
+  "run_id": "2026_04_20_run_0024",
+  "runtime_seconds": 603.739835,
+  "submitter": "frido22",
+  "title": "Trainable Float-Kept Bigram Rank 80 Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536701,
+  "under_16mb": true,
+  "val_bpb": 1.55399804,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
