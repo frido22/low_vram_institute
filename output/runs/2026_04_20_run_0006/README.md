@@ -1,0 +1,17 @@
+# 2026_04_20_run_0006
+
+- final_int8_zlib_roundtrip_exact val_bpb: 1.579036
+- runtime_seconds: 600.00
+- train_time_ms: 533267
+- track: mac_mini_official_like
+- title: Isolated Transpose Clip On Best Quant Path
+- code_bytes: 74456
+- model_bytes: 15866763
+- artifact_bytes: 15941219
+- passed: True
+- under_16mb: True
+- within_train_wallclock: True
+- valid_main_track: True
+
+This is a Mac mini official-like local run package.
+The intended mismatch versus official leaderboard submissions is hardware.

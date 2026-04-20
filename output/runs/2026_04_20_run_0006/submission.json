@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15941219,
+  "code_bytes": 74456,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15866763,
+  "rationale": "The closest miss added two changes at once: a tighter clip for transpose-quantized MLP expansion weights and tail-FC EMA. Tail-FC EMA alone regressed, so this run isolates the more promising quantization change while leaving training dynamics and artifact size behavior almost unchanged.",
+  "run_id": "2026_04_20_run_0006",
+  "runtime_seconds": 600.002015,
+  "submitter": "frido22",
+  "title": "Isolated Transpose Clip On Best Quant Path",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533267,
+  "under_16mb": true,
+  "val_bpb": 1.5790357,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
