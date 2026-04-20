@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15903280,
+  "code_bytes": 76220,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15827060,
+  "rationale": "Keep the current best rank-64 bigram projection-tail script unchanged, but lower final_eval_reserve_seconds from 72 to 60 to reclaim otherwise idle wallclock for more training steps.",
+  "run_id": "2026_04_20_run_0017",
+  "runtime_seconds": 618.377269,
+  "submitter": "frido22",
+  "title": "Reserve Reclaim On Bigram64 Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 551436,
+  "under_16mb": true,
+  "val_bpb": 1.5508711,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
