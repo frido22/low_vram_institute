@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15661718,
+  "code_bytes": 75661,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15586057,
+  "rationale": "Remove the expensive full fp16 tail block and reallocate that budget into more fp16 projection blocks, preserving the new output bias/gain winner while testing whether projection preservation beats full-block passthrough.",
+  "run_id": "2026_04_20_run_0009",
+  "runtime_seconds": 599.963931,
+  "submitter": "frido22",
+  "title": "Projection-Only FP16 Tail Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533334,
+  "under_16mb": true,
+  "val_bpb": 1.55615433,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
