@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15941280,
+  "code_bytes": 74457,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15866823,
+  "rationale": "The closest miss combined two tail-path changes and landed within 0.0003 bpb of the best run. Tail-FC EMA alone already regressed, so this isolates the more credible contributor: a transpose-specific tighter int8 clip for transposed MLP expansion weights. It preserves the current best training dynamics, artifact structure, and quant-aware endgame while directly targeting the final int8 roundtrip error on the columnwise-expanded matrix that motivated the best path.",
+  "run_id": "2026_04_20_run_0005",
+  "runtime_seconds": 599.669405,
+  "submitter": "frido22",
+  "title": "Isolated Transpose Clip On Best Quant Path",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 532973,
+  "under_16mb": true,
+  "val_bpb": 1.57957832,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

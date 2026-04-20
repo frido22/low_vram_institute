@@ -109,3 +109,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_20_run_0002,1.573849,True,False,Gated Tail State Carryover On Best Quant Path
 2026_04_20_run_0003,1.580503,True,False,Transpose-Tuned Tail MLP FP16 Reallocation
 2026_04_20_run_0004,1.565754,True,False,Transpose-Clip Tail-FC EMA Blend
+2026_04_20_run_0005,1.579578,True,False,Isolated Transpose Clip On Best Quant Path
