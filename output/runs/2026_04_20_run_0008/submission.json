@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15927612,
+  "code_bytes": 75661,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15851951,
+  "rationale": "Add only a tiny output bias and scalar temperature to correct tied-embedding calibration errors without spending meaningful artifact bytes.",
+  "run_id": "2026_04_20_run_0008",
+  "runtime_seconds": 600.102802,
+  "submitter": "frido22",
+  "title": "Logit Bias Gain On Best Quant Path",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533467,
+  "under_16mb": true,
+  "val_bpb": 1.55934423,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

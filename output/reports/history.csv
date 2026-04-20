@@ -112,3 +112,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_20_run_0005,1.579578,True,False,Isolated Transpose Clip On Best Quant Path
 2026_04_20_run_0006,1.579036,True,False,Isolated Transpose Clip On Best Quant Path
 2026_04_20_run_0007,1.587857,True,False,Scored-Only Final Budget Reallocation
+2026_04_20_run_0008,1.559344,True,True,Logit Bias Gain On Best Quant Path
