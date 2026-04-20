@@ -1,0 +1,122 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -293,11 +293,11 @@
+         super().__init__()
+         if logit_softcap <= 0.0:
+             raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
+-        self.logit_chunk_tokens = logit_chunk_tokens
+-        self.logit_softcap = logit_softcap
++        self.logit_chunk_tokens = logit_chunk_tokens; self.logit_softcap = logit_softcap
+         self.tok_emb = nn.Embedding(vocab_size, dim)
+-        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32)
+-        self.logit_gain = mx.array(1.0, dtype=mx.float32)
++        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32); self.logit_gain = mx.array(1.0, dtype=mx.float32); self.bigram_rank = int(os.environ.get("BIGRAM_RANK", 64))
++        if self.bigram_rank > 0:
++            self.bigram_in = nn.Embedding(vocab_size, self.bigram_rank); self.bigram_out = CastedLinear(self.bigram_rank, vocab_size); self.bigram_scale = mx.array(0.0, dtype=mx.float32)
+         self.num_encoder_layers = num_layers // 2
+         self.num_decoder_layers = num_layers - self.num_encoder_layers
+         self.num_skip_weights = min(self.num_encoder_layers, self.num_decoder_layers)
+@@ -308,16 +308,13 @@
+         ]
+         self.final_norm = RMSNormNoWeight()
+         for b in self.blocks:
+-            b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight)
+-            b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
+-        self.tok_emb.weight = (
+-            mx.random.normal(self.tok_emb.weight.shape, dtype=mx.float32) * tied_embed_init_std
+-        ).astype(COMPUTE_DTYPE)
+-    def softcap(self, logits: mx.array) -> mx.array:
+-        c = self.logit_softcap
+-        return c * mx.tanh(logits / c)
+-    def project_logits(self, x: mx.array) -> mx.array:
++            b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight); b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
++        self.tok_emb.weight = (mx.random.normal(self.tok_emb.weight.shape, dtype=mx.float32) * tied_embed_init_std).astype(COMPUTE_DTYPE)
++    def softcap(self, logits: mx.array) -> mx.array: return self.logit_softcap * mx.tanh(logits / self.logit_softcap)
++    def project_logits(self, x: mx.array, prev_ids: mx.array | None = None) -> mx.array:
+         logits = self.logit_gain.astype(x.dtype) * (x @ self.tok_emb.weight.astype(x.dtype).T)
++        if self.bigram_rank > 0 and prev_ids is not None:
++            logits = logits + self.bigram_scale.astype(x.dtype) * self.bigram_out(self.bigram_in(prev_ids.reshape(-1)).astype(x.dtype))
+         return self.softcap(logits + self.logit_bias.astype(x.dtype))
+     def __call__(self, input_ids: mx.array) -> mx.array:
+         x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))
+@@ -332,25 +329,23 @@
+             x = self.blocks[self.num_encoder_layers + i](x, x0)
+         return self.final_norm(x)
+     def loss(self, input_ids: mx.array, target_ids: mx.array) -> mx.array:
+-        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1])
+-        y = target_ids.reshape(-1)
++        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
+-            logits = self.project_logits(x)
++            logits = self.project_logits(x, prev_ids)
+             return nn.losses.cross_entropy(logits.astype(mx.float32), y, reduction="mean")
+         loss_sum = mx.array(0.0, dtype=mx.float32)
+         n = int(x.shape[0])
+         for s in range(0, n, self.logit_chunk_tokens):
+             e = min(s + self.logit_chunk_tokens, n)
+-            logits = self.project_logits(x[s:e])
++            logits = self.project_logits(x[s:e], prev_ids[s:e])
+             loss_sum = loss_sum + nn.losses.cross_entropy(logits.astype(mx.float32), y[s:e], reduction="sum")
+         return loss_sum / float(n)
+     def masked_loss(self, input_ids: mx.array, target_ids: mx.array, loss_mask: mx.array) -> mx.array:
+-        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1])
+-        y = target_ids.reshape(-1)
++        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+         mask = loss_mask.reshape(-1).astype(mx.float32)
+         denom = mx.maximum(mx.sum(mask), mx.array(1.0, dtype=mx.float32))
+         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
+-            logits = self.project_logits(x)
++            logits = self.project_logits(x, prev_ids)
+             logits_f = logits.astype(mx.float32)
+             token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[:, None], axis=-1).reshape(-1)
+             return mx.sum(token_loss.astype(mx.float32) * mask) / denom
+@@ -358,7 +353,7 @@
+         n = int(x.shape[0])
+         for s in range(0, n, self.logit_chunk_tokens):
+             e = min(s + self.logit_chunk_tokens, n)
+-            logits = self.project_logits(x[s:e])
++            logits = self.project_logits(x[s:e], prev_ids[s:e])
+             logits_f = logits.astype(mx.float32)
+             token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[s:e, None], axis=-1).reshape(-1)
+             loss_sum = mx.sum(token_loss.astype(mx.float32) * mask[s:e])
+@@ -452,8 +447,8 @@
+ INT8_CLIP_PERCENTILE = 99.99984; INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
+ INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99.9)); INT8_PROJ_CLIP_Q = INT8_PROJ_CLIP_PERCENTILE / 100.0
+ INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
+-INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 1))
+-INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
++INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
++INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 3))
+ PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
+ INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
+ INT8_FP16_KEEP_NAMES = tuple(
+@@ -470,11 +465,14 @@
+     "mlp.proj.weight",
+ )
+ BLOCK_FP16_PROJ_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
++PROJ_EMA_EXTRA_NAMES = frozenset(("logit_bias", "logit_gain", "bigram_in.weight", "bigram_out.weight", "bigram_scale"))
+ def _np_float32(arr: mx.array) -> np.ndarray:
+     return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
+ def int8_clip_q(name: str) -> float:
+     return INT8_PROJ_CLIP_Q if name.endswith(BLOCK_FP16_PROJ_SUFFIXES) else INT8_CLIP_Q
+ def should_transpose_quantize(name: str, arr_ndim: int) -> bool: return arr_ndim == 2 and any(name.endswith(suffix) for suffix in INT8_TRANSPOSE_SUFFIXES)
++def should_track_proj_ema(name: str) -> bool:
++    return name.endswith(BLOCK_FP16_PROJ_SUFFIXES) or name in PROJ_EMA_EXTRA_NAMES
+ def build_int8_fp16_keep_names(num_layers: int) -> set[str]:
+     keep = set(INT8_FP16_KEEP_NAMES)
+     for block_idx in range(max(num_layers - INT8_FP16_TAIL_FULL_BLOCKS, 0), num_layers):
+@@ -1411,7 +1409,7 @@
+         if last_quant_aware_step is not None:
+             flat_params = dict(tree_flatten(model.parameters()))
+             if proj_ema is None:
+-                proj_ema = {name: arr + mx.zeros_like(arr) for name, arr in flat_params.items() if name.endswith(BLOCK_FP16_PROJ_SUFFIXES) and not should_keep_float_tensor(name, arr, int8_fp16_keep_names)}
++                proj_ema = {name: arr + mx.zeros_like(arr) for name, arr in flat_params.items() if should_track_proj_ema(name)}
+             else:
+                 for name in proj_ema:
+                     proj_ema[name] = proj_ema[name] + (flat_params[name] - proj_ema[name]) * proj_ema_keep
+@@ -1495,4 +1493,4 @@
+     log(f"final_int8_zlib_roundtrip val_loss:{q_val_loss:.4f} val_bpb:{q_val_bpb:.4f} eval_time:{q_eval_ms:.0f}ms")
+     log(f"final_int8_zlib_roundtrip_exact val_loss:{q_val_loss:.8f} val_bpb:{q_val_bpb:.8f}")
+ if __name__ == "__main__":
+-    main()
++    main()

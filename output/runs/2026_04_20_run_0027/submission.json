@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15894790,
+  "code_bytes": 76391,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15818399,
+  "rationale": "Current best already relies on a float-kept projection tail plus the rank-64 bigram head, but the late EMA finalizer still only averages quantized projection weights. This patch extends that same cheap endgame averaging to the actual output-tail tensors now driving the final exact int8 score: all projection weights plus logit gain/bias and the bigram tail weights/scale. It preserves shapes, step structure, quantization, and wallclock behavior while targeting lower final_int8_zlib_roundtrip_exact val_bpb.",
+  "run_id": "2026_04_20_run_0027",
+  "runtime_seconds": 604.21173,
+  "submitter": "frido22",
+  "title": "Float-Kept Tail EMA On Bigram64",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537240,
+  "under_16mb": true,
+  "val_bpb": 1.54874206,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
