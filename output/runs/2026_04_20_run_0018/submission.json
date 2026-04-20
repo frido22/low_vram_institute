@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15896332,
+  "code_bytes": 76220,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15820112,
+  "rationale": "Keep the current best rank-64 bigram projection-tail script, reclaim 12 seconds of final reserve, and spend that time on a longer denser quant-aware tail by moving activation from 48s to 60s and snapping every 16 steps instead of 24.",
+  "run_id": "2026_04_20_run_0018",
+  "runtime_seconds": 613.94054,
+  "submitter": "frido22",
+  "title": "Longer Denser Quant-Aware Tail On Bigram64",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 547017,
+  "under_16mb": true,
+  "val_bpb": 1.55716902,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
