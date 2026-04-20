@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15305857,
+  "code_bytes": 75381,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15230476,
+  "rationale": "Builds directly on the current best quantization path instead of re-opening the weaker broad quantization or global hyperparameter branches. The transplant is minimal and byte-aware: the deepest decoder MLP expansion matrix is reused by the previous tail decoder block, while each block keeps its own attention, projection, scales, and residual controls. That targets the heaviest MLP matrix where the run history says post-quantization error matters, compounds with the existing last-block FP16 rescue because the shared source matrix is already in the protected tail, and should improve effective learning-per-parameter under the 600s Mac mini budget without touching the evaluation path or print formats.",
+  "run_id": "2026_04_19_run_0008",
+  "runtime_seconds": 603.27423,
+  "submitter": "frido22",
+  "title": "Shared Tail MLP-FC Reuse On Best Quant Path",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536606,
+  "under_16mb": true,
+  "val_bpb": 1.587254,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
