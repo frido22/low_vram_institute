@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15936765,
+  "code_bytes": 75033,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15861732,
+  "rationale": "Builds on the current best columnwise MLP-expansion path by combining two of the closest MLP-focused misses into one coherent quantization hypothesis: keep the last two MLPs in FP16 while dropping late attention QKV rescue, and tune the transposed `mlp.fc.weight` int8 path with a dedicated clip percentile and looser row-offset gate. The hot training loop and projection-EMA endgame stay unchanged; only the final-roundtrip-sensitive MLP family is reweighted.",
+  "run_id": "2026_04_20_run_0003",
+  "runtime_seconds": 599.662016,
+  "submitter": "frido22",
+  "title": "Transpose-Tuned Tail MLP FP16 Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 533016,
+  "under_16mb": true,
+  "val_bpb": 1.58050338,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
