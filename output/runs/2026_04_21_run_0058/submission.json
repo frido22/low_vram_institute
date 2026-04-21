@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 14670320,
+  "code_bytes": 77390,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 14592930,
+  "rationale": "If the single-recurrence squeezed output-head branch lands close, the next move is to keep the faster budget split and give the head a small nonzero initial scale so it trains from the first steps.",
+  "run_id": "2026_04_21_run_0058",
+  "runtime_seconds": 606.880631,
+  "submitter": "frido22",
+  "title": "Wake Rank-64 Output Head Early With Single Recurrent Tail Block",
+  "track": "",
+  "train_time_ms": 532370,
+  "under_16mb": true,
+  "val_bpb": 1.52922057,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
