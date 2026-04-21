@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15896706,
+  "code_bytes": 75702,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15821004,
+  "rationale": "The last two wins suggest the exact metric is now limited by late-step noise in tensors that survive the final artifact in float. This keeps the current best architecture and quant-aware endgame, but gives large 2D float-kept tensors such as the embedding table, bigram head, and rescued tail projections a slower EMA than small/control tensors. The hypothesis is that those matrices want a longer averaging window while q-gains, skip weights, and other control vectors should stay on the current faster decay. I also remove the redundant pre-save roundtrip when the EMA path is going to overwrite it anyway, keeping the script lean and slightly cheaper at the end.",
+  "run_id": "2026_04_21_run_0018",
+  "runtime_seconds": 603.691269,
+  "submitter": "frido22",
+  "title": "Split-Rate EMA For Float-Kept Matrices",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536696,
+  "under_16mb": true,
+  "val_bpb": 1.5379009,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
