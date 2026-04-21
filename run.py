@@ -863,8 +863,15 @@ def _start_next_planner() -> None:
 
 def _next_run_id() -> str:
     prefix = datetime.now(timezone.utc).strftime("%Y_%m_%d_run_")
-    existing = [p.name for p in RUNS_DIR.iterdir() if p.is_dir() and p.name.startswith(prefix)] if RUNS_DIR.exists() else []
-    return prefix + f"{len(existing) + 1:04d}"
+    max_suffix = 0
+    if RUNS_DIR.exists():
+        for path in RUNS_DIR.iterdir():
+            if not path.is_dir() or not path.name.startswith(prefix):
+                continue
+            suffix = path.name.removeprefix(prefix)
+            if suffix.isdigit():
+                max_suffix = max(max_suffix, int(suffix))
+    return prefix + f"{max_suffix + 1:04d}"
 
 
 def run_once(start_async_planner: bool = False) -> str:
