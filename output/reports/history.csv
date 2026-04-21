@@ -135,3 +135,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_20_run_0028,1.553026,True,False,Selective Quant-Aware Decoder Tail On Bigram64
 2026_04_21_run_0001,1.559214,True,False,Tail MLP Recurrence On Bigram64 Tail
 2026_04_21_run_0002,1.622645,True,False,Roundtripped Bigram Tail Calibration
+2026_04_21_run_0003,1.548415,True,False,Gated Tail Carryover On Bigram64 Tail

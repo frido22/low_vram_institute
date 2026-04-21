@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15900523,
+  "code_bytes": 75833,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15824690,
+  "rationale": "Recent bigram-tail variants mostly replayed the output head and kept missing the best score, so this pivots to a new low-cost architecture idea while preserving the winning rank-64 bigram plus projection-only FP16 tail. I added a compile-stable gated carryover path across the deepest decoder blocks, transplanting the stronger hidden state from the start of the tail into later tail blocks with tiny per-channel control tensors that stay high fidelity through the final roundtrip. This is materially different from the failed extra-MLP recurrence: it adds almost no compute or artifact bytes, compounds directly on the current best script, and targets the hidden representation that feeds the already-proven bigram/output tail. I also removed the dead final-calibration path to keep the script lean under the line cap.",
+  "run_id": "2026_04_21_run_0003",
+  "runtime_seconds": 604.11556,
+  "submitter": "frido22",
+  "title": "Gated Tail Carryover On Bigram64 Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537049,
+  "under_16mb": true,
+  "val_bpb": 1.54841538,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
