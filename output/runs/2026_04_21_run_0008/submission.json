@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15899120,
+  "code_bytes": 74724,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15824396,
+  "rationale": "Adapt the strongest remaining PR1612 signal conservatively by raising only QK gain from 1.5 to 2.0, leaving the already-better matrix LR and Muon warmup untouched. The prior 4.0/0.90 transplant overshot and broke the 16 MB cap; this keeps the attention-sharpening direction but reduces risk. I also removed the dormant final calibration path so code bytes drop and the artifact gets more headroom without changing the required training/eval prints.",
+  "run_id": "2026_04_21_run_0008",
+  "runtime_seconds": 603.35407,
+  "submitter": "frido22",
+  "title": "Mild QK Gain With Leaner Endgame",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536440,
+  "under_16mb": true,
+  "val_bpb": 1.54252444,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
