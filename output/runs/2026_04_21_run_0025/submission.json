@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15722009,
+  "code_bytes": 75322,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15646687,
+  "rationale": "Recent runs exhausted endgame-only EMA variants, so this pivots to the next high-priority category: a minimal recurrence transplant. The script keeps the winning tail-EMA and quant-aware path intact, but reuses the final block one extra time behind a zero-initialized tanh gate. That preserves the baseline at initialization, adds only a tiny control tensor, keeps shapes compile-stable, and does not materially increase artifact bytes. The hypothesis is that one shared late refinement pass buys more final int8 roundtrip quality per byte than another small quantizer tweak, while the new gate is kept in the float control path so it survives the exact export cleanly.",
+  "run_id": "2026_04_21_run_0025",
+  "runtime_seconds": 604.77984,
+  "submitter": "frido22",
+  "title": "Zero-Init Gated Final-Block Recurrence",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 530510,
+  "under_16mb": true,
+  "val_bpb": 1.53005984,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
