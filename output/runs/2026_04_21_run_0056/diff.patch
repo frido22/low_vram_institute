@@ -1,0 +1,60 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -31,7 +31,7 @@
+     seed: int = int(os.environ.get("SEED", 1337))
+     iterations: int = int(os.environ.get("ITERATIONS", 20_000))
+     val_loss_every: int = int(os.environ.get("VAL_LOSS_EVERY", 0))
+-    val_batch_size: int = int(os.environ.get("VAL_BATCH_SIZE", 16_384))
++    val_batch_size: int = int(os.environ.get("VAL_BATCH_SIZE", 8_192))
+     train_log_every: int = int(os.environ.get("TRAIN_LOG_EVERY", 50))
+     train_batch_tokens: int = int(os.environ.get("TRAIN_BATCH_TOKENS", 6_144))
+     grad_accum_steps: int = int(os.environ.get("GRAD_ACCUM_STEPS", 1))
+@@ -40,9 +40,9 @@
+     mlx_eager_eval: bool = bool(int(os.environ.get("MLX_EAGER_EVAL", "0")))
+     warmdown_iters: int = int(os.environ.get("WARMDOWN_ITERS", 64))
+     max_wallclock_seconds: float = float(os.environ.get("MAX_WALLCLOCK_SECONDS", 600.0))
+-    final_eval_reserve_seconds: float = float(os.environ.get("FINAL_EVAL_RESERVE_SECONDS", 52.0))
++    final_eval_reserve_seconds: float = float(os.environ.get("FINAL_EVAL_RESERVE_SECONDS", 72.0))
+     final_eval_reserve_scale: float = float(os.environ.get("FINAL_EVAL_RESERVE_SCALE", 1.35))
+-    final_eval_estimate_batches: int = int(os.environ.get("FINAL_EVAL_ESTIMATE_BATCHES", 1))
++    final_eval_estimate_batches: int = int(os.environ.get("FINAL_EVAL_ESTIMATE_BATCHES", 2))
+     final_eval_serialization_seconds: float = float(os.environ.get("FINAL_EVAL_SERIALIZATION_SECONDS", 5.0))
+     quant_aware_train_seconds: float = float(os.environ.get("QUANT_AWARE_TRAIN_SECONDS", 48.0))
+     quant_aware_iters: int = int(os.environ.get("QUANT_AWARE_ITERS", 96))
+@@ -285,9 +285,11 @@
+             raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
+         self.logit_chunk_tokens = logit_chunk_tokens; self.logit_softcap = logit_softcap
+         self.tok_emb = nn.Embedding(vocab_size, dim)
+-        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32); self.logit_gain = mx.array(1.0, dtype=mx.float32); self.bigram_rank = int(os.environ.get("BIGRAM_RANK", 64))
++        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32); self.logit_gain = mx.array(1.0, dtype=mx.float32); self.bigram_rank = int(os.environ.get("BIGRAM_RANK", 64)); self.head_rank = int(os.environ.get("HEAD_RANK", 64))
+         if self.bigram_rank > 0:
+             self.bigram_in = nn.Embedding(vocab_size, self.bigram_rank); self.bigram_out = CastedLinear(self.bigram_rank, vocab_size); self.bigram_scale = mx.array(0.0, dtype=mx.float32)
++        if self.head_rank > 0:
++            self.head_lora_a = CastedLinear(dim, self.head_rank); self.head_lora_b = CastedLinear(self.head_rank, vocab_size); self.head_lora_scale = mx.array(float(os.environ.get("HEAD_SCALE_INIT", 0.01)), dtype=mx.float32)
+         self.num_encoder_layers = num_layers // 2
+         self.num_decoder_layers = num_layers - self.num_encoder_layers
+         self.skip_weights = mx.ones((min(self.num_encoder_layers, self.num_decoder_layers), dim), dtype=mx.float32)
+@@ -307,6 +309,8 @@
+         logits = self.logit_gain.astype(x.dtype) * (x @ self.tok_emb.weight.astype(x.dtype).T)
+         if self.bigram_rank > 0 and prev_ids is not None:
+             logits = logits + self.bigram_scale.astype(x.dtype) * self.bigram_out(self.bigram_in(prev_ids.reshape(-1)).astype(x.dtype))
++        if self.head_rank > 0:
++            logits = logits + self.head_lora_scale.astype(x.dtype) * self.head_lora_b(self.head_lora_a(x))
+         return self.softcap(logits + self.logit_bias.astype(x.dtype))
+     def __call__(self, input_ids: mx.array) -> mx.array:
+         x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))
+@@ -443,7 +447,7 @@
+ INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99.9)); INT8_PROJ_CLIP_Q = INT8_PROJ_CLIP_PERCENTILE / 100.0
+ INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
+ INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
+-INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
++INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 1))
+ PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
+ INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
+ INT8_FP16_KEEP_NAMES = tuple(
+@@ -1490,4 +1494,4 @@
+     log(f"final_int8_zlib_roundtrip val_loss:{q_val_loss:.4f} val_bpb:{q_val_bpb:.4f} eval_time:{q_eval_ms:.0f}ms")
+     log(f"final_int8_zlib_roundtrip_exact val_loss:{q_val_loss:.8f} val_bpb:{q_val_bpb:.8f}")
+ if __name__ == "__main__":
+-    main()
++    main()

@@ -187,3 +187,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0052,1.521169,True,False,Projection Clip 99.95 On Recurrent-Tail Best
 2026_04_21_run_0053,1.523968,True,False,Row Offset Ratio 0.01 On Recurrent-Tail Best
 2026_04_21_run_0055,1.524349,True,False,Rank-64 Output Head On Squeezed Tail Budget
+2026_04_21_run_0056,1.528922,True,False,Wake Rank-64 Output Head Early On Squeezed Tail Budget
