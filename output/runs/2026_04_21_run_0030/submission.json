@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15893071,
+  "code_bytes": 76340,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15816731,
+  "rationale": "Build directly on the winning two-block tail recurrence and the last run's QKV-focused endgame. Both recurrent tail decoder blocks are now hit twice before export, but the current best script only float-keeps QKV on the final block. This change makes the FP16 keep set recurrence-aware: preserve QKV for every active recurrent tail block while leaving training, quant-aware timing, and exact final evaluation untouched. The hypothesis is that penultimate-tail attention weights are now roundtrip-critical enough to justify the extra bytes, and the current 15.23MB artifact leaves enough headroom to spend that budget cleanly.",
+  "run_id": "2026_04_21_run_0030",
+  "runtime_seconds": 619.374077,
+  "submitter": "frido22",
+  "title": "Extend FP16 QKV Rescue To Both Recurrent Tail Blocks",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537867,
+  "under_16mb": true,
+  "val_bpb": 1.52101073,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
