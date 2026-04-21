@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15899447,
+  "code_bytes": 75460,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15823987,
+  "rationale": "Build on the current EMA winner, but stop quant-aware training snaps from perturbing tensors that will stay float-kept in the final artifact. During the late endgame, only truly quantized tensors are blended toward the exact int8 roundtrip path, while float-kept tensors stay on the smoother training manifold and are finalized through the existing EMA plus export cast. This compounds the best script, keeps shapes and logging stable, removes a redundant pre-save roundtrip when EMA is present, and directly targets final_int8_zlib_roundtrip_exact val_bpb.",
+  "run_id": "2026_04_21_run_0024",
+  "runtime_seconds": 606.743949,
+  "submitter": "frido22",
+  "title": "Quantized-Only Tail Snaps With Float-Kept EMA",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537947,
+  "under_16mb": true,
+  "val_bpb": 1.53583811,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

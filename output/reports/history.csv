@@ -156,3 +156,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0021,1.539728,True,False,Full-Model Tail EMA For Quant-Aware Endgame
 2026_04_21_run_0022,1.534739,True,False,Reallocate Bigram Tail Precision Toward Output Projection
 2026_04_21_run_0023,1.537711,True,False,Quantized-Only Tail Snaps With Float-Kept EMA
+2026_04_21_run_0024,1.535838,True,False,Quantized-Only Tail Snaps With Float-Kept EMA
