@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15921356,
+  "code_bytes": 77190,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15844166,
+  "rationale": "Current best wins because the two-block gated tail recurrence and FP16 tail Q/K rescue improve the final exact int8+zlib score, but the recent attention-only recurrence regressions suggest the repeated attention pass is the unstable part. This patch keeps the proven recurrent-tail scaffold, quant-aware endgame, and artifact size budget, while changing only the repeated tail pass to MLP-only: the first decoder pass still uses the rescued attention path, and the shared second pass spends its extra depth on feedforward refinement that is cheaper and more likely to survive the final roundtrip without adding compile churn or bytes.",
+  "run_id": "2026_04_21_run_0045",
+  "runtime_seconds": 602.981216,
+  "submitter": "frido22",
+  "title": "MLP-Only Recurrent Tail On Submission-Safe QK Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 529737,
+  "under_16mb": true,
+  "val_bpb": 1.5308058,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
