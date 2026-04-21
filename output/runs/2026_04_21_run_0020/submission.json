@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15909260,
+  "code_bytes": 75718,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15833542,
+  "rationale": "Keeps the winning EMA and quant-aware endgame intact, then compounds it with the strongest nearby architectural miss: shared-norm parallel residual decoder blocks. This changes the real upstream path without adding meaningful size, slightly reduces decoder normalization overhead inside the 600s cap, and targets the quantized final metric rather than intermediate loss.",
+  "run_id": "2026_04_21_run_0020",
+  "runtime_seconds": 602.651242,
+  "submitter": "frido22",
+  "title": "Compound Decoder Parallel Residual On EMA Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 535125,
+  "under_16mb": true,
+  "val_bpb": 1.54789291,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

@@ -230,7 +230,7 @@ class CausalSelfAttention(nn.Module):
     def __init__(self, dim: int, num_heads: int, num_kv_heads: int, rope_base: float, qk_gain_init: float):
         super().__init__()
         if dim % num_heads != 0:
-            raise ValueError("model_dim must be divisible by num_heads")
+              raise ValueError("model_dim must be divisible by num_heads")
         if num_heads % num_kv_heads != 0:
             raise ValueError("num_heads must be divisible by num_kv_heads")
         self.num_heads = num_heads
@@ -267,10 +267,21 @@ class MLP(nn.Module):
         x = nn.relu(self.fc(x))
         return self.proj(x * x)
 class Block(nn.Module):
-    def __init__(self, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int, rope_base: float, qk_gain_init: float):
+    def __init__(
+        self,
+        dim: int,
+        num_heads: int,
+        num_kv_heads: int,
+        mlp_mult: int,
+        rope_base: float,
+        qk_gain_init: float,
+        parallel_residual: bool = False,
+    ):
         super().__init__()
-        self.attn_norm = RMSNormNoWeight()
-        self.mlp_norm = RMSNormNoWeight()
+        self.parallel_residual = parallel_residual
+        self.shared_norm = RMSNormNoWeight() if parallel_residual else None
+        self.attn_norm = None if parallel_residual else RMSNormNoWeight()
+        self.mlp_norm = None if parallel_residual else RMSNormNoWeight()
         self.attn = CausalSelfAttention(dim, num_heads, num_kv_heads, rope_base, qk_gain_init)
         self.mlp = MLP(dim, mlp_mult)
         self.attn_scale = mx.ones((dim,), dtype=mx.float32)
@@ -279,6 +290,9 @@ class Block(nn.Module):
     def __call__(self, x: mx.array, x0: mx.array) -> mx.array:
         mix = self.resid_mix.astype(x.dtype)
         x = mix[0][None, None, :] * x + mix[1][None, None, :] * x0
+        if self.parallel_residual:
+            h = self.shared_norm(x)
+            return x + self.attn_scale.astype(x.dtype)[None, None, :] * self.attn(h) + self.mlp_scale.astype(x.dtype)[None, None, :] * self.mlp(h)
         attn_out = self.attn(self.attn_norm(x))
         x = x + self.attn_scale.astype(x.dtype)[None, None, :] * attn_out
         x = x + self.mlp_scale.astype(x.dtype)[None, None, :] * self.mlp(self.mlp_norm(x))
@@ -297,12 +311,8 @@ class GPT(nn.Module):
             self.bigram_in = nn.Embedding(vocab_size, self.bigram_rank); self.bigram_out = CastedLinear(self.bigram_rank, vocab_size); self.bigram_scale = mx.array(0.0, dtype=mx.float32)
         self.num_encoder_layers = num_layers // 2
         self.num_decoder_layers = num_layers - self.num_encoder_layers
-        self.num_skip_weights = min(self.num_encoder_layers, self.num_decoder_layers)
-        self.skip_weights = mx.ones((self.num_skip_weights, dim), dtype=mx.float32)
-        self.blocks = [
-            Block(dim, num_heads, num_kv_heads, mlp_mult, rope_base, qk_gain_init)
-            for _ in range(num_layers)
-        ]
+        self.skip_weights = mx.ones((min(self.num_encoder_layers, self.num_decoder_layers), dim), dtype=mx.float32)
+        self.blocks = [Block(dim, num_heads, num_kv_heads, mlp_mult, rope_base, qk_gain_init, parallel_residual=block_idx >= self.num_encoder_layers) for block_idx in range(num_layers)]
         self.final_norm = RMSNormNoWeight()
         for b in self.blocks:
             b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight); b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
@@ -1294,6 +1304,7 @@ def main() -> None:
     eval_mode = "doc_isolated_sliding" if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0 else "flat_stream"
     log(f"eval_mode:{eval_mode} bos_token_id:{bos_token_id} val_docs:{0 if doc_spans is None else len(doc_spans)}")
     log(f"eval_stride:{args.eval_stride}")
+    log(f"parallel_residual:decoder_blocks:{model.num_decoder_layers}/{args.num_layers}")
     log(f"compute_dtype:{COMPUTE_DTYPE} compile:True")
     log(
         f"dtypes tok_emb:{model.tok_emb.weight.dtype} "
