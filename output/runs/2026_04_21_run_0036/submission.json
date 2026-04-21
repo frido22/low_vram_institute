@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15756777,
+  "code_bytes": 76415,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15680362,
+  "rationale": "Current best already spends scarce float budget on recurrent tail Q/K, which points to attention projection quantization as the remaining bottleneck. This run extends the existing transpose-aware int8 path from `mlp.fc.weight` to non-float `attn.c_q.weight` and `attn.c_k.weight` so earlier and mid-layer Q/K use per-input-channel scaling instead of per-output scaling, aiming to reduce roundtrip distortion at effectively zero training-time or artifact-size cost.",
+  "run_id": "2026_04_21_run_0036",
+  "runtime_seconds": 619.318871,
+  "submitter": "frido22",
+  "title": "Transpose-Aware QK Int8 On Recurrent Tail Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537990,
+  "under_16mb": true,
+  "val_bpb": 1.52549487,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
