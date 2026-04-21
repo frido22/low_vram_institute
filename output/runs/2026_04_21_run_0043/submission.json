@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15875872,
+  "code_bytes": 77173,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15798699,
+  "rationale": "Build on the current recurrent-tail QK winner without disturbing the hot training path. The exact roundtrip currently downcasts the small output-side adapters to float16 because they fall under the generic keep-float threshold; this change promotes only logit controls and `bigram_out.weight` to FP32 passthrough, spending leftover artifact headroom on the tensors closest to the final cross-entropy while keeping training, recurrence, quant-aware timing, and exact evaluation otherwise unchanged.",
+  "run_id": "2026_04_21_run_0043",
+  "runtime_seconds": 619.65681,
+  "submitter": "frido22",
+  "title": "FP32 Bigram Output Roundtrip On Recurrent Tail Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538238,
+  "under_16mb": true,
+  "val_bpb": 1.52528285,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

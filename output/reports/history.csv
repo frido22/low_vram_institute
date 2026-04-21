@@ -175,3 +175,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0040,1.521379,True,False,Loosen Projection INT8 Clip On Recurrent-Tail Best
 2026_04_21_run_0041,1.519967,True,True,Submission-Safe Recurrent Tail QK Verification
 2026_04_21_run_0042,1.522840,True,False,FP32 Bigram Output Roundtrip On Recurrent Tail Best
+2026_04_21_run_0043,1.525283,True,False,FP32 Bigram Output Roundtrip On Recurrent Tail Best
