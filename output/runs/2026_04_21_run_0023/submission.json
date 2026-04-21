@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15900743,
+  "code_bytes": 75414,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15825329,
+  "rationale": "Build on the current winner without reopening weaker architecture branches. The recent EMA wins imply the exact score is now limited more by late noise in float-kept tensors than by the remaining int8 matrices, so intermediate quant-aware snaps should keep targeting the tensors that will actually quantize while leaving float-kept tensors on the smoother training manifold until the final export cast. This compounds the best float-kept EMA path, removes a redundant pre-save roundtrip when EMA will overwrite it anyway, keeps shapes and artifact format stable, and directly aims at lower final_int8_zlib_roundtrip_exact val_bpb under the same 600-second budget.",
+  "run_id": "2026_04_21_run_0023",
+  "runtime_seconds": 606.588192,
+  "submitter": "frido22",
+  "title": "Quantized-Only Tail Snaps With Float-Kept EMA",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537731,
+  "under_16mb": true,
+  "val_bpb": 1.53771123,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
