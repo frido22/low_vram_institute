@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15300714,
+  "code_bytes": 76573,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15224141,
+  "rationale": "The current best already gets real signal from zero-init two-block tail recurrence and from preserving the recurrent final block's QKV under int8 export. This run keeps that path intact and adds the next minimal EvoNAS-style transplant: a zero-init per-channel carry gate that blends each tail block's first-pass output back into its recurrent pass. That gives the shared second traversal an explicit gated state-carryover path, costs only tiny control tensors, adds no shape churn, and should help the repeated tail blocks reuse useful deep features within the 600-second budget without meaningfully increasing artifact size.",
+  "run_id": "2026_04_21_run_0029",
+  "runtime_seconds": 620.997637,
+  "submitter": "frido22",
+  "title": "Gated Tail Carryover On Two-Block Recurrence",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 539457,
+  "under_16mb": true,
+  "val_bpb": 1.52289094,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
