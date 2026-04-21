@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15886431,
+  "code_bytes": 76942,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15809489,
+  "rationale": "Directly grafts the remaining high-priority MLX-local hyperparameters from the external findings onto the current recurrent-tail best: `QK_GAIN_INIT` 2.0->4.0 and `MUON_MOMENTUM_WARMUP_START` 0.85->0.90. This pivots away from the recent losing output-head and quantization micro-ablations, adds no size or compile-churn risk, and targets better step quality inside the 600-second Mac mini budget.",
+  "run_id": "2026_04_21_run_0061",
+  "runtime_seconds": 619.765318,
+  "submitter": "frido22",
+  "title": "SeekerPrice Hyperparameter Transplant On Recurrent-Tail Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538393,
+  "under_16mb": true,
+  "val_bpb": 1.53172569,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
