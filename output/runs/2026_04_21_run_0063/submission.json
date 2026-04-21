@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 16067573,
+  "code_bytes": 76944,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15990629,
+  "rationale": "Recent output-head and transplant detours moved away from the current recurrent-tail QK best without improving the final exact metric. This run keeps the best architecture and quantization path intact, but reallocates the 600-second budget toward more optimizer updates: the default train batch drops from 6144 to 5120 while staying on the fast single-microbatch path, validation batch size rises to 12288 so the exact endgame is cheaper, train logging relaxes to every 100 steps, and the fixed final-eval reserve trims from 72s to 68s. The hypothesis is that this search is now step-limited rather than capacity-limited on the Mac mini, so more five-sequence updates plus a leaner eval budget have a better chance than another tiny quantization replay.",
+  "run_id": "2026_04_21_run_0063",
+  "runtime_seconds": 620.406455,
+  "submitter": "frido22",
+  "title": "Five-Sequence Updates With Larger Eval Batch",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 539205,
+  "under_16mb": false,
+  "val_bpb": 1.58824616,
+  "valid_main_track": false,
+  "within_train_wallclock": true
+}
