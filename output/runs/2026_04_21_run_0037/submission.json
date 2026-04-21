@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15837030,
+  "code_bytes": 76647,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15760383,
+  "rationale": "Builds directly on the current best two-block recurrent tail and FP16 recurrent Q/K rescue. The repeated tail pass now reuses only the mixed-input plus attention subpath, removing recurrent MLP work and MLP quantization noise while keeping shapes, gates, training loop, and final exact int8+zlib evaluation unchanged. The hypothesis is that the Mac mini gets slightly more useful updates inside 600s and the final roundtrip is helped by concentrating repeated computation on the already-protected attention path.",
+  "run_id": "2026_04_21_run_0037",
+  "runtime_seconds": 612.26174,
+  "submitter": "frido22",
+  "title": "Attention-Only Recurrent Tail On QK-Rescued Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536755,
+  "under_16mb": true,
+  "val_bpb": 1.52940858,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
