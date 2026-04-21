@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15755714,
+  "code_bytes": 77474,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15678240,
+  "rationale": "Build on the current recurrent-tail QK-rescued best with a minimal EvoNAS-style state-carryover transplant. Each recurrent tail block now gets a zero-init learned carry gate that blends the live state toward that block's first-pass tail state before the shared recurrent re-application. This keeps shapes and step structure unchanged, adds only tiny control tensors that stay FP32, preserves the exact final int8+zlib path, and directly tests whether gated tail-state reuse compounds with the existing tail QK float budget under the 600s Mac-mini regime.",
+  "run_id": "2026_04_21_run_0046",
+  "runtime_seconds": 621.52515,
+  "submitter": "frido22",
+  "title": "Carry-Gated Input Anchor On Recurrent Tail QK Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 539981,
+  "under_16mb": true,
+  "val_bpb": 1.52405783,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

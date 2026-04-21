@@ -178,3 +178,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0043,1.525283,True,False,FP32 Bigram Output Roundtrip On Recurrent Tail Best
 2026_04_21_run_0044,1.522448,True,False,Recurrent-Tail MLP-FC EMA Finalizer
 2026_04_21_run_0045,1.530806,True,False,MLP-Only Recurrent Tail On Submission-Safe QK Best
+2026_04_21_run_0046,1.524058,True,False,Carry-Gated Input Anchor On Recurrent Tail QK Best
