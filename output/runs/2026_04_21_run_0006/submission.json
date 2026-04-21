@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 16008569,
+  "code_bytes": 76220,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15932349,
+  "rationale": "Recent runs have exhausted tail-side ablations without beating the Bigram Rank 64 projection-tail best, and the current script still has not adopted the remaining high-priority local-MLX hyperparameters from PR #1612. This keeps the byte-critical architecture and quantization path unchanged, but raises QK gain init from 1.5 to 4.0 and makes Muon warmup less damped by moving MUON_MOMENTUM_WARMUP_START from 0.85 to 0.90. The change is size-neutral, compile-stable, and directly targets faster useful attention formation within the 600-second Mac mini budget while preserving the current exact int8+zlib evaluation path.",
+  "run_id": "2026_04_21_run_0006",
+  "runtime_seconds": 603.448267,
+  "submitter": "frido22",
+  "title": "PR1612 Hyperparameter Transplant On Bigram64 Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536556,
+  "under_16mb": false,
+  "val_bpb": 1.55184717,
+  "valid_main_track": false,
+  "within_train_wallclock": true
+}
