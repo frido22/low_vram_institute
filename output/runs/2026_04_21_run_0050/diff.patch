@@ -1,0 +1,73 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -31,7 +31,7 @@
+     seed: int = int(os.environ.get("SEED", 1337))
+     iterations: int = int(os.environ.get("ITERATIONS", 20_000))
+     val_loss_every: int = int(os.environ.get("VAL_LOSS_EVERY", 0))
+-    val_batch_size: int = int(os.environ.get("VAL_BATCH_SIZE", 16_384))
++    val_batch_size: int = int(os.environ.get("VAL_BATCH_SIZE", 8_192))
+     train_log_every: int = int(os.environ.get("TRAIN_LOG_EVERY", 50))
+     train_batch_tokens: int = int(os.environ.get("TRAIN_BATCH_TOKENS", 6_144))
+     grad_accum_steps: int = int(os.environ.get("GRAD_ACCUM_STEPS", 1))
+@@ -40,9 +40,9 @@
+     mlx_eager_eval: bool = bool(int(os.environ.get("MLX_EAGER_EVAL", "0")))
+     warmdown_iters: int = int(os.environ.get("WARMDOWN_ITERS", 64))
+     max_wallclock_seconds: float = float(os.environ.get("MAX_WALLCLOCK_SECONDS", 600.0))
+-    final_eval_reserve_seconds: float = float(os.environ.get("FINAL_EVAL_RESERVE_SECONDS", 52.0))
++    final_eval_reserve_seconds: float = float(os.environ.get("FINAL_EVAL_RESERVE_SECONDS", 72.0))
+     final_eval_reserve_scale: float = float(os.environ.get("FINAL_EVAL_RESERVE_SCALE", 1.35))
+-    final_eval_estimate_batches: int = int(os.environ.get("FINAL_EVAL_ESTIMATE_BATCHES", 1))
++    final_eval_estimate_batches: int = int(os.environ.get("FINAL_EVAL_ESTIMATE_BATCHES", 2))
+     final_eval_serialization_seconds: float = float(os.environ.get("FINAL_EVAL_SERIALIZATION_SECONDS", 5.0))
+     quant_aware_train_seconds: float = float(os.environ.get("QUANT_AWARE_TRAIN_SECONDS", 48.0))
+     quant_aware_iters: int = int(os.environ.get("QUANT_AWARE_ITERS", 96))
+@@ -67,7 +67,7 @@
+     eval_doc_isolated: bool = bool(int(os.environ.get("EVAL_DOC_ISOLATED", "1")))
+     rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
+     qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 2.0))
+-    tail_recur_blocks: int = int(os.environ.get("TAIL_RECUR_BLOCKS", 2))
++    tail_recur_blocks: int = int(os.environ.get("TAIL_RECUR_BLOCKS", 2)); tail_recur_qk_gain_mul: float = float(os.environ.get("TAIL_RECUR_QK_GAIN_MUL", 1.10))
+     beta1: float = float(os.environ.get("BETA1", 0.9))
+     beta2: float = float(os.environ.get("BETA2", 0.95))
+     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
+@@ -279,7 +279,7 @@
+ class GPT(nn.Module):
+     def __init__(self, vocab_size: int, num_layers: int, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int,
+                  logit_chunk_tokens: int, logit_softcap: float, rope_base: float, tied_embed_init_std: float,
+-                 qk_gain_init: float, tail_recur_blocks: int):
++                 qk_gain_init: float, tail_recur_blocks: int, tail_recur_qk_gain_mul: float):
+         super().__init__()
+         if logit_softcap <= 0.0:
+             raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
+@@ -297,6 +297,8 @@
+         ]
+         tail_recur_span = min(max(tail_recur_blocks, 0), self.num_decoder_layers)
+         self.tail_recur_start = num_layers - tail_recur_span
++        if tail_recur_span > 0 and tail_recur_qk_gain_mul != 1.0:
++            for block_idx in range(self.tail_recur_start, num_layers): self.blocks[block_idx].attn.q_gain = mx.ones((num_heads,), dtype=mx.float32) * (qk_gain_init * tail_recur_qk_gain_mul)
+         self.final_norm = RMSNormNoWeight()
+         self.tail_recur_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None
+         for b in self.blocks:
+@@ -1242,7 +1244,7 @@
+         rope_base=args.rope_base,
+         tied_embed_init_std=args.tied_embed_init_std,
+         qk_gain_init=args.qk_gain_init,
+-        tail_recur_blocks=args.tail_recur_blocks,
++        tail_recur_blocks=args.tail_recur_blocks, tail_recur_qk_gain_mul=args.tail_recur_qk_gain_mul,
+     )
+     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
+     opt = SplitOptimizers(model, args)
+@@ -1329,6 +1331,7 @@
+         f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} "
+         f"active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}"
+     )
++    log(f"tail_recur_qk_gain_mul:{args.tail_recur_qk_gain_mul}")
+     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
+     train_time_ms = 0.0
+     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
+@@ -1490,4 +1493,4 @@
+     log(f"final_int8_zlib_roundtrip val_loss:{q_val_loss:.4f} val_bpb:{q_val_bpb:.4f} eval_time:{q_eval_ms:.0f}ms")
+     log(f"final_int8_zlib_roundtrip_exact val_loss:{q_val_loss:.8f} val_bpb:{q_val_bpb:.8f}")
+ if __name__ == "__main__":
+-    main()
++    main()
