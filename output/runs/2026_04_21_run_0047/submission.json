@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15746369,
+  "code_bytes": 77199,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15669170,
+  "rationale": "The closest architectural miss was first-pass anchored tail recurrence. I am transplanting that anchor back onto the current best, which now already protects recurrent-tail Q/K tensors in the final int8 path. This keeps parameter count and compile shape unchanged, preserves the current quant-aware/EMA endgame, and specifically tests whether giving each recurrent tail block its own first-pass anchor improves the final exact int8+zlib roundtrip score.",
+  "run_id": "2026_04_21_run_0047",
+  "runtime_seconds": 617.669622,
+  "submitter": "frido22",
+  "title": "First-Pass Anchored Tail Recurrence On Recurrent-Tail QK Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536105,
+  "under_16mb": true,
+  "val_bpb": 1.52294108,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
