@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15749033,
+  "code_bytes": 77326,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15671707,
+  "rationale": "The current best still carries the quantization-safe bigram head, but its scale starts at zero, which blocks bigram_out and bigram_in from learning on the first step. This change keeps the branch initially silent by zero-initializing bigram_out, while giving it a nonzero scale so the head can start learning immediately under the 600-second step budget.",
+  "run_id": "2026_04_21_run_0048",
+  "runtime_seconds": 619.430516,
+  "submitter": "frido22",
+  "title": "Wake Bigram Head Early On Recurrent-Tail Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538100,
+  "under_16mb": true,
+  "val_bpb": 1.52745955,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
