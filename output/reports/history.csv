@@ -191,3 +191,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0057,1.526278,True,False,Rank-64 Output Head With Single Recurrent Tail Block
 2026_04_21_run_0058,1.529221,True,False,Wake Rank-64 Output Head Early With Single Recurrent Tail Block
 2026_04_21_run_0059,1.529571,True,False,Rank-128 Output Head With Single Recurrent Tail Block
+2026_04_21_run_0060,1.530199,True,False,Rank-128 Output Head With Float Kept Output Projection

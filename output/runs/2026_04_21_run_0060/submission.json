@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 14841017,
+  "code_bytes": 77409,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 14763608,
+  "rationale": "The rank-128 output-head branch still has large artifact headroom, but the larger output projection is currently getting quantized away at export. Keep that projection float and test whether the extra output capacity survives compression well enough to matter.",
+  "run_id": "2026_04_21_run_0060",
+  "runtime_seconds": 607.178582,
+  "submitter": "frido22",
+  "title": "Rank-128 Output Head With Float Kept Output Projection",
+  "track": "",
+  "train_time_ms": 532428,
+  "under_16mb": true,
+  "val_bpb": 1.53019896,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
