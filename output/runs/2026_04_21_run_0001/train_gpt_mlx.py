@@ -102,7 +102,7 @@ CONTROL_TENSOR_NAME_PATTERNS = tuple(
     pattern
     for pattern in os.environ.get(
         "CONTROL_TENSOR_NAME_PATTERNS",
-        "attn_scale,attn_scales,mlp_scale,mlp_scales,resid_mix,resid_mixes,q_gain,skip_weight,skip_weights",
+        "attn_scale,attn_scales,mlp_scale,mlp_scales,resid_mix,resid_mixes,q_gain,skip_weight,skip_weights,tail_recur_gate,tail_recur_gates",
     ).split(",")
     if pattern
 )
@@ -114,6 +114,8 @@ INT8_KEEP_FLOAT_FP32_NAME_PATTERNS = tuple(
     ).split(",")
     if pattern
 )
+TAIL_MLP_RECURRENCE_LAYERS = int(os.environ.get("TAIL_MLP_RECURRENCE_LAYERS", 2))
+TAIL_MLP_RECURRENCE_GATE_INIT = float(os.environ.get("TAIL_MLP_RECURRENCE_GATE_INIT", 0.5))
 def token_chunks(total_tokens: int, seq_len: int, max_chunk_tokens: int) -> list[int]:
     usable_total = (total_tokens // seq_len) * seq_len
     if usable_total <= 0:
@@ -302,6 +304,8 @@ class GPT(nn.Module):
         self.num_decoder_layers = num_layers - self.num_encoder_layers
         self.num_skip_weights = min(self.num_encoder_layers, self.num_decoder_layers)
         self.skip_weights = mx.ones((self.num_skip_weights, dim), dtype=mx.float32)
+        self.tail_recur_start = max(num_layers - max(TAIL_MLP_RECURRENCE_LAYERS, 0), 0)
+        self.tail_recur_gates = mx.ones((num_layers - self.tail_recur_start, dim), dtype=mx.float32) * TAIL_MLP_RECURRENCE_GATE_INIT
         self.blocks = [
             Block(dim, num_heads, num_kv_heads, mlp_mult, rope_base, qk_gain_init)
             for _ in range(num_layers)
@@ -327,6 +331,9 @@ class GPT(nn.Module):
             if skips:
                 x = x + self.skip_weights[i].astype(x.dtype)[None, None, :] * skips.pop()
             x = self.blocks[self.num_encoder_layers + i](x, x0)
+        for gate_idx, block_idx in enumerate(range(self.tail_recur_start, len(self.blocks))):
+            block = self.blocks[block_idx]
+            x = x + self.tail_recur_gates[gate_idx].astype(x.dtype)[None, None, :] * block.mlp_scale.astype(x.dtype)[None, None, :] * block.mlp(block.mlp_norm(x))
         return self.final_norm(x)
     def loss(self, input_ids: mx.array, target_ids: mx.array) -> mx.array:
         x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
@@ -1184,9 +1191,7 @@ def should_activate_quant_aware(args: Hyperparameters, step: int, elapsed_ms: fl
         return args.quant_aware_iters > 0 and step >= max(args.iterations - args.quant_aware_iters, 0)
     return elapsed_ms >= max(max_wallclock_ms - reserved_final_ms - 1000.0 * args.quant_aware_train_seconds, 0.0)
 def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tuple[float, float, float]:
-    if not quant_aware_active:
-        return 1.0, 1.0, 1.0
-    return args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul
+    return (args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul) if quant_aware_active else (1.0, 1.0, 1.0)
 def main() -> None:
     args = Hyperparameters()
     out_dir = Path(args.out_dir)
