@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 14690881,
+  "code_bytes": 77390,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 14613491,
+  "rationale": "The single-recurrence squeezed output-head branch is the strongest aggressive line so far and still leaves substantial artifact headroom. Spend some of that budget on a larger untied output head.",
+  "run_id": "2026_04_21_run_0059",
+  "runtime_seconds": 607.009283,
+  "submitter": "frido22",
+  "title": "Rank-128 Output Head With Single Recurrent Tail Block",
+  "track": "",
+  "train_time_ms": 532204,
+  "under_16mb": true,
+  "val_bpb": 1.52957089,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
