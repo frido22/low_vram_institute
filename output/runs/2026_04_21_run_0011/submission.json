@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13240731,
+  "code_bytes": 75158,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 13165573,
+  "rationale": "Build on the current Bigram64 plus QK=2.0 winner with a shared-heavy, unique-light depth change instead of another output-tail micro-ablation. This reuses a two-block encoder stem across the four encoder passes while keeping the full decoder tail, rank-64 bigram head, and current quant-aware endgame intact. The hypothesis is better learning-per-parameter under the 600-second Mac mini budget: the shared encoder weights get more gradient signal each step, artifact pressure drops materially, compile shapes stay fixed, and the saved bytes are spent preserving the same proven projection-only tail path rather than introducing a weaker new head.",
+  "run_id": "2026_04_21_run_0011",
+  "runtime_seconds": 607.461454,
+  "submitter": "frido22",
+  "title": "Shared Encoder Stem On Bigram64 Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538950,
+  "under_16mb": true,
+  "val_bpb": 1.56297326,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

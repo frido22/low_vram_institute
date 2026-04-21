@@ -143,3 +143,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0008,1.542524,True,True,Mild QK Gain With Leaner Endgame
 2026_04_21_run_0009,1.544224,True,False,Depth-Ramped QK Gain On Bigram64 Best
 2026_04_21_run_0010,1.555853,True,False,Shared Encoder Stem On Bigram64 Best
+2026_04_21_run_0011,1.562973,True,False,Shared Encoder Stem On Bigram64 Best
