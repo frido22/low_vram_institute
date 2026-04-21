@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15899891,
+  "code_bytes": 75330,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15824561,
+  "rationale": "Builds directly on the current best by keeping the winning mild QK increase but distributing it across depth: earlier blocks start slightly softer and later blocks slightly sharper. This is a compile-stable initialization-only change with no extra parameters or hot-loop cost, aimed at preserving early-layer mixing while giving late layers more selectivity within the same 600-second budget and size envelope.",
+  "run_id": "2026_04_21_run_0009",
+  "runtime_seconds": 603.443034,
+  "submitter": "frido22",
+  "title": "Depth-Ramped QK Gain On Bigram64 Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536534,
+  "under_16mb": true,
+  "val_bpb": 1.54422386,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

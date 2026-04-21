@@ -1,0 +1,192 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -47,9 +47,6 @@
+     quant_aware_proj_start: float = float(os.environ.get("QUANT_AWARE_PROJ_START", 0.55))
+     quant_aware_proj_step: float = float(os.environ.get("QUANT_AWARE_PROJ_STEP", 0.2))
+     quant_aware_proj_end: float = float(os.environ.get("QUANT_AWARE_PROJ_END", 0.95))
+-    final_calibration_seconds: float = float(os.environ.get("FINAL_CALIBRATION_SECONDS", 0.0))
+-    final_calibration_embed_lr_mul: float = float(os.environ.get("FINAL_CALIBRATION_EMBED_LR_MUL", 0.2))
+-    final_calibration_scalar_lr_mul: float = float(os.environ.get("FINAL_CALIBRATION_SCALAR_LR_MUL", 0.5))
+     vocab_size: int = int(os.environ.get("VOCAB_SIZE", 1024))
+     num_layers: int = int(os.environ.get("NUM_LAYERS", 9))
+     model_dim: int = int(os.environ.get("MODEL_DIM", 512))
+@@ -63,7 +60,8 @@
+     eval_stride: int = int(os.environ.get("EVAL_STRIDE", 64))
+     eval_doc_isolated: bool = bool(int(os.environ.get("EVAL_DOC_ISOLATED", "1")))
+     rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
+-    qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 1.5))
++    qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 2.0))
++    qk_gain_depth_span: float = float(os.environ.get("QK_GAIN_DEPTH_SPAN", 0.35))
+     beta1: float = float(os.environ.get("BETA1", 0.9))
+     beta2: float = float(os.environ.get("BETA2", 0.95))
+     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
+@@ -289,15 +287,15 @@
+ class GPT(nn.Module):
+     def __init__(self, vocab_size: int, num_layers: int, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int,
+                  logit_chunk_tokens: int, logit_softcap: float, rope_base: float, tied_embed_init_std: float,
+-                 qk_gain_init: float):
++                 qk_gain_init: float, qk_gain_depth_span: float):
+         super().__init__()
+         if logit_softcap <= 0.0:
+             raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
+-        self.logit_chunk_tokens = logit_chunk_tokens
+-        self.logit_softcap = logit_softcap
++        self.logit_chunk_tokens = logit_chunk_tokens; self.logit_softcap = logit_softcap
+         self.tok_emb = nn.Embedding(vocab_size, dim)
+-        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32)
+-        self.logit_gain = mx.array(1.0, dtype=mx.float32)
++        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32); self.logit_gain = mx.array(1.0, dtype=mx.float32); self.bigram_rank = int(os.environ.get("BIGRAM_RANK", 64))
++        if self.bigram_rank > 0:
++            self.bigram_in = nn.Embedding(vocab_size, self.bigram_rank); self.bigram_out = CastedLinear(self.bigram_rank, vocab_size); self.bigram_scale = mx.array(0.0, dtype=mx.float32)
+         self.num_encoder_layers = num_layers // 2
+         self.num_decoder_layers = num_layers - self.num_encoder_layers
+         self.num_skip_weights = min(self.num_encoder_layers, self.num_decoder_layers)
+@@ -307,17 +305,20 @@
+             for _ in range(num_layers)
+         ]
+         self.final_norm = RMSNormNoWeight()
++        if self.blocks:
++            denom = max(len(self.blocks) - 1, 1)
++            for block_idx, block in enumerate(self.blocks):
++                depth_pos = 2.0 * block_idx / denom - 1.0
++                block_qk_gain = max(qk_gain_init + qk_gain_depth_span * depth_pos, 0.1)
++                block.attn.q_gain = mx.ones_like(block.attn.q_gain) * block_qk_gain
+         for b in self.blocks:
+-            b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight)
+-            b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
+-        self.tok_emb.weight = (
+-            mx.random.normal(self.tok_emb.weight.shape, dtype=mx.float32) * tied_embed_init_std
+-        ).astype(COMPUTE_DTYPE)
+-    def softcap(self, logits: mx.array) -> mx.array:
+-        c = self.logit_softcap
+-        return c * mx.tanh(logits / c)
+-    def project_logits(self, x: mx.array) -> mx.array:
++            b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight); b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
++        self.tok_emb.weight = (mx.random.normal(self.tok_emb.weight.shape, dtype=mx.float32) * tied_embed_init_std).astype(COMPUTE_DTYPE)
++    def softcap(self, logits: mx.array) -> mx.array: return self.logit_softcap * mx.tanh(logits / self.logit_softcap)
++    def project_logits(self, x: mx.array, prev_ids: mx.array | None = None) -> mx.array:
+         logits = self.logit_gain.astype(x.dtype) * (x @ self.tok_emb.weight.astype(x.dtype).T)
++        if self.bigram_rank > 0 and prev_ids is not None:
++            logits = logits + self.bigram_scale.astype(x.dtype) * self.bigram_out(self.bigram_in(prev_ids.reshape(-1)).astype(x.dtype))
+         return self.softcap(logits + self.logit_bias.astype(x.dtype))
+     def __call__(self, input_ids: mx.array) -> mx.array:
+         x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))
+@@ -332,25 +333,23 @@
+             x = self.blocks[self.num_encoder_layers + i](x, x0)
+         return self.final_norm(x)
+     def loss(self, input_ids: mx.array, target_ids: mx.array) -> mx.array:
+-        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1])
+-        y = target_ids.reshape(-1)
++        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
+-            logits = self.project_logits(x)
++            logits = self.project_logits(x, prev_ids)
+             return nn.losses.cross_entropy(logits.astype(mx.float32), y, reduction="mean")
+         loss_sum = mx.array(0.0, dtype=mx.float32)
+         n = int(x.shape[0])
+         for s in range(0, n, self.logit_chunk_tokens):
+             e = min(s + self.logit_chunk_tokens, n)
+-            logits = self.project_logits(x[s:e])
++            logits = self.project_logits(x[s:e], prev_ids[s:e])
+             loss_sum = loss_sum + nn.losses.cross_entropy(logits.astype(mx.float32), y[s:e], reduction="sum")
+         return loss_sum / float(n)
+     def masked_loss(self, input_ids: mx.array, target_ids: mx.array, loss_mask: mx.array) -> mx.array:
+-        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1])
+-        y = target_ids.reshape(-1)
++        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+         mask = loss_mask.reshape(-1).astype(mx.float32)
+         denom = mx.maximum(mx.sum(mask), mx.array(1.0, dtype=mx.float32))
+         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
+-            logits = self.project_logits(x)
++            logits = self.project_logits(x, prev_ids)
+             logits_f = logits.astype(mx.float32)
+             token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[:, None], axis=-1).reshape(-1)
+             return mx.sum(token_loss.astype(mx.float32) * mask) / denom
+@@ -358,7 +357,7 @@
+         n = int(x.shape[0])
+         for s in range(0, n, self.logit_chunk_tokens):
+             e = min(s + self.logit_chunk_tokens, n)
+-            logits = self.project_logits(x[s:e])
++            logits = self.project_logits(x[s:e], prev_ids[s:e])
+             logits_f = logits.astype(mx.float32)
+             token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[s:e, None], axis=-1).reshape(-1)
+             loss_sum = mx.sum(token_loss.astype(mx.float32) * mask[s:e])
+@@ -452,8 +451,8 @@
+ INT8_CLIP_PERCENTILE = 99.99984; INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
+ INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99.9)); INT8_PROJ_CLIP_Q = INT8_PROJ_CLIP_PERCENTILE / 100.0
+ INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
+-INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 1))
+-INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
++INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
++INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 3))
+ PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
+ INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
+ INT8_FP16_KEEP_NAMES = tuple(
+@@ -1242,6 +1241,7 @@
+         rope_base=args.rope_base,
+         tied_embed_init_std=args.tied_embed_init_std,
+         qk_gain_init=args.qk_gain_init,
++        qk_gain_depth_span=args.qk_gain_depth_span,
+     )
+     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers)
+     opt = SplitOptimizers(model, args)
+@@ -1300,6 +1300,7 @@
+     eval_mode = "doc_isolated_sliding" if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0 else "flat_stream"
+     log(f"eval_mode:{eval_mode} bos_token_id:{bos_token_id} val_docs:{0 if doc_spans is None else len(doc_spans)}")
+     log(f"eval_stride:{args.eval_stride}")
++    log(f"qk_gain:init:{args.qk_gain_init} depth_span:{args.qk_gain_depth_span}")
+     log(f"compute_dtype:{COMPUTE_DTYPE} compile:True")
+     log(
+         f"dtypes tok_emb:{model.tok_emb.weight.dtype} "
+@@ -1318,11 +1319,9 @@
+         1000.0 * args.final_eval_reserve_seconds,
+         estimated_final_eval_ms * args.final_eval_reserve_scale + 1000.0 * args.final_eval_serialization_seconds,
+     )
+-    reserved_calibration_ms = 1000.0 * args.final_calibration_seconds
+     log(f"final_eval_budget:estimate_ms:{estimated_final_eval_ms:.0f} reserve_ms:{reserved_final_ms:.0f} estimate_batches:{args.final_eval_estimate_batches}")
+     log(f"quant_aware:train_seconds:{args.quant_aware_train_seconds:.1f} iters:{args.quant_aware_iters} every:{args.quant_aware_every}")
+     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
+-    log(f"final_calibration:seconds:{args.final_calibration_seconds:.1f} embed_lr_mul:{args.final_calibration_embed_lr_mul} scalar_lr_mul:{args.final_calibration_scalar_lr_mul}")
+     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
+     log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
+     log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
+@@ -1431,10 +1430,9 @@
+         if (
+             max_wallclock_ms is not None
+             and stop_after_step is None
+-            and approx_train_time_ms >= max(max_wallclock_ms - reserved_final_ms - reserved_calibration_ms, 0.0)
++            and approx_train_time_ms >= max(max_wallclock_ms - reserved_final_ms, 0.0)
+         ):
+             stop_after_step = step
+-    calibration_steps = 0
+     if last_quant_aware_step is not None and last_quant_aware_step != step:
+         apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
+         mx.synchronize()
+@@ -1442,18 +1440,6 @@
+     if proj_ema:
+         model.update(tree_unflatten(list(proj_ema.items())))
+         apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
+-    if args.final_calibration_seconds > 0:
+-        apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
+-        cal_t0 = time.perf_counter()
+-        while 1000.0 * (time.perf_counter() - cal_t0) < reserved_calibration_ms:
+-            train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad)
+-            if args.mlx_eager_eval:
+-                mx.eval(train_loss, grads)
+-            opt.step(model, clip_grad_tree(grads, args.grad_clip_norm), step=step + calibration_steps, lr_mul=1.0, embed_lr_mul=args.final_calibration_embed_lr_mul, matrix_lr_mul=0.0, scalar_lr_mul=args.final_calibration_scalar_lr_mul)
+-            mx.synchronize()
+-            calibration_steps += 1
+-        train_time_ms += 1000.0 * (time.perf_counter() - cal_t0)
+-        log(f"final_calibration_steps:{calibration_steps} train_time:{train_time_ms:.0f}ms")
+     out_path = out_dir / f"{args.run_id}_mlx_model.npz"
+     flat_state = {k: v for k, v in tree_flatten(model.state)}
+     mx.savez(str(out_path), **flat_state)
+@@ -1489,7 +1475,7 @@
+         log_fn=log,
+     )
+     q_eval_ms = 1000.0 * (time.perf_counter() - q_t0)
+-    total_train_tokens = (step + calibration_steps) * args.train_batch_tokens
++    total_train_tokens = step * args.train_batch_tokens
+     if train_time_ms > 0.0:
+         log(f"throughput:avg_tok_s:{total_train_tokens / (train_time_ms / 1000.0):.2f} total_tokens:{total_train_tokens}")
+     log(f"final_int8_zlib_roundtrip val_loss:{q_val_loss:.4f} val_bpb:{q_val_bpb:.4f} eval_time:{q_eval_ms:.0f}ms")
