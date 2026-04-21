@@ -165,3 +165,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0030,1.521011,True,False,Extend FP16 QKV Rescue To Both Recurrent Tail Blocks
 2026_04_21_run_0031,1.522169,True,False,First-Pass Anchored Tail Recurrence
 2026_04_21_run_0032,1.524311,True,False,First-Pass Anchored Tail Recurrence
+2026_04_21_run_0033,1.528622,True,False,Preserve Recurrent Tail Controls And QKV From EMA Finalizer

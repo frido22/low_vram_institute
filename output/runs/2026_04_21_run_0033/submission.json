@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15305022,
+  "code_bytes": 76278,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15228744,
+  "rationale": "The current best win came from keeping the recurrent final block's QKV out of int8, but the late EMA still averages those rescued QKV weights together with exact-FP32 control tensors such as tail_recur_gates before save. That smoothing is useful for lossy tensors, but it can blunt late-stage recurrent specialization on tensors that are already preserved accurately. This patch narrows EMA tracking to lossy non-QKV float-kept tensors plus the existing projection weights, so the recurrent tail attention path and exact control state stay at their final trained values while the quant-aware/projection stabilizer remains intact.",
+  "run_id": "2026_04_21_run_0033",
+  "runtime_seconds": 619.059248,
+  "submitter": "frido22",
+  "title": "Preserve Recurrent Tail Controls And QKV From EMA Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537792,
+  "under_16mb": true,
+  "val_bpb": 1.52862167,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
