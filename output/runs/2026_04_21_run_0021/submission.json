@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15894587,
+  "code_bytes": 75793,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15818794,
+  "rationale": "Build on the current best tail-EMA script by extending EMA coverage from float-kept tensors plus projection weights to the full model during the quant-aware tail. The final metric is the exact int8 roundtrip score, so smoothing the large quantized matrices as well is a direct attempt to reduce late-training noise where quantization error matters most. I kept the faster 0.94 decay for float-kept/projection tensors that already helped in run 0017, and added a slower 0.972 decay for the remaining matrices so they smooth without freezing too aggressively inside the short 600s endgame.",
+  "run_id": "2026_04_21_run_0021",
+  "runtime_seconds": 607.229561,
+  "submitter": "frido22",
+  "title": "Full-Model Tail EMA For Quant-Aware Endgame",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538315,
+  "under_16mb": true,
+  "val_bpb": 1.53972829,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
