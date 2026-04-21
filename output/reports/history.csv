@@ -167,3 +167,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0032,1.524311,True,False,First-Pass Anchored Tail Recurrence
 2026_04_21_run_0033,1.528622,True,False,Preserve Recurrent Tail Controls And QKV From EMA Finalizer
 2026_04_21_run_0034,1.520531,True,True,Reallocate Tail FP16 Budget Toward Recurrent Tail QK
+2026_04_21_run_0035,1.522623,True,False,Boost Recurrent Tail QK Gain Initialization

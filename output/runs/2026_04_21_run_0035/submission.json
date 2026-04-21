@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15750007,
+  "code_bytes": 76838,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15673169,
+  "rationale": "Builds directly on the current best recurrent-tail Q/K precision win. The last two blocks are the only blocks executed twice, and run 0034 suggests the exact int8 score is now dominated by tail attention geometry rather than broader architecture churn. This patch keeps the existing global QK gain at 2.0 but gives only the recurrent tail blocks a modest 1.25x stronger q-gain initialization, aiming to sharpen the reused tail attention path without oversharpening the rest of the network or spending extra bytes, steps, or compile budget.",
+  "run_id": "2026_04_21_run_0035",
+  "runtime_seconds": 618.983873,
+  "submitter": "frido22",
+  "title": "Boost Recurrent Tail QK Gain Initialization",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537667,
+  "under_16mb": true,
+  "val_bpb": 1.5226232,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
