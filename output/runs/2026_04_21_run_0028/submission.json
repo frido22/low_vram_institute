@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15304022,
+  "code_bytes": 76133,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15227889,
+  "rationale": "Build on the current two-block tail recurrence instead of changing the training path again. The last decoder block now runs twice, so its attention QKV matrices are more exposed to the final int8 roundtrip than the third-tail projection pair. This script makes that swap budget-neutral by reducing default tail projection rescue from 3 blocks to 2 while always float-keeping the final block's QKV weights; training shapes, step structure, and exact evaluation stay unchanged. I also removed the unused num_skip_weights field to keep the script lean.",
+  "run_id": "2026_04_21_run_0028",
+  "runtime_seconds": 618.83536,
+  "submitter": "frido22",
+  "title": "Reallocate Tail FP16 Budget Toward Recurrent Final-Block QKV",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537536,
+  "under_16mb": true,
+  "val_bpb": 1.52087236,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
