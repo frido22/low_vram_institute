@@ -184,3 +184,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0049,1.531408,True,False,Seed 2026 + Faster Exact Endgame On Recurrent-Tail Best
 2026_04_21_run_0050,1.524887,True,False,Tail QK Gain 1.10 On Recurrent-Tail Best
 2026_04_21_run_0051,1.529219,True,False,Projection Clip 99.99 Seed 2026 On Recurrent-Tail Best
+2026_04_21_run_0052,1.521169,True,False,Projection Clip 99.95 On Recurrent-Tail Best
