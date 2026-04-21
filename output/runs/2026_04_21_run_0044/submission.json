@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15749854,
+  "code_bytes": 77116,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15672738,
+  "rationale": "The current best already smooths float-kept and projection tensors late in training, but it leaves the large transposed `mlp.fc.weight` matrices in the recurrent tail unsmoothed even though earlier MLX runs found tail MLP-FC EMA helpful for final int8 roundtrip quality. This change keeps the winning recurrent-tail/QK setup intact and only extends the late EMA tracker to the recurrent tail expansion weights, targeting the final quantized metric without increasing artifact bytes or changing hot-path shapes.",
+  "run_id": "2026_04_21_run_0044",
+  "runtime_seconds": 619.450209,
+  "submitter": "frido22",
+  "title": "Recurrent-Tail MLP-FC EMA Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538092,
+  "under_16mb": true,
+  "val_bpb": 1.52244844,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
