@@ -158,3 +158,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0023,1.537711,True,False,Quantized-Only Tail Snaps With Float-Kept EMA
 2026_04_21_run_0024,1.535838,True,False,Quantized-Only Tail Snaps With Float-Kept EMA
 2026_04_21_run_0025,1.530060,True,True,Zero-Init Gated Final-Block Recurrence
+2026_04_21_run_0026,1.522306,True,True,Zero-Init Two-Block Tail Recurrence

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15630505,
+  "code_bytes": 76037,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15554468,
+  "rationale": "This compounds directly on the current winner instead of resetting: the zero-init gated final-block recurrence worked despite lower step count, so the next serious test is the minimal two-block extension suggested by the recurrent-depth lessons. The script now replays the last two decoder blocks once more with shared weights and per-channel zero-init gates, preserving the baseline at initialization, keeping shapes compile-stable, and adding only tiny float-kept control tensors while leaving the quant-aware endgame and exact int8+zlib evaluation path untouched. The hypothesis is that one extra shared late-tail refinement buys more final roundtrip quality per byte than another endgame-only quantizer tweak, while staying much closer to the proven recurrence path than the earlier failed carryover transplant.",
+  "run_id": "2026_04_21_run_0026",
+  "runtime_seconds": 619.141287,
+  "submitter": "frido22",
+  "title": "Zero-Init Two-Block Tail Recurrence",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537800,
+  "under_16mb": true,
+  "val_bpb": 1.52230646,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
