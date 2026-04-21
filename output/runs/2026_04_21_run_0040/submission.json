@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15676965,
+  "code_bytes": 977,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15675988,
+  "rationale": "Builds directly on the current best script and changes only one live behavior: the default projection INT8 clip percentile is raised from 99.9 to 99.99. Recent runs have already exhausted several recurrent-tail structure tweaks, so this pivots to a new quantizer-side idea that targets the exact final int8+zlib roundtrip metric with essentially zero runtime cost. The wrapper keeps the current best training path intact, removes duplicated unused code, and delegates everything else to the saved best script while preserving the required `MAX_WALLCLOCK_SECONDS` and `final_int8_zlib_roundtrip_exact` path.",
+  "run_id": "2026_04_21_run_0040",
+  "runtime_seconds": 619.356717,
+  "submitter": "frido22",
+  "title": "Loosen Projection INT8 Clip On Recurrent-Tail Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537993,
+  "under_16mb": true,
+  "val_bpb": 1.52137861,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
