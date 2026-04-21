@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15006250,
+  "code_bytes": 77389,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 14928861,
+  "rationale": "Add a real untied output adapter head that would normally increase float budget, then claw back bytes by reducing tail fp16 projection preservation from 2 blocks to 1.",
+  "run_id": "2026_04_21_run_0055",
+  "runtime_seconds": 622.855953,
+  "submitter": "frido22",
+  "title": "Rank-64 Output Head On Squeezed Tail Budget",
+  "track": "",
+  "train_time_ms": 540529,
+  "under_16mb": true,
+  "val_bpb": 1.52434868,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
