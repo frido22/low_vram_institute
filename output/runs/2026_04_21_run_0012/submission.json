@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15962827,
+  "code_bytes": 75287,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15887540,
+  "rationale": "Build on the current Bigram64 winner by keeping its exact main branch and adding one small rank-16 corrective bigram branch. The extra branch stays below the float-keep threshold as separate tensors, so this spends the remaining artifact budget on more n-gram capacity without forcing the whole tail into the worse quantized-rank80 regime. Training dynamics, quant-aware endgame, eval, and compile-stable shapes stay otherwise unchanged.",
+  "run_id": "2026_04_21_run_0012",
+  "runtime_seconds": 608.325905,
+  "submitter": "frido22",
+  "title": "Two-Branch Float-Kept Bigram Tail On Bigram64 Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538927,
+  "under_16mb": true,
+  "val_bpb": 1.54852662,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
