@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15623362,
+  "code_bytes": 76883,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15546479,
+  "rationale": "Build on the current winner by taking the next recommended step after the successful gated recurrence transplant: shared-heavy / unique-light tail tying. The last two recurrent decoder blocks keep their unique control tensors and recurrence gates, but their heavy matrices are forced into one shared operator by averaging them at init and summing their gradients each step, so the tied tail behaves like exact weight sharing without adding compile churn or new parameters. That should preserve the late-tail recurrence signal while improving reuse and zlib friendliness on the exact int8 roundtrip path. I also removed the unused num_skip_weights field and compressed constant setup to keep the script lean and below the 1500-line cap.",
+  "run_id": "2026_04_21_run_0027",
+  "runtime_seconds": 616.045431,
+  "submitter": "frido22",
+  "title": "Shared-Heavy Tied Tail On Two-Block Recurrence",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534764,
+  "under_16mb": true,
+  "val_bpb": 1.52578215,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
