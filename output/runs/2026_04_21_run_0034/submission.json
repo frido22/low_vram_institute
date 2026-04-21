@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15747364,
+  "code_bytes": 76384,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15670980,
+  "rationale": "Builds directly on run 0028 instead of resetting. The closest miss was keeping full QKV in FP16 for both recurrent tail blocks, which suggests the remaining byte budget is useful but the penultimate recurrent block does not need full value-path rescue. This version keeps Q and K in FP16 across all recurrent tail blocks while preserving the final-block V rescue and existing quant-aware endgame. The hypothesis is that the final int8+zlib score is more sensitive to recurrent attention geometry than to the penultimate recurrent value matrix, so this should preserve the gain from better tail attention precision with a leaner artifact than the full two-block QKV extension.",
+  "run_id": "2026_04_21_run_0034",
+  "runtime_seconds": 619.197195,
+  "submitter": "frido22",
+  "title": "Reallocate Tail FP16 Budget Toward Recurrent Tail QK",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537842,
+  "under_16mb": true,
+  "val_bpb": 1.52053106,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
