@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15675429,
+  "code_bytes": 898,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15674531,
+  "rationale": "The clip sweep missed. Test a gentler per-row offset threshold so more rows can keep offset-assisted int8 quantization without changing training dynamics.",
+  "run_id": "2026_04_21_run_0053",
+  "runtime_seconds": 619.983776,
+  "submitter": "frido22",
+  "title": "Row Offset Ratio 0.01 On Recurrent-Tail Best",
+  "track": "",
+  "train_time_ms": 538391,
+  "under_16mb": true,
+  "val_bpb": 1.52396831,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
