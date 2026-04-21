@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15905375,
+  "code_bytes": 75301,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15830074,
+  "rationale": "The recent misses suggest the next move should be a real architectural pivot, not another tiny replay of the same endgame knobs. I kept the current best qk-gain, bigram rank-64 tail, projection-only FP16 keep set, and quant-aware finish intact, then transplanted a lighter parallel-residual/shared-norm block style only into the decoder half. That preserves the stronger existing encoder path while making the output-facing blocks cheaper and less sequential, which should buy slightly more useful decoder updates inside the 600-second cap and test the parallel-residual motif without the heavier sharing changes that already failed. The change is compile-stable, adds no meaningful artifact bytes, removes the now-unused second decoder norm path, and still preserves the exact final int8+zlib roundtrip evaluation path and marker.",
+  "run_id": "2026_04_21_run_0013",
+  "runtime_seconds": 599.672039,
+  "submitter": "frido22",
+  "title": "Decoder Parallel Residual Shared-Norm On Bigram64 Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534040,
+  "under_16mb": true,
+  "val_bpb": 1.54290202,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
