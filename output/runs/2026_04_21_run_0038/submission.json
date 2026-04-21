@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15833602,
+  "code_bytes": 76687,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15756915,
+  "rationale": "Current wins are concentrated in the two-block recurrent tail and the FP16 rescue on recurrent Q/K, while the earlier MLP-only recurrence lost and recent full-block tail tweaks plateaued. This keeps the best recurrent-tail + FP16-QK setup but narrows the repeated pass to mixed-input plus attention only, preserving the zero-init gated carry while removing recurrent MLP compute/noise so the 600-second Mac mini budget can buy more useful steps for the final exact int8+zlib roundtrip metric.",
+  "run_id": "2026_04_21_run_0038",
+  "runtime_seconds": 612.127069,
+  "submitter": "frido22",
+  "title": "Attention-Only Recurrent Tail On QK-Rescued Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536565,
+  "under_16mb": true,
+  "val_bpb": 1.5274382,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
