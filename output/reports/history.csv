@@ -146,3 +146,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0011,1.562973,True,False,Shared Encoder Stem On Bigram64 Best
 2026_04_21_run_0012,1.548527,True,False,Two-Branch Float-Kept Bigram Tail On Bigram64 Best
 2026_04_21_run_0013,1.542902,True,False,Decoder Parallel Residual Shared-Norm On Bigram64 Best
+2026_04_21_run_0014,1.547800,True,False,Higher-LR Output Tail On Current Best

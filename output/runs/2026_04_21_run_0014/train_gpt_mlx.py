@@ -65,6 +65,7 @@ class Hyperparameters:
     beta2: float = float(os.environ.get("BETA2", 0.95))
     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
     tied_embed_lr: float = float(os.environ.get("TIED_EMBED_LR", 0.03))
+    output_lr: float = float(os.environ.get("OUTPUT_LR", 0.03))
     matrix_lr: float = float(os.environ.get("MATRIX_LR", 0.02))
     scalar_lr: float = float(os.environ.get("SCALAR_LR", 0.02))
     muon_momentum: float = float(os.environ.get("MUON_MOMENTUM", 0.95))
@@ -267,10 +268,13 @@ class MLP(nn.Module):
         x = nn.relu(self.fc(x))
         return self.proj(x * x)
 class Block(nn.Module):
-    def __init__(self, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int, rope_base: float, qk_gain_init: float):
+    def __init__(self, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int, rope_base: float,
+                 qk_gain_init: float, parallel_residual: bool = False):
         super().__init__()
-        self.attn_norm = RMSNormNoWeight()
-        self.mlp_norm = RMSNormNoWeight()
+        self.parallel_residual = parallel_residual
+        self.shared_norm = RMSNormNoWeight() if parallel_residual else None
+        self.attn_norm = None if parallel_residual else RMSNormNoWeight()
+        self.mlp_norm = None if parallel_residual else RMSNormNoWeight()
         self.attn = CausalSelfAttention(dim, num_heads, num_kv_heads, rope_base, qk_gain_init)
         self.mlp = MLP(dim, mlp_mult)
         self.attn_scale = mx.ones((dim,), dtype=mx.float32)
@@ -279,6 +283,9 @@ class Block(nn.Module):
     def __call__(self, x: mx.array, x0: mx.array) -> mx.array:
         mix = self.resid_mix.astype(x.dtype)
         x = mix[0][None, None, :] * x + mix[1][None, None, :] * x0
+        if self.parallel_residual:
+            h = self.shared_norm(x)
+            return x + self.attn_scale.astype(x.dtype)[None, None, :] * self.attn(h) + self.mlp_scale.astype(x.dtype)[None, None, :] * self.mlp(h)
         attn_out = self.attn(self.attn_norm(x))
         x = x + self.attn_scale.astype(x.dtype)[None, None, :] * attn_out
         x = x + self.mlp_scale.astype(x.dtype)[None, None, :] * self.mlp(self.mlp_norm(x))
@@ -297,12 +304,8 @@ class GPT(nn.Module):
             self.bigram_in = nn.Embedding(vocab_size, self.bigram_rank); self.bigram_out = CastedLinear(self.bigram_rank, vocab_size); self.bigram_scale = mx.array(0.0, dtype=mx.float32)
         self.num_encoder_layers = num_layers // 2
         self.num_decoder_layers = num_layers - self.num_encoder_layers
-        self.num_skip_weights = min(self.num_encoder_layers, self.num_decoder_layers)
-        self.skip_weights = mx.ones((self.num_skip_weights, dim), dtype=mx.float32)
-        self.blocks = [
-            Block(dim, num_heads, num_kv_heads, mlp_mult, rope_base, qk_gain_init)
-            for _ in range(num_layers)
-        ]
+        self.skip_weights = mx.ones((min(self.num_encoder_layers, self.num_decoder_layers), dim), dtype=mx.float32)
+        self.blocks = [Block(dim, num_heads, num_kv_heads, mlp_mult, rope_base, qk_gain_init, parallel_residual=block_idx >= self.num_encoder_layers) for block_idx in range(num_layers)]
         self.final_norm = RMSNormNoWeight()
         for b in self.blocks:
             b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight); b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
@@ -378,11 +381,14 @@ class Muon:
             scale = math.sqrt(max(1.0, float(p.shape[0]) / float(p.shape[1])))
             out[k] = p - lr * (g_ortho * scale).astype(p.dtype)
         return out
+OUTPUT_TAIL_PARAM_NAMES = frozenset(("logit_bias", "logit_gain", "bigram_scale", "bigram_in.weight", "bigram_out.weight"))
 class SplitOptimizers:
     def __init__(self, model: GPT, args: Hyperparameters):
         self.args = args
         params = dict(tree_flatten(model.parameters()))
         self.embed_key = "tok_emb.weight"
+        self.output_keys = [k for k in OUTPUT_TAIL_PARAM_NAMES if k in params]
+        output_key_set = set(self.output_keys)
         self.matrix_keys = [
             k
             for k, p in params.items()
@@ -391,11 +397,17 @@ class SplitOptimizers:
         self.scalar_keys = [
             k
             for k, p in params.items()
-            if k != self.embed_key and k not in self.matrix_keys and (k == "skip_weights" or p.ndim < 2 or any(pattern in k for pattern in CONTROL_TENSOR_NAME_PATTERNS) or int(p.size) <= 65_536)
+            if k != self.embed_key and k not in self.matrix_keys and k not in output_key_set and (k == "skip_weights" or p.ndim < 2 or any(pattern in k for pattern in CONTROL_TENSOR_NAME_PATTERNS) or int(p.size) <= 65_536)
         ]
         self.muon = Muon(self.matrix_keys, params, args)
         self.adam_embed = optim.Adam(
             learning_rate=args.tied_embed_lr,
+            betas=[args.beta1, args.beta2],
+            eps=args.adam_eps,
+            bias_correction=True,
+        )
+        self.adam_output = optim.Adam(
+            learning_rate=args.output_lr,
             betas=[args.beta1, args.beta2],
             eps=args.adam_eps,
             bias_correction=True,
@@ -427,6 +439,11 @@ class SplitOptimizers:
                 {self.embed_key: params[self.embed_key]},
             )
         )
+        if self.output_keys:
+            self.adam_output.learning_rate = self.args.output_lr * lr_mul * scalar_lr_mul
+            output_grads = {k: grads[k] for k in self.output_keys}
+            output_params = {k: params[k] for k in self.output_keys}
+            updated.update(self.adam_output.apply_gradients(output_grads, output_params))
         self.adam_scalar.learning_rate = self.args.scalar_lr * lr_mul * scalar_lr_mul
         scalar_grads = {k: grads[k] for k in self.scalar_keys}
         scalar_params = {k: params[k] for k in self.scalar_keys}
@@ -1283,8 +1300,9 @@ def main() -> None:
     )
     log(f"mlx_max_microbatch_tokens:{args.mlx_max_microbatch_tokens}")
     log(
-        f"optimizer:muon+adam muon_matrix_params:{len(opt.matrix_keys)} scalar_params:{len(opt.scalar_keys)} "
+        f"optimizer:muon+adam muon_matrix_params:{len(opt.matrix_keys)} output_params:{len(opt.output_keys)} scalar_params:{len(opt.scalar_keys)} "
         f"embed_lr:{args.tied_embed_lr} "
+        f"output_lr:{args.output_lr} "
         f"matrix_lr:{args.matrix_lr} scalar_lr:{args.scalar_lr} "
         f"muon_momentum:{args.muon_momentum} muon_steps:{args.muon_backend_steps}"
     )
@@ -1292,6 +1310,7 @@ def main() -> None:
     eval_mode = "doc_isolated_sliding" if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0 else "flat_stream"
     log(f"eval_mode:{eval_mode} bos_token_id:{bos_token_id} val_docs:{0 if doc_spans is None else len(doc_spans)}")
     log(f"eval_stride:{args.eval_stride}")
+    log(f"parallel_residual:decoder_blocks:{model.num_decoder_layers}/{args.num_layers}")
     log(f"compute_dtype:{COMPUTE_DTYPE} compile:True")
     log(
         f"dtypes tok_emb:{model.tok_emb.weight.dtype} "

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15904662,
+  "code_bytes": 76208,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15828454,
+  "rationale": "Build on the current best script without reopening the weaker recurrence or larger-tail branches. The winning bigram/output tail is float-kept and directly controls the scored logits, but it is still trained with the same generic scalar Adam rate as skip scales and other small controls. This change gives the output tail (`logit_gain`, `logit_bias`, `bigram_scale`, `bigram_in`, `bigram_out`) its own Adam group at the tied-embedding learning rate, aiming to let the strongest short-range head learn faster within the 600-second budget without injecting the noisy early-logit perturbation that hurt warm-start experiments. I also removed the unused `num_skip_weights` field to keep the script lean.",
+  "run_id": "2026_04_21_run_0014",
+  "runtime_seconds": 602.910452,
+  "submitter": "frido22",
+  "title": "Higher-LR Output Tail On Current Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 535250,
+  "under_16mb": true,
+  "val_bpb": 1.54780042,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
