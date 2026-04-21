@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15749176,
+  "code_bytes": 76941,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15672235,
+  "rationale": "Verify the current best local script after making it submission-safer for CPU smoke import checks. Keep the winning Reallocate Tail FP16 Budget Toward Recurrent Tail QK architecture/export path unchanged; only add an optional-dependency import guard so the file parses and imports cleanly when MLX is absent.",
+  "run_id": "2026_04_21_run_0041",
+  "runtime_seconds": 619.191007,
+  "submitter": "frido22",
+  "title": "Submission-Safe Recurrent Tail QK Verification",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537886,
+  "under_16mb": true,
+  "val_bpb": 1.51996743,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
