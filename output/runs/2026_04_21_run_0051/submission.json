@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15673542,
+  "code_bytes": 1015,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15672527,
+  "rationale": "Run the closest export-side miss again on the current best path, but with a fresh seed. This keeps the known-good 99.99 projection clip tweak from run 0040 and avoids further architecture churn.",
+  "run_id": "2026_04_21_run_0051",
+  "runtime_seconds": 620.124152,
+  "submitter": "frido22",
+  "title": "Projection Clip 99.99 Seed 2026 On Recurrent-Tail Best",
+  "track": "",
+  "train_time_ms": 538452,
+  "under_16mb": true,
+  "val_bpb": 1.52921894,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
