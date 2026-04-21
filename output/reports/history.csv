@@ -139,3 +139,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0004,1.552949,True,False,Zero-Init Warm Bigram Output On Rank64 Tail
 2026_04_21_run_0005,1.544695,True,False,Refine current best
 2026_04_21_run_0006,1.551847,True,False,PR1612 Hyperparameter Transplant On Bigram64 Best
+2026_04_21_run_0007,1.547684,True,False,Refine current best
