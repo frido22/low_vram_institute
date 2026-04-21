@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15903812,
+  "code_bytes": 75140,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15828672,
+  "rationale": "The current winner already benefits from a late EMA on tail projections plus a few exact head tensors. This run keeps that best path but broadens the EMA target set to every tensor that survives the final artifact in float, including skip/control vectors and other small float-kept tensors, while still tracking the tail projection suffixes even if they quantize. The hypothesis is that the exact roundtrip metric is now limited by late-step noise in these cheap float-rescued tensors rather than by the large quantized matrices, so smoothing them should help final_int8_zlib_roundtrip_exact val_bpb without spending bytes or compile budget. I also removed the now-redundant exact-name list.",
+  "run_id": "2026_04_21_run_0017",
+  "runtime_seconds": 603.863089,
+  "submitter": "frido22",
+  "title": "Expand Tail EMA To All Float-Kept Tensors",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536842,
+  "under_16mb": true,
+  "val_bpb": 1.53438068,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
