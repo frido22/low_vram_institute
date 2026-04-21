@@ -47,6 +47,8 @@ class Hyperparameters:
     quant_aware_proj_start: float = float(os.environ.get("QUANT_AWARE_PROJ_START", 0.55))
     quant_aware_proj_step: float = float(os.environ.get("QUANT_AWARE_PROJ_STEP", 0.2))
     quant_aware_proj_end: float = float(os.environ.get("QUANT_AWARE_PROJ_END", 0.95))
+    quant_aware_tail_blocks: int = int(os.environ.get("QUANT_AWARE_TAIL_BLOCKS", 4))
+    quant_aware_include_bigram: bool = bool(int(os.environ.get("QUANT_AWARE_INCLUDE_BIGRAM", "1")))
     final_calibration_seconds: float = float(os.environ.get("FINAL_CALIBRATION_SECONDS", 0.0))
     final_calibration_embed_lr_mul: float = float(os.environ.get("FINAL_CALIBRATION_EMBED_LR_MUL", 0.2))
     final_calibration_scalar_lr_mul: float = float(os.environ.get("FINAL_CALIBRATION_SCALAR_LR_MUL", 0.5))
@@ -102,7 +104,7 @@ CONTROL_TENSOR_NAME_PATTERNS = tuple(
     pattern
     for pattern in os.environ.get(
         "CONTROL_TENSOR_NAME_PATTERNS",
-        "attn_scale,attn_scales,mlp_scale,mlp_scales,resid_mix,resid_mixes,q_gain,skip_weight,skip_weights,tail_recur_gate,tail_recur_gates",
+        "attn_scale,attn_scales,mlp_scale,mlp_scales,resid_mix,resid_mixes,q_gain,skip_weight,skip_weights",
     ).split(",")
     if pattern
 )
@@ -114,8 +116,6 @@ INT8_KEEP_FLOAT_FP32_NAME_PATTERNS = tuple(
     ).split(",")
     if pattern
 )
-TAIL_MLP_RECURRENCE_LAYERS = int(os.environ.get("TAIL_MLP_RECURRENCE_LAYERS", 2))
-TAIL_MLP_RECURRENCE_GATE_INIT = float(os.environ.get("TAIL_MLP_RECURRENCE_GATE_INIT", 0.5))
 def token_chunks(total_tokens: int, seq_len: int, max_chunk_tokens: int) -> list[int]:
     usable_total = (total_tokens // seq_len) * seq_len
     if usable_total <= 0:
@@ -304,8 +304,6 @@ class GPT(nn.Module):
         self.num_decoder_layers = num_layers - self.num_encoder_layers
         self.num_skip_weights = min(self.num_encoder_layers, self.num_decoder_layers)
         self.skip_weights = mx.ones((self.num_skip_weights, dim), dtype=mx.float32)
-        self.tail_recur_start = max(num_layers - max(TAIL_MLP_RECURRENCE_LAYERS, 0), 0)
-        self.tail_recur_gates = mx.ones((num_layers - self.tail_recur_start, dim), dtype=mx.float32) * TAIL_MLP_RECURRENCE_GATE_INIT
         self.blocks = [
             Block(dim, num_heads, num_kv_heads, mlp_mult, rope_base, qk_gain_init)
             for _ in range(num_layers)
@@ -331,9 +329,6 @@ class GPT(nn.Module):
             if skips:
                 x = x + self.skip_weights[i].astype(x.dtype)[None, None, :] * skips.pop()
             x = self.blocks[self.num_encoder_layers + i](x, x0)
-        for gate_idx, block_idx in enumerate(range(self.tail_recur_start, len(self.blocks))):
-            block = self.blocks[block_idx]
-            x = x + self.tail_recur_gates[gate_idx].astype(x.dtype)[None, None, :] * block.mlp_scale.astype(x.dtype)[None, None, :] * block.mlp(block.mlp_norm(x))
         return self.final_norm(x)
     def loss(self, input_ids: mx.array, target_ids: mx.array) -> mx.array:
         x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
@@ -486,6 +481,10 @@ def build_int8_fp16_keep_names(num_layers: int) -> set[str]:
         prefix = f"blocks.{block_idx}."
         keep.update(prefix + suffix for suffix in BLOCK_FP16_PROJ_SUFFIXES)
     return keep
+def build_quant_aware_target_names(num_layers: int, tail_blocks: int, include_bigram: bool) -> set[str]:
+    target_names = {f"blocks.{block_idx}.{suffix}" for block_idx in range(max(num_layers - max(tail_blocks, 0), 0), num_layers) for suffix in BLOCK_FP16_MATRIX_SUFFIXES}
+    if include_bigram: target_names.update(("bigram_in.weight", "bigram_out.weight"))
+    return target_names
 def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
     return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL
 def keep_float_array(name: str, arr: mx.array, passthrough_orig_dtypes: dict[str, str]) -> np.ndarray:
@@ -623,25 +622,14 @@ def roundtrip_tensor_like_final(
     if transposed:
         out_arr = np.ascontiguousarray(out_arr.T)
     return mx.array(np.ascontiguousarray(out_arr), dtype=arr.dtype)
-def blend_tensor_toward_final(
-    name: str,
-    arr: mx.array,
-    int8_fp16_keep_names: set[str],
-    mix: float,
-) -> mx.array:
+def blend_tensor_toward_final(name: str, arr: mx.array, int8_fp16_keep_names: set[str], mix: float, target_names: set[str] | None = None) -> mx.array:
+    if target_names is not None and name not in target_names: return arr
     target = roundtrip_tensor_like_final(name, arr, int8_fp16_keep_names)
     if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names):
         return target
     return arr + (target - arr) * mix
-def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
-    model.update(
-        tree_unflatten(
-            [
-                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix))
-                for name, arr in tree_flatten(model.state)
-            ]
-        )
-    )
+def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0, target_names: set[str] | None = None) -> None:
+    model.update(tree_unflatten([(name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix, target_names=target_names)) for name, arr in tree_flatten(model.state)]))
 def build_sentencepiece_luts(
     sp: spm.SentencePieceProcessor, vocab_size: int
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -1191,7 +1179,9 @@ def should_activate_quant_aware(args: Hyperparameters, step: int, elapsed_ms: fl
         return args.quant_aware_iters > 0 and step >= max(args.iterations - args.quant_aware_iters, 0)
     return elapsed_ms >= max(max_wallclock_ms - reserved_final_ms - 1000.0 * args.quant_aware_train_seconds, 0.0)
 def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tuple[float, float, float]:
-    return (args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul) if quant_aware_active else (1.0, 1.0, 1.0)
+    if not quant_aware_active:
+        return 1.0, 1.0, 1.0
+    return args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul
 def main() -> None:
     args = Hyperparameters()
     out_dir = Path(args.out_dir)
@@ -1244,6 +1234,7 @@ def main() -> None:
         qk_gain_init=args.qk_gain_init,
     )
     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers)
+    quant_aware_target_names = build_quant_aware_target_names(args.num_layers, args.quant_aware_tail_blocks, args.quant_aware_include_bigram)
     opt = SplitOptimizers(model, args)
     compiled_loss = mx.compile(lambda x, y: model.loss(x, y), inputs=model.state, outputs=model.state)
     compiled_masked_loss = mx.compile(
@@ -1324,6 +1315,7 @@ def main() -> None:
     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
     log(f"final_calibration:seconds:{args.final_calibration_seconds:.1f} embed_lr_mul:{args.final_calibration_embed_lr_mul} scalar_lr_mul:{args.final_calibration_scalar_lr_mul}")
     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
+    log(f"quant_aware_targets:count:{len(quant_aware_target_names)} tail_blocks:{args.quant_aware_tail_blocks} include_bigram:{args.quant_aware_include_bigram}")
     log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
     log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
     train_time_ms = 0.0
@@ -1404,7 +1396,7 @@ def main() -> None:
         if should_activate_quant_aware(args, next_step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms) and (
             last_quant_aware_step is None or next_step - last_quant_aware_step >= args.quant_aware_every
         ):
-            apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix)
+            apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix, target_names=quant_aware_target_names or None)
             last_quant_aware_step = next_step
             quant_aware_proj_mix = min(quant_aware_proj_mix + args.quant_aware_proj_step, args.quant_aware_proj_end)
             did_quant_aware_roundtrip = True

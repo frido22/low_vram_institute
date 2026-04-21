@@ -132,3 +132,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_20_run_0025,1.551753,True,False,Refine current best
 2026_04_20_run_0026,1.554911,True,False,Factorized Trigram Tail On Bigram64 Quant Path
 2026_04_20_run_0027,1.548742,True,False,Float-Kept Tail EMA On Bigram64
+2026_04_20_run_0028,1.553026,True,False,Selective Quant-Aware Decoder Tail On Bigram64

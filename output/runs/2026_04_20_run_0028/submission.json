@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15895984,
+  "code_bytes": 77217,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15818767,
+  "rationale": "Keep the current best bigram-rank-64 plus projection-only FP16 tail intact, but stop perturbing the whole model during late quant-aware training. This run only nudges the final decoder-side blocks plus the bigram tail toward the exact final int8 roundtrip path, aiming to preserve earlier-layer learning while improving the tensors that most directly drive final_int8_zlib_roundtrip_exact val_bpb.",
+  "run_id": "2026_04_20_run_0028",
+  "runtime_seconds": 603.250153,
+  "submitter": "frido22",
+  "title": "Selective Quant-Aware Decoder Tail On Bigram64",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536072,
+  "under_16mb": true,
+  "val_bpb": 1.55302553,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

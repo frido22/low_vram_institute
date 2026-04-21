@@ -1,0 +1,167 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -47,6 +47,8 @@
+     quant_aware_proj_start: float = float(os.environ.get("QUANT_AWARE_PROJ_START", 0.55))
+     quant_aware_proj_step: float = float(os.environ.get("QUANT_AWARE_PROJ_STEP", 0.2))
+     quant_aware_proj_end: float = float(os.environ.get("QUANT_AWARE_PROJ_END", 0.95))
++    quant_aware_tail_blocks: int = int(os.environ.get("QUANT_AWARE_TAIL_BLOCKS", 4))
++    quant_aware_include_bigram: bool = bool(int(os.environ.get("QUANT_AWARE_INCLUDE_BIGRAM", "1")))
+     final_calibration_seconds: float = float(os.environ.get("FINAL_CALIBRATION_SECONDS", 0.0))
+     final_calibration_embed_lr_mul: float = float(os.environ.get("FINAL_CALIBRATION_EMBED_LR_MUL", 0.2))
+     final_calibration_scalar_lr_mul: float = float(os.environ.get("FINAL_CALIBRATION_SCALAR_LR_MUL", 0.5))
+@@ -293,11 +295,11 @@
+         super().__init__()
+         if logit_softcap <= 0.0:
+             raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
+-        self.logit_chunk_tokens = logit_chunk_tokens
+-        self.logit_softcap = logit_softcap
++        self.logit_chunk_tokens = logit_chunk_tokens; self.logit_softcap = logit_softcap
+         self.tok_emb = nn.Embedding(vocab_size, dim)
+-        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32)
+-        self.logit_gain = mx.array(1.0, dtype=mx.float32)
++        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32); self.logit_gain = mx.array(1.0, dtype=mx.float32); self.bigram_rank = int(os.environ.get("BIGRAM_RANK", 64))
++        if self.bigram_rank > 0:
++            self.bigram_in = nn.Embedding(vocab_size, self.bigram_rank); self.bigram_out = CastedLinear(self.bigram_rank, vocab_size); self.bigram_scale = mx.array(0.0, dtype=mx.float32)
+         self.num_encoder_layers = num_layers // 2
+         self.num_decoder_layers = num_layers - self.num_encoder_layers
+         self.num_skip_weights = min(self.num_encoder_layers, self.num_decoder_layers)
+@@ -308,16 +310,13 @@
+         ]
+         self.final_norm = RMSNormNoWeight()
+         for b in self.blocks:
+-            b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight)
+-            b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
+-        self.tok_emb.weight = (
+-            mx.random.normal(self.tok_emb.weight.shape, dtype=mx.float32) * tied_embed_init_std
+-        ).astype(COMPUTE_DTYPE)
+-    def softcap(self, logits: mx.array) -> mx.array:
+-        c = self.logit_softcap
+-        return c * mx.tanh(logits / c)
+-    def project_logits(self, x: mx.array) -> mx.array:
++            b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight); b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
++        self.tok_emb.weight = (mx.random.normal(self.tok_emb.weight.shape, dtype=mx.float32) * tied_embed_init_std).astype(COMPUTE_DTYPE)
++    def softcap(self, logits: mx.array) -> mx.array: return self.logit_softcap * mx.tanh(logits / self.logit_softcap)
++    def project_logits(self, x: mx.array, prev_ids: mx.array | None = None) -> mx.array:
+         logits = self.logit_gain.astype(x.dtype) * (x @ self.tok_emb.weight.astype(x.dtype).T)
++        if self.bigram_rank > 0 and prev_ids is not None:
++            logits = logits + self.bigram_scale.astype(x.dtype) * self.bigram_out(self.bigram_in(prev_ids.reshape(-1)).astype(x.dtype))
+         return self.softcap(logits + self.logit_bias.astype(x.dtype))
+     def __call__(self, input_ids: mx.array) -> mx.array:
+         x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))
+@@ -332,25 +331,23 @@
+             x = self.blocks[self.num_encoder_layers + i](x, x0)
+         return self.final_norm(x)
+     def loss(self, input_ids: mx.array, target_ids: mx.array) -> mx.array:
+-        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1])
+-        y = target_ids.reshape(-1)
++        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
+-            logits = self.project_logits(x)
++            logits = self.project_logits(x, prev_ids)
+             return nn.losses.cross_entropy(logits.astype(mx.float32), y, reduction="mean")
+         loss_sum = mx.array(0.0, dtype=mx.float32)
+         n = int(x.shape[0])
+         for s in range(0, n, self.logit_chunk_tokens):
+             e = min(s + self.logit_chunk_tokens, n)
+-            logits = self.project_logits(x[s:e])
++            logits = self.project_logits(x[s:e], prev_ids[s:e])
+             loss_sum = loss_sum + nn.losses.cross_entropy(logits.astype(mx.float32), y[s:e], reduction="sum")
+         return loss_sum / float(n)
+     def masked_loss(self, input_ids: mx.array, target_ids: mx.array, loss_mask: mx.array) -> mx.array:
+-        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1])
+-        y = target_ids.reshape(-1)
++        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+         mask = loss_mask.reshape(-1).astype(mx.float32)
+         denom = mx.maximum(mx.sum(mask), mx.array(1.0, dtype=mx.float32))
+         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
+-            logits = self.project_logits(x)
++            logits = self.project_logits(x, prev_ids)
+             logits_f = logits.astype(mx.float32)
+             token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[:, None], axis=-1).reshape(-1)
+             return mx.sum(token_loss.astype(mx.float32) * mask) / denom
+@@ -358,7 +355,7 @@
+         n = int(x.shape[0])
+         for s in range(0, n, self.logit_chunk_tokens):
+             e = min(s + self.logit_chunk_tokens, n)
+-            logits = self.project_logits(x[s:e])
++            logits = self.project_logits(x[s:e], prev_ids[s:e])
+             logits_f = logits.astype(mx.float32)
+             token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[s:e, None], axis=-1).reshape(-1)
+             loss_sum = mx.sum(token_loss.astype(mx.float32) * mask[s:e])
+@@ -452,8 +449,8 @@
+ INT8_CLIP_PERCENTILE = 99.99984; INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
+ INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99.9)); INT8_PROJ_CLIP_Q = INT8_PROJ_CLIP_PERCENTILE / 100.0
+ INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
+-INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 1))
+-INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
++INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
++INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 3))
+ PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
+ INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
+ INT8_FP16_KEEP_NAMES = tuple(
+@@ -484,6 +481,10 @@
+         prefix = f"blocks.{block_idx}."
+         keep.update(prefix + suffix for suffix in BLOCK_FP16_PROJ_SUFFIXES)
+     return keep
++def build_quant_aware_target_names(num_layers: int, tail_blocks: int, include_bigram: bool) -> set[str]:
++    target_names = {f"blocks.{block_idx}.{suffix}" for block_idx in range(max(num_layers - max(tail_blocks, 0), 0), num_layers) for suffix in BLOCK_FP16_MATRIX_SUFFIXES}
++    if include_bigram: target_names.update(("bigram_in.weight", "bigram_out.weight"))
++    return target_names
+ def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
+     return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL
+ def keep_float_array(name: str, arr: mx.array, passthrough_orig_dtypes: dict[str, str]) -> np.ndarray:
+@@ -621,25 +622,14 @@
+     if transposed:
+         out_arr = np.ascontiguousarray(out_arr.T)
+     return mx.array(np.ascontiguousarray(out_arr), dtype=arr.dtype)
+-def blend_tensor_toward_final(
+-    name: str,
+-    arr: mx.array,
+-    int8_fp16_keep_names: set[str],
+-    mix: float,
+-) -> mx.array:
++def blend_tensor_toward_final(name: str, arr: mx.array, int8_fp16_keep_names: set[str], mix: float, target_names: set[str] | None = None) -> mx.array:
++    if target_names is not None and name not in target_names: return arr
+     target = roundtrip_tensor_like_final(name, arr, int8_fp16_keep_names)
+     if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names):
+         return target
+     return arr + (target - arr) * mix
+-def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
+-    model.update(
+-        tree_unflatten(
+-            [
+-                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix))
+-                for name, arr in tree_flatten(model.state)
+-            ]
+-        )
+-    )
++def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0, target_names: set[str] | None = None) -> None:
++    model.update(tree_unflatten([(name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix, target_names=target_names)) for name, arr in tree_flatten(model.state)]))
+ def build_sentencepiece_luts(
+     sp: spm.SentencePieceProcessor, vocab_size: int
+ ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+@@ -1244,6 +1234,7 @@
+         qk_gain_init=args.qk_gain_init,
+     )
+     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers)
++    quant_aware_target_names = build_quant_aware_target_names(args.num_layers, args.quant_aware_tail_blocks, args.quant_aware_include_bigram)
+     opt = SplitOptimizers(model, args)
+     compiled_loss = mx.compile(lambda x, y: model.loss(x, y), inputs=model.state, outputs=model.state)
+     compiled_masked_loss = mx.compile(
+@@ -1324,6 +1315,7 @@
+     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
+     log(f"final_calibration:seconds:{args.final_calibration_seconds:.1f} embed_lr_mul:{args.final_calibration_embed_lr_mul} scalar_lr_mul:{args.final_calibration_scalar_lr_mul}")
+     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
++    log(f"quant_aware_targets:count:{len(quant_aware_target_names)} tail_blocks:{args.quant_aware_tail_blocks} include_bigram:{args.quant_aware_include_bigram}")
+     log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
+     log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
+     train_time_ms = 0.0
+@@ -1404,7 +1396,7 @@
+         if should_activate_quant_aware(args, next_step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms) and (
+             last_quant_aware_step is None or next_step - last_quant_aware_step >= args.quant_aware_every
+         ):
+-            apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix)
++            apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix, target_names=quant_aware_target_names or None)
+             last_quant_aware_step = next_step
+             quant_aware_proj_mix = min(quant_aware_proj_mix + args.quant_aware_proj_step, args.quant_aware_proj_end)
+             did_quant_aware_roundtrip = True
