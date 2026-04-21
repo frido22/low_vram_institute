@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15888558,
+  "code_bytes": 76605,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15811953,
+  "rationale": "Recent misses were mostly new tail architectures. This keeps the best Bigram-64 projection-tail path intact and instead spends a small reserved slice on post-roundtrip calibration targeted only at the float-kept logit/bigram head, which is closest to the final exact int8+zlib score. The change is compile-stable, stays within the existing wallclock budget, removes the unused embed-calibration knob, and directly optimizes the parameters that survive quantization with the least distortion.",
+  "run_id": "2026_04_21_run_0002",
+  "runtime_seconds": 2185.295086,
+  "submitter": "frido22",
+  "title": "Roundtripped Bigram Tail Calibration",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 532335,
+  "under_16mb": true,
+  "val_bpb": 1.62264482,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
