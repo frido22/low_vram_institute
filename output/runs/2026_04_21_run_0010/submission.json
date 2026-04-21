@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13235700,
+  "code_bytes": 75158,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 13160542,
+  "rationale": "Build on the current Bigram64+QK2.0 winner with the next high-priority Mac-mini idea category: shared-heavy, unique-light depth. This patch reuses a two-block encoder stem across all encoder passes while keeping the full decoder tail, bigram head, and exact quant-aware endgame intact. That cuts unique parameters and quantized artifact pressure without adding compile churn or extra per-step compute, which is a better fit for a 600-second M4 budget than another tail-only micro-ablation.",
+  "run_id": "2026_04_21_run_0010",
+  "runtime_seconds": 605.720639,
+  "submitter": "frido22",
+  "title": "Shared Encoder Stem On Bigram64 Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538341,
+  "under_16mb": true,
+  "val_bpb": 1.55585348,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
