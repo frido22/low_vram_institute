@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15898544,
+  "code_bytes": 75590,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15822954,
+  "rationale": "Full-decoder parallel residual slightly improved throughput but slightly hurt final int8 val_bpb. This keeps the current best script intact except for applying shared-norm parallel residual only to the deepest decoder tail blocks, aiming to preserve the step-rate gain while avoiding disruption in the earlier skip-fused decoder blocks.",
+  "run_id": "2026_04_21_run_0015",
+  "runtime_seconds": 598.057771,
+  "submitter": "frido22",
+  "title": "Tail-Only Decoder Parallel Residual",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 529641,
+  "under_16mb": true,
+  "val_bpb": 1.54850426,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
