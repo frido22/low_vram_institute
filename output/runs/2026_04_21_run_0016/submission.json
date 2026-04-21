@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15897077,
+  "code_bytes": 75129,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15821948,
+  "rationale": "Current best already uses a quant-aware endgame, but its late EMA only tracks projection matrices that still get int8-quantized. The exact final score is now dominated by the float-kept tail as well: the last projection blocks, tied embedding/output path, and the rank-64 bigram head. This patch keeps the winning Bigram64 + lean tail setup intact and extends the late EMA to those exact tensors, so the final int8+zlib roundtrip evaluates a smoother version of the actual export path instead of only smoothing earlier quantized projections.",
+  "run_id": "2026_04_21_run_0016",
+  "runtime_seconds": 603.963368,
+  "submitter": "frido22",
+  "title": "Tail EMA On Float-Kept Bigram64 Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536842,
+  "under_16mb": true,
+  "val_bpb": 1.54007858,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

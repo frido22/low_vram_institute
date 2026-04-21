@@ -148,3 +148,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0013,1.542902,True,False,Decoder Parallel Residual Shared-Norm On Bigram64 Best
 2026_04_21_run_0014,1.547800,True,False,Higher-LR Output Tail On Current Best
 2026_04_21_run_0015,1.548504,True,False,Tail-Only Decoder Parallel Residual
+2026_04_21_run_0016,1.540079,True,True,Tail EMA On Float-Kept Bigram64 Best
