@@ -154,3 +154,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0019,1.541253,True,False,Decoder Parallel Residual On Tail-EMA Bigram Best
 2026_04_21_run_0020,1.547893,True,False,Compound Decoder Parallel Residual On EMA Best
 2026_04_21_run_0021,1.539728,True,False,Full-Model Tail EMA For Quant-Aware Endgame
+2026_04_21_run_0022,1.534739,True,False,Reallocate Bigram Tail Precision Toward Output Projection

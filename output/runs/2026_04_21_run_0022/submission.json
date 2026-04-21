@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15964810,
+  "code_bytes": 75918,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15888892,
+  "rationale": "Compound on the EMA best by shifting exact-export precision within the low-rank bigram tail: force `bigram_in.weight` onto the real int8 path, keep the directly logit-facing `bigram_out.weight` plus output scalars in fp32, and keep EMA tracking on the whole output tail. The hypothesis is that final exact `int8+zlib` score cares more about precision at the last projection than at the input factor, and this swap should stay under the 16 MB cap while targeting the compressed-roundtrip objective directly.",
+  "run_id": "2026_04_21_run_0022",
+  "runtime_seconds": 606.935419,
+  "submitter": "frido22",
+  "title": "Reallocate Bigram Tail Precision Toward Output Projection",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537921,
+  "under_16mb": true,
+  "val_bpb": 1.53473868,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
