@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15897739,
+  "code_bytes": 76330,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15821409,
+  "rationale": "The current best script learns the rank-64 bigram tail late because `bigram_scale` starts at zero, which blocks gradient flow into the bigram weights during the expensive early steps of a 600-second run. A previous warm-start helped but likely paid some random-logit tax. This variant keeps the proven bigram64 path, warms `bigram_scale` to 0.01 so the branch trains from step 1, and zero-initializes `bigram_out.weight` so the initial logits stay exactly neutral instead of noisy. That directly targets short-run tail learning without adding runtime or artifact-size pressure.",
+  "run_id": "2026_04_21_run_0004",
+  "runtime_seconds": 603.153198,
+  "submitter": "frido22",
+  "title": "Zero-Init Warm Bigram Output On Rank64 Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536282,
+  "under_16mb": true,
+  "val_bpb": 1.55294879,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
