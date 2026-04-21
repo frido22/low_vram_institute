@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15746371,
+  "code_bytes": 76943,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15669428,
+  "rationale": "Pivoting away from the flat output-head and small hyperparameter retries, this keeps the current recurrent-tail QK quantization path intact, moves to a slightly deeper and narrower 10x480 model for similar 600-second compute, and spends the recovered compression budget on one more float-kept tail projection block.",
+  "run_id": "2026_04_21_run_0064",
+  "runtime_seconds": 621.995311,
+  "submitter": "frido22",
+  "title": "10x480 Recurrent Tail With Extra FP16 Tail Projections",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 484021,
+  "under_16mb": true,
+  "val_bpb": 1.54351512,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
