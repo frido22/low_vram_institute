@@ -193,3 +193,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0059,1.529571,True,False,Rank-128 Output Head With Single Recurrent Tail Block
 2026_04_21_run_0060,1.530199,True,False,Rank-128 Output Head With Float Kept Output Projection
 2026_04_21_run_0061,1.531726,True,False,SeekerPrice Hyperparameter Transplant On Recurrent-Tail Best
+2026_04_21_run_0062,1.524813,True,False,Fast Control LR Split On Recurrent-Tail QK Best

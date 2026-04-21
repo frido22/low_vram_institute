@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15744526,
+  "code_bytes": 77981,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15666545,
+  "rationale": "Builds directly on the current best recurrent-tail QK script without spending more quantized bytes or adding runtime-heavy recurrence. The best path relies on tiny zero- or near-zero-init control tensors like tail_recur_gates, q_gain, bigram_scale, and logit_gain, but they currently share the same Adam group as all other small tensors. This split gives those fast-acting controls a higher default learning rate so the recurrent tail, attention temperature, and lightweight output calibration can move earlier within the 600-second budget, while the larger scalar/residual controls keep the safer baseline behavior. The exact final int8+zlib path, validation split, print formats, and best-script evaluation reserves remain intact.",
+  "run_id": "2026_04_21_run_0062",
+  "runtime_seconds": 619.674867,
+  "submitter": "frido22",
+  "title": "Fast Control LR Split On Recurrent-Tail QK Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538264,
+  "under_16mb": true,
+  "val_bpb": 1.52481334,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
