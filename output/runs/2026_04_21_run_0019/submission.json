@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15907290,
+  "code_bytes": 75609,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15831681,
+  "rationale": "Builds directly on the current winner and folds in the strongest recent architectural near-miss instead of repeating another EMA-only tweak. This switches decoder blocks to the earlier shared-norm parallel residual path while preserving the winning bigram tail, quant-aware endgame, and expanded float-kept EMA. The change costs essentially no artifact bytes, slightly trims decoder normalization work, and may let the late-stage EMA/roundtrip stack exploit the decoder more effectively under the 600-second wallclock.",
+  "run_id": "2026_04_21_run_0019",
+  "runtime_seconds": 601.270963,
+  "submitter": "frido22",
+  "title": "Decoder Parallel Residual On Tail-EMA Bigram Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 534685,
+  "under_16mb": true,
+  "val_bpb": 1.54125327,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

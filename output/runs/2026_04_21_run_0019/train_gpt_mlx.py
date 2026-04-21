@@ -267,16 +267,7 @@ class MLP(nn.Module):
         x = nn.relu(self.fc(x))
         return self.proj(x * x)
 class Block(nn.Module):
-    def __init__(
-        self,
-        dim: int,
-        num_heads: int,
-        num_kv_heads: int,
-        mlp_mult: int,
-        rope_base: float,
-        qk_gain_init: float,
-        parallel_residual: bool = False,
-    ):
+    def __init__(self, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int, rope_base: float, qk_gain_init: float, parallel_residual: bool = False):
         super().__init__()
         self.parallel_residual = parallel_residual
         self.shared_norm = RMSNormNoWeight() if parallel_residual else None
@@ -311,7 +302,8 @@ class GPT(nn.Module):
             self.bigram_in = nn.Embedding(vocab_size, self.bigram_rank); self.bigram_out = CastedLinear(self.bigram_rank, vocab_size); self.bigram_scale = mx.array(0.0, dtype=mx.float32)
         self.num_encoder_layers = num_layers // 2
         self.num_decoder_layers = num_layers - self.num_encoder_layers
-        self.skip_weights = mx.ones((min(self.num_encoder_layers, self.num_decoder_layers), dim), dtype=mx.float32)
+        self.num_skip_weights = min(self.num_encoder_layers, self.num_decoder_layers)
+        self.skip_weights = mx.ones((self.num_skip_weights, dim), dtype=mx.float32)
         self.blocks = [Block(dim, num_heads, num_kv_heads, mlp_mult, rope_base, qk_gain_init, parallel_residual=block_idx >= self.num_encoder_layers) for block_idx in range(num_layers)]
         self.final_norm = RMSNormNoWeight()
         for b in self.blocks:
@@ -1304,7 +1296,6 @@ def main() -> None:
     eval_mode = "doc_isolated_sliding" if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0 else "flat_stream"
     log(f"eval_mode:{eval_mode} bos_token_id:{bos_token_id} val_docs:{0 if doc_spans is None else len(doc_spans)}")
     log(f"eval_stride:{args.eval_stride}")
-    log(f"parallel_residual:decoder_blocks:{model.num_decoder_layers}/{args.num_layers}")
     log(f"compute_dtype:{COMPUTE_DTYPE} compile:True")
     log(
         f"dtypes tok_emb:{model.tok_emb.weight.dtype} "

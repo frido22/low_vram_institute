@@ -151,3 +151,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0016,1.540079,True,True,Tail EMA On Float-Kept Bigram64 Best
 2026_04_21_run_0017,1.534381,True,True,Expand Tail EMA To All Float-Kept Tensors
 2026_04_21_run_0018,1.537901,True,False,Split-Rate EMA For Float-Kept Matrices
+2026_04_21_run_0019,1.541253,True,False,Decoder Parallel Residual On Tail-EMA Bigram Best
