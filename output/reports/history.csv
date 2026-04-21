@@ -196,3 +196,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0062,1.524813,True,False,Fast Control LR Split On Recurrent-Tail QK Best
 2026_04_21_run_0063,1.588246,True,False,Five-Sequence Updates With Larger Eval Batch
 2026_04_21_run_0064,1.543515,True,False,10x480 Recurrent Tail With Extra FP16 Tail Projections
+2026_04_21_run_0065,1.521910,True,False,Refine current best
