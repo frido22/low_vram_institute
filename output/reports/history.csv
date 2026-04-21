@@ -163,3 +163,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0028,1.520872,True,True,Reallocate Tail FP16 Budget Toward Recurrent Final-Block QKV
 2026_04_21_run_0029,1.522891,True,False,Gated Tail Carryover On Two-Block Recurrence
 2026_04_21_run_0030,1.521011,True,False,Extend FP16 QKV Rescue To Both Recurrent Tail Blocks
+2026_04_21_run_0031,1.522169,True,False,First-Pass Anchored Tail Recurrence

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15300225,
+  "code_bytes": 76338,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15223887,
+  "rationale": "Build on the current two-block tail-recurrence winner without adding parameters or export bytes. The repeated tail blocks now reuse their own first-pass inputs as the residual anchor on the recurrent pass instead of the original token-embedding anchor, so the learned resid_mix in those blocks refines an already-deep state rather than being pulled back toward shallow features. This is a minimal recurrent-depth transplant that preserves the current FP16 QKV rescue, quant-aware endgame, exact int8+zlib evaluation path, and Mac-mini compile stability.",
+  "run_id": "2026_04_21_run_0031",
+  "runtime_seconds": 616.900199,
+  "submitter": "frido22",
+  "title": "First-Pass Anchored Tail Recurrence",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 535569,
+  "under_16mb": true,
+  "val_bpb": 1.52216867,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
