@@ -181,3 +181,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0046,1.524058,True,False,Carry-Gated Input Anchor On Recurrent Tail QK Best
 2026_04_21_run_0047,1.522941,True,False,First-Pass Anchored Tail Recurrence On Recurrent-Tail QK Best
 2026_04_21_run_0048,1.527460,True,False,Wake Bigram Head Early On Recurrent-Tail Best
+2026_04_21_run_0049,1.531408,True,False,Seed 2026 + Faster Exact Endgame On Recurrent-Tail Best

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15750637,
+  "code_bytes": 76942,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15673695,
+  "rationale": "MLX docs suggest reducing unnecessary evaluation overhead. Keep the current best model/export path, but raise VAL_BATCH_SIZE to 16384, cut FINAL_EVAL_ESTIMATE_BATCHES to 1, and rerun with a fresh seed to test whether cheaper exact-endgame budgeting improves the 10-minute result without changing architecture.",
+  "run_id": "2026_04_21_run_0049",
+  "runtime_seconds": 619.10958,
+  "submitter": "frido22",
+  "title": "Seed 2026 + Faster Exact Endgame On Recurrent-Tail Best",
+  "track": "",
+  "train_time_ms": 538261,
+  "under_16mb": true,
+  "val_bpb": 1.53140845,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
