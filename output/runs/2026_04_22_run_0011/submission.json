@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15760566,
+  "code_bytes": 78038,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15682528,
+  "rationale": "Builds directly on the current 9x512 recurrent-tail best, but shifts the small bigram residual head out of the early training budget. The trunk and recurrent tail already carry the strongest local signal; waking the bigram path only after about 58% of the train budget tests an unspent output-path/speed tradeoff instead of another small LR sweep. This should slightly reduce early-step logit work, buy a few more trunk updates under the 600s cap, and let the bigram head act as a late local-order correction before the existing quant-aware endgame and exact int8+zlib evaluation.",
+  "run_id": "2026_04_22_run_0011",
+  "runtime_seconds": 619.077104,
+  "submitter": "frido22",
+  "title": "Late Bigram Wake-In On Recurrent-Tail QK Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537607,
+  "under_16mb": true,
+  "val_bpb": 1.52197283,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
