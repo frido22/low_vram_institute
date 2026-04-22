@@ -226,3 +226,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_22_run_0026,1.521954,True,False,First Recurrent Block Parallel Residual Tail
 2026_04_22_run_0027,1.526897,True,False,Recurrent-Tail V EMA Smoothing
 2026_04_22_run_0028,1.523259,True,False,Normalized Local Anchor For Recurrent Tail
+2026_04_22_run_0029,1.525055,True,False,Recurrent Tail Sublayer Rebalancing

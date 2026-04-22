@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15748594,
+  "code_bytes": 77506,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15671088,
+  "rationale": "Builds directly on the 9x512 recurrent-tail best while staying compile-stable and size-safe. The new recurrent-pass-only attn/MLP log-scales let the second pass rebalance reused tail blocks without changing first-pass behavior, which targets an unspent structural knob on the proven recurrent path rather than repeating output-head or pure LR sweeps. The added tensors are tiny control-state, remain float-kept under the existing export rules, and preserve the exact final int8+zlib evaluation path.",
+  "run_id": "2026_04_22_run_0029",
+  "runtime_seconds": 620.629813,
+  "submitter": "frido22",
+  "title": "Recurrent Tail Sublayer Rebalancing",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 539109,
+  "under_16mb": true,
+  "val_bpb": 1.52505521,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
