@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15751594,
+  "code_bytes": 77029,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15674565,
+  "rationale": "Switch the two-block recurrent tail from a delayed second sweep to per-block interleaved refinement. This is a new recurrence-order experiment on top of the current recurrent-tail baseline: it adds no model parameters, preserves compile-stable shapes, keeps the exact quant-aware/export path intact, and lets block 8 see a twice-refined block-7 state instead of waiting until after the whole tail sweep.",
+  "run_id": "2026_04_22_run_0007",
+  "runtime_seconds": 619.069949,
+  "submitter": "frido22",
+  "title": "Interleaved Tail Recurrence Refinement",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537597,
+  "under_16mb": true,
+  "val_bpb": 1.52514725,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
