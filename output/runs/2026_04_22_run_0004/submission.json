@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15744427,
+  "code_bytes": 77486,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15666941,
+  "rationale": "Build on the 9x512 recurrent-tail winner with a minimal gated-carryover transplant instead of another LR sweep. Each reused tail block now learns a zero-init per-dimension carry gate that mixes the current deep state back toward that block's original decoder input before the shared block is applied again. This keeps the proven recurrent-tail/quant-aware endgame intact, adds only tiny float32 control tensors, stays compile-stable, and directly tests the underexplored gated-recurrence idea from the MLX/EvoNAS findings without paying for extra repeated blocks.",
+  "run_id": "2026_04_22_run_0004",
+  "runtime_seconds": 622.334195,
+  "submitter": "frido22",
+  "title": "Gated Tail State Carryover On Recurrent-Tail Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 540630,
+  "under_16mb": true,
+  "val_bpb": 1.52454363,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
