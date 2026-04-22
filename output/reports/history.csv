@@ -221,3 +221,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_22_run_0021,1.525048,True,False,Widen Bigram Residual And Keep It Export-Safe
 2026_04_22_run_0022,1.522450,True,False,Recurrent-Pass Tail Attention Softening
 2026_04_22_run_0023,1.524669,True,False,Final-Block-Only First-Pass Anchor On Recurrent Tail
+2026_04_22_run_0024,1.521032,True,False,Shift Tail V Rescue To The First Recurrent Block

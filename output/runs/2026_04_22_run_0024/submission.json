@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15747591,
+  "code_bytes": 77370,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15670221,
+  "rationale": "Keeps the winning 9x512 recurrent-tail baseline intact but reallocates the single FP16-kept attention V matrix from the last block to the first recurrent-tail block. The hypothesis is that earlier recurrent-tail V precision is more leverageful because its attention output is reused and then processed by the remaining tail path before final quantized export, while compressed size stays essentially flat.",
+  "run_id": "2026_04_22_run_0024",
+  "runtime_seconds": 619.856503,
+  "submitter": "frido22",
+  "title": "Shift Tail V Rescue To The First Recurrent Block",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538458,
+  "under_16mb": true,
+  "val_bpb": 1.52103166,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
