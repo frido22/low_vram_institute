@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15841007,
+  "code_bytes": 79122,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15761885,
+  "rationale": "Builds directly on the current late-aligned recurrent-tail best, but spends the early wallclock budget on a cheaper one-block tail recurrence before switching back to the full two-block tail for the quant-aware endgame and final exact int8 evaluation. This targets more useful optimizer steps under the 600s Mac-mini cap without changing the final scored architecture or export path.",
+  "run_id": "2026_04_22_run_0042",
+  "runtime_seconds": 621.387887,
+  "submitter": "frido22",
+  "title": "Staged Tail-Recurrence Depth Schedule",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 539871,
+  "under_16mb": true,
+  "val_bpb": 1.5245212,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
