@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15892847,
+  "code_bytes": 77096,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15815751,
+  "rationale": "Builds directly on the current late-aligned decoder-skip winner, but spends the remaining byte headroom on the exact path that now matters more: both recurrent tail blocks receive direct late decoder context, so keeping each block's QKV matrices float-kept should preserve that repeated tail computation through the final int8+zlib roundtrip more faithfully than rescuing only QK plus the last V. This is a compact tail float-budget reallocation, not a new side head or a replayed LR sweep, and it also removes the old special-case final-block V rule as unused complexity.",
+  "run_id": "2026_04_22_run_0039",
+  "runtime_seconds": 624.903325,
+  "submitter": "frido22",
+  "title": "Late-Skip Tail QKV Float Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 540837,
+  "under_16mb": true,
+  "val_bpb": 1.51985127,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
