@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15751575,
+  "code_bytes": 77866,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15673709,
+  "rationale": "Build on the 9x512 recurrent-tail QK best by tying only the two recurrent tail blocks' Q/K matrices. The local winner already says those Q/K tensors are the protected critical path, while broader tail sharing hurt. This averages the tail Q/K weights at init and sums their gradients thereafter, preserving compile stability and the existing quant-aware int8 endgame while spending the sharing budget only on the float-kept tensors most likely to move final_int8_zlib_roundtrip_exact.",
+  "run_id": "2026_04_22_run_0015",
+  "runtime_seconds": 620.442985,
+  "submitter": "frido22",
+  "title": "Recurrent-Tail QK Weight Tying",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537532,
+  "under_16mb": true,
+  "val_bpb": 1.52234132,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

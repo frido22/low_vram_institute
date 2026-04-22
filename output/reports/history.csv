@@ -212,3 +212,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_22_run_0012,1.522892,True,False,Late Reverse Tail Recurrence Switch
 2026_04_22_run_0013,1.526515,True,False,Earlier Tail Warm-In With Full Recurrent QKV Rescue
 2026_04_22_run_0014,1.521024,True,False,Learned First-Pass Anchor On Recurrent Tail
+2026_04_22_run_0015,1.522341,True,False,Recurrent-Tail QK Weight Tying

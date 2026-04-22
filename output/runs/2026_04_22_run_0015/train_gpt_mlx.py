@@ -435,10 +435,8 @@ MX_DTYPE_FROM_NAME = {
     "float16": mx.float16,
     "bfloat16": mx.bfloat16,
 }
-INT8_KEEP_FLOAT_MAX_NUMEL = 65_536
-INT8_KEEP_FLOAT_STORE_DTYPE = np.float16
-INT8_PER_ROW_SCALE_DTYPE = np.float16
-INT8_PER_ROW_OFFSET_DTYPE = np.float16
+INT8_KEEP_FLOAT_MAX_NUMEL = 65_536; INT8_KEEP_FLOAT_STORE_DTYPE = np.float16
+INT8_PER_ROW_SCALE_DTYPE = np.float16; INT8_PER_ROW_OFFSET_DTYPE = np.float16
 INT8_CLIP_PERCENTILE = 99.99984; INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
 INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99.9)); INT8_PROJ_CLIP_Q = INT8_PROJ_CLIP_PERCENTILE / 100.0
 INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
@@ -446,11 +444,7 @@ INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0)
 INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
 PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
 INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
-INT8_FP16_KEEP_NAMES = tuple(
-    name
-    for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
-    if name
-)
+INT8_FP16_KEEP_NAMES = tuple(name for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",") if name)
 BLOCK_FP16_MATRIX_SUFFIXES = (
     "attn.c_q.weight",
     "attn.c_k.weight",
@@ -460,6 +454,15 @@ BLOCK_FP16_MATRIX_SUFFIXES = (
     "mlp.proj.weight",
 )
 BLOCK_FP16_PROJ_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
+TAIL_SHARED_QK_SUFFIXES = BLOCK_FP16_MATRIX_SUFFIXES[:2]
+def apply_tail_shared_qk(flat: dict[str, mx.array], start: int, end: int, average: bool) -> None:
+    if start >= end - 1: return
+    for suffix in TAIL_SHARED_QK_SUFFIXES:
+        keys = [f"blocks.{block_idx}.{suffix}" for block_idx in range(start, end)]; shared = flat[keys[0]]
+        for key in keys[1:]: shared = shared + flat[key]
+        if average: shared = shared / float(len(keys))
+        shared = shared.astype(flat[keys[0]].dtype)
+        for key in keys: flat[key] = shared
 def _np_float32(arr: mx.array) -> np.ndarray:
     return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
 def int8_clip_q(name: str) -> float:
@@ -1181,19 +1184,14 @@ def clip_grad_tree(grads_tree: dict, max_norm: float) -> dict:
     scale = max_norm / (total_norm + 1e-12)
     return tree_unflatten([(k, g * scale) for k, g in flat.items()])
 def should_activate_quant_aware(args: Hyperparameters, step: int, elapsed_ms: float, max_wallclock_ms: float | None, reserved_final_ms: float) -> bool:
-    if args.quant_aware_every <= 0:
-        return False
-    if max_wallclock_ms is None:
-        return args.quant_aware_iters > 0 and step >= max(args.iterations - args.quant_aware_iters, 0)
+    if args.quant_aware_every <= 0: return False
+    if max_wallclock_ms is None: return args.quant_aware_iters > 0 and step >= max(args.iterations - args.quant_aware_iters, 0)
     return elapsed_ms >= max(max_wallclock_ms - reserved_final_ms - 1000.0 * args.quant_aware_train_seconds, 0.0)
 def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tuple[float, float, float]:
-    if not quant_aware_active:
-        return 1.0, 1.0, 1.0
-    return args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul
+    return (args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul) if quant_aware_active else (1.0, 1.0, 1.0)
 def main() -> None:
     args = Hyperparameters()
-    out_dir = Path(args.out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
+    out_dir = Path(args.out_dir); out_dir.mkdir(parents=True, exist_ok=True)
     logfile = out_dir / f"{args.run_id}.txt"
     print(logfile)
     def log(msg: str, console: bool = True) -> None:
@@ -1244,6 +1242,8 @@ def main() -> None:
         qk_gain_init=args.qk_gain_init,
         tail_recur_blocks=args.tail_recur_blocks,
     )
+    flat_params = dict(tree_flatten(model.parameters())); apply_tail_shared_qk(flat_params, model.tail_recur_start, len(model.blocks), average=True)
+    model.update(tree_unflatten(list(flat_params.items())))
     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
     opt = SplitOptimizers(model, args)
     compiled_loss = mx.compile(lambda x, y: model.loss(x, y), inputs=model.state, outputs=model.state)
@@ -1298,8 +1298,7 @@ def main() -> None:
         f"muon_momentum:{args.muon_momentum} muon_steps:{args.muon_backend_steps}"
     )
     log(f"val_bpb:enabled tokenizer_kind=sentencepiece tokenizer_path={args.tokenizer_path}")
-    eval_mode = "doc_isolated_sliding" if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0 else "flat_stream"
-    log(f"eval_mode:{eval_mode} bos_token_id:{bos_token_id} val_docs:{0 if doc_spans is None else len(doc_spans)}")
+    log(f"eval_mode:{'doc_isolated_sliding' if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0 else 'flat_stream'} bos_token_id:{bos_token_id} val_docs:{0 if doc_spans is None else len(doc_spans)}")
     log(f"eval_stride:{args.eval_stride}")
     log(f"compute_dtype:{COMPUTE_DTYPE} compile:True")
     log(
@@ -1329,6 +1328,7 @@ def main() -> None:
         f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} "
         f"active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}"
     )
+    log(f"tail_shared_qk:blocks:{0 if len(model.blocks) - model.tail_recur_start < 2 else len(model.blocks) - model.tail_recur_start}")
     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
@@ -1380,7 +1380,6 @@ def main() -> None:
             train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad)
             if args.mlx_eager_eval:
                 mx.eval(train_loss, grads)
-            grads = clip_grad_tree(grads, args.grad_clip_norm)
         else:
             accum: dict[str, mx.array] | None = None
             train_loss = mx.array(0.0, dtype=mx.float32)
@@ -1392,7 +1391,8 @@ def main() -> None:
                 if args.mlx_eager_eval:
                     mx.eval(train_loss, accum)
             grads = tree_unflatten(list(accum.items()))
-            grads = clip_grad_tree(grads, args.grad_clip_norm)
+        flat_grads = dict(tree_flatten(grads)); apply_tail_shared_qk(flat_grads, model.tail_recur_start, len(model.blocks), average=False)
+        grads = clip_grad_tree(tree_unflatten(list(flat_grads.items())), args.grad_clip_norm)
         opt.step(
             model,
             grads,
