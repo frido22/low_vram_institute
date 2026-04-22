@@ -247,3 +247,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_22_run_0047,1.523691,True,False,Roundtrip EMA On Quantized First Recurrent V
 2026_04_22_run_0048,1.525030,True,False,First-Pass Tail Delta Replay On Late-Aligned Skips
 2026_04_22_run_0049,1.518277,True,True,Tail-Focused Late Decoder Skips
+2026_04_22_run_0050,1.517956,True,True,Reverse-Order Tail Recurrence On Tail-Focused Late Decoder Skips

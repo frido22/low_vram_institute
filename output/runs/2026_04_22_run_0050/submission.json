@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15745718,
+  "code_bytes": 77500,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15668218,
+  "rationale": "Builds directly on the current best late-skip recurrent-tail baseline and composes it with the closest traversal miss: keep the winning trimmed late decoder skips, but run the two recurrent tail blocks in reverse order so the last block settles first before the earlier tail block re-edits the state. This is a compile-stable traversal-only change with essentially unchanged byte budget and step structure, which fits the underexplored traversal category without spending the run on another minor optimizer sweep.",
+  "run_id": "2026_04_22_run_0050",
+  "runtime_seconds": 620.735163,
+  "submitter": "frido22",
+  "title": "Reverse-Order Tail Recurrence On Tail-Focused Late Decoder Skips",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 539173,
+  "under_16mb": true,
+  "val_bpb": 1.51795599,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
