@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15749166,
+  "code_bytes": 77702,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15671464,
+  "rationale": "This keeps the 9x512 recurrent-tail QK-rescued baseline intact and changes only the first repeated tail block into a parallel-residual replay. The hypothesis is that the first recurrent pass is where the current tail most risks over-conditioning the MLP on its own fresh attention update; using the same mixed input for both attention and MLP there should preserve more of the strong base trajectory while still letting the second recurrent block perform the usual sequential refinement. The change is compile-stable, size-neutral for the final int8+zlib artifact, and removes a few low-value helper lines to stay comfortably under the 1500-line cap.",
+  "run_id": "2026_04_22_run_0026",
+  "runtime_seconds": 620.17057,
+  "submitter": "frido22",
+  "title": "First Recurrent Block Parallel Residual Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 539017,
+  "under_16mb": true,
+  "val_bpb": 1.52195443,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
