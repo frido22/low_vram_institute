@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15894278,
+  "code_bytes": 77486,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15816792,
+  "rationale": "Build on the current best late-aligned decoder-skip recurrent-tail baseline by combining the two closest valid misses in the same family: reverse replay order (+0.0002) and full QKV float rescue on the repeated tail blocks (+0.0003). This keeps the 9x512 quant-aware endgame intact, stays compile-stable, and spends extra bytes directly on the repeatedly used tail attention path instead of on new heads or another small hyperparameter sweep.",
+  "run_id": "2026_04_22_run_0046",
+  "runtime_seconds": 625.338209,
+  "submitter": "frido22",
+  "title": "Reverse-Order Tail Recurrence With Tail QKV Float Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541056,
+  "under_16mb": true,
+  "val_bpb": 1.52100823,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
