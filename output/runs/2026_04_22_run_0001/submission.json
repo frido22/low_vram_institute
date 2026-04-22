@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15840898,
+  "code_bytes": 79184,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15761714,
+  "rationale": "Builds directly on the 9x512 recurrent-tail best, but spends early wallclock on a cheaper one-tail-block training path and switches back to the full two-block recurrent tail later. This is a new recurrence-scheduling experiment rather than another small LR sweep: it targets the underexplored hypothesis that the earlier recurrent block is worth using for the final exact int8 endgame but not for every early step on a 600s Mac-mini budget.",
+  "run_id": "2026_04_22_run_0001",
+  "runtime_seconds": 619.55025,
+  "submitter": "frido22",
+  "title": "Shallow-Then-Full Tail Recurrence Schedule",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538197,
+  "under_16mb": true,
+  "val_bpb": 1.53134177,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
