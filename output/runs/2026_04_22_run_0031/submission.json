@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15833068,
+  "code_bytes": 77751,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15755317,
+  "rationale": "Builds directly on the 9x512 recurrent-tail QK winner instead of replaying another small control sweep. This adds a tiny rank-24 low-rank residual adapter only inside the two recurrent tail blocks, using the same normalized MLP input so the extra capacity lands on the proven repeated tail path. Those matrices stay under the existing float-keep threshold, so the added capacity survives the exact int8+zlib roundtrip instead of being spent on another quantized side head, while the wallclock cap, validation path, and quant-aware endgame stay unchanged.",
+  "run_id": "2026_04_22_run_0031",
+  "runtime_seconds": 609.710181,
+  "submitter": "frido22",
+  "title": "Float-Kept Low-Rank Tail Adapters On Recurrent Blocks",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 525459,
+  "under_16mb": true,
+  "val_bpb": 1.52697143,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
