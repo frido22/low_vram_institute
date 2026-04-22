@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15749324,
+  "code_bytes": 78558,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15670766,
+  "rationale": "Builds directly on the 9x512 recurrent-tail best without spending bytes on a new head or a wider shape. The change keeps the proven forward tail recurrence for most of training, then flips the recurrent-tail traversal to last-block-first after 72% of the train budget so the endgame and exact final eval both optimize the deepest block first. This is a compile-stable traversal-order transplant inspired by the underexplored traversal category: it changes only the late recurrence order, preserves the existing quant-aware/export path, and stays under the 1500-line limit.",
+  "run_id": "2026_04_22_run_0012",
+  "runtime_seconds": 619.734919,
+  "submitter": "frido22",
+  "title": "Late Reverse Tail Recurrence Switch",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538330,
+  "under_16mb": true,
+  "val_bpb": 1.52289161,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
