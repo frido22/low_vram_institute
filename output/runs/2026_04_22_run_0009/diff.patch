@@ -1,0 +1,129 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -53,6 +53,7 @@
+     quant_aware_proj_start: float = float(os.environ.get("QUANT_AWARE_PROJ_START", 0.55))
+     quant_aware_proj_step: float = float(os.environ.get("QUANT_AWARE_PROJ_STEP", 0.2))
+     quant_aware_proj_end: float = float(os.environ.get("QUANT_AWARE_PROJ_END", 0.95))
++    quant_aware_tail_mix_boost: float = float(os.environ.get("QUANT_AWARE_TAIL_MIX_BOOST", 0.35))
+     vocab_size: int = int(os.environ.get("VOCAB_SIZE", 1024))
+     num_layers: int = int(os.environ.get("NUM_LAYERS", 9))
+     model_dim: int = int(os.environ.get("MODEL_DIM", 512))
+@@ -68,7 +69,6 @@
+     rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
+     qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 2.0))
+     tail_recur_blocks: int = int(os.environ.get("TAIL_RECUR_BLOCKS", 2))
+-    tail_recur_reverse: bool = bool(int(os.environ.get("TAIL_RECUR_REVERSE", "1")))
+     beta1: float = float(os.environ.get("BETA1", 0.9))
+     beta2: float = float(os.environ.get("BETA2", 0.95))
+     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
+@@ -280,7 +280,7 @@
+ class GPT(nn.Module):
+     def __init__(self, vocab_size: int, num_layers: int, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int,
+                  logit_chunk_tokens: int, logit_softcap: float, rope_base: float, tied_embed_init_std: float,
+-                 qk_gain_init: float, tail_recur_blocks: int, tail_recur_reverse: bool):
++                 qk_gain_init: float, tail_recur_blocks: int):
+         super().__init__()
+         if logit_softcap <= 0.0:
+             raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
+@@ -298,8 +298,6 @@
+         ]
+         tail_recur_span = min(max(tail_recur_blocks, 0), self.num_decoder_layers)
+         self.tail_recur_start = num_layers - tail_recur_span
+-        self.tail_recur_reverse = tail_recur_reverse
+-        self.tail_recur_indices = tuple(reversed(range(self.tail_recur_start, len(self.blocks)))) if tail_recur_reverse else tuple(range(self.tail_recur_start, len(self.blocks)))
+         self.final_norm = RMSNormNoWeight()
+         self.tail_recur_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None
+         for b in self.blocks:
+@@ -323,7 +321,7 @@
+                 x = x + self.skip_weights[i].astype(x.dtype)[None, None, :] * skips.pop()
+             x = self.blocks[self.num_encoder_layers + i](x, x0)
+         if self.tail_recur_gates is not None:
+-            for recur_idx, block_idx in enumerate(self.tail_recur_indices):
++            for recur_idx, block_idx in enumerate(range(self.tail_recur_start, len(self.blocks))):
+                 x = x + mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](x, x0) - x)
+         return self.final_norm(x)
+     def loss(self, input_ids: mx.array, target_ids: mx.array) -> mx.array:
+@@ -447,6 +445,7 @@
+ INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
+ INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
+ INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
++INT8_FP16_TAIL_V_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_V_BLOCKS", 2))
+ PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
+ INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
+ INT8_FP16_KEEP_NAMES = tuple(
+@@ -479,8 +478,8 @@
+     for block_idx in range(max(num_layers - tail_recur_blocks, 0), num_layers):
+         prefix = f"blocks.{block_idx}."
+         keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:2])
+-    if num_layers > 0:
+-        prefix = f"blocks.{num_layers - 1}."
++    for block_idx in range(max(num_layers - INT8_FP16_TAIL_V_BLOCKS, 0), num_layers):
++        prefix = f"blocks.{block_idx}."
+         keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
+     return keep
+ def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
+@@ -632,15 +631,10 @@
+     if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names):
+         return target
+     return arr + (target - arr) * mix
+-def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
+-    model.update(
+-        tree_unflatten(
+-            [
+-                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix))
+-                for name, arr in tree_flatten(model.state)
+-            ]
+-        )
+-    )
++def build_tail_roundtrip_prefixes(num_layers: int, tail_recur_blocks: int) -> tuple[str, ...]:
++    return tuple(f"blocks.{block_idx}." for block_idx in range(max(num_layers - tail_recur_blocks, 0), num_layers))
++def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0, mix_fn: Callable[[str], float] | None = None) -> None:
++    model.update(tree_unflatten([(name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix if mix_fn is None else mix_fn(name))) for name, arr in tree_flatten(model.state)]))
+ def build_sentencepiece_luts(
+     sp: spm.SentencePieceProcessor, vocab_size: int
+ ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+@@ -1246,9 +1240,9 @@
+         tied_embed_init_std=args.tied_embed_init_std,
+         qk_gain_init=args.qk_gain_init,
+         tail_recur_blocks=args.tail_recur_blocks,
+-        tail_recur_reverse=args.tail_recur_reverse,
+     )
+     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
++    tail_roundtrip_prefixes = build_tail_roundtrip_prefixes(args.num_layers, args.tail_recur_blocks)
+     opt = SplitOptimizers(model, args)
+     compiled_loss = mx.compile(lambda x, y: model.loss(x, y), inputs=model.state, outputs=model.state)
+     compiled_masked_loss = mx.compile(
+@@ -1326,14 +1320,10 @@
+     log(f"final_eval_budget:estimate_ms:{estimated_final_eval_ms:.0f} reserve_ms:{reserved_final_ms:.0f} estimate_batches:{args.final_eval_estimate_batches}")
+     log(f"quant_aware:train_seconds:{args.quant_aware_train_seconds:.1f} iters:{args.quant_aware_iters} every:{args.quant_aware_every}")
+     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
+-    log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
++    log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end} tail_boost:{args.quant_aware_tail_mix_boost}")
+     log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
+-    log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
+-    log(
+-        f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} "
+-        f"active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}"
+-    )
+-    log(f"tail_recur_order:{'reverse' if model.tail_recur_reverse else 'forward'}")
++    log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS} tail_v_blocks:{INT8_FP16_TAIL_V_BLOCKS}")
++    log(f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}")
+     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
+     train_time_ms = 0.0
+     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
+@@ -1413,7 +1403,8 @@
+         if should_activate_quant_aware(args, next_step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms) and (
+             last_quant_aware_step is None or next_step - last_quant_aware_step >= args.quant_aware_every
+         ):
+-            apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix)
++            tail_quant_aware_mix = min(quant_aware_proj_mix + args.quant_aware_tail_mix_boost, 1.0)
++            apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix, mix_fn=None if not tail_roundtrip_prefixes or tail_quant_aware_mix <= quant_aware_proj_mix else lambda name: tail_quant_aware_mix if name.startswith(tail_roundtrip_prefixes) else quant_aware_proj_mix)
+             last_quant_aware_step = next_step
+             quant_aware_proj_mix = min(quant_aware_proj_mix + args.quant_aware_proj_step, args.quant_aware_proj_end)
+             did_quant_aware_roundtrip = True
+@@ -1495,4 +1486,4 @@
+     log(f"final_int8_zlib_roundtrip val_loss:{q_val_loss:.4f} val_bpb:{q_val_bpb:.4f} eval_time:{q_eval_ms:.0f}ms")
+     log(f"final_int8_zlib_roundtrip_exact val_loss:{q_val_loss:.8f} val_bpb:{q_val_bpb:.8f}")
+ if __name__ == "__main__":
+-    main()
++    main()

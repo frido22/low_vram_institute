@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15894338,
+  "code_bytes": 77845,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15816493,
+  "rationale": "Builds directly on the 9x512 recurrent-tail best instead of restarting. This compounds the closest float-budget miss by extending FP16 rescue from only the final V projection to both recurrent-tail V matrices, then adds a new localized endgame idea: quant-aware roundtrip steps now push the recurrent tail harder than the rest of the network so the exact final int8 manifold is learned where the winning path already concentrates its capacity. The change stays compile-stable, preserves the current training/eval/export path, removes no required metrics, and keeps the script under the 1500-line hard stop.",
+  "run_id": "2026_04_22_run_0009",
+  "runtime_seconds": 619.970989,
+  "submitter": "frido22",
+  "title": "Tail-Local Quant-Aware Mix With Full Recurrent V Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538561,
+  "under_16mb": true,
+  "val_bpb": 1.52327477,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

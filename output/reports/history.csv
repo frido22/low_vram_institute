@@ -206,3 +206,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_22_run_0006,1.523027,True,False,Late Endgame Tail-Recurrence Collapse On Recurrent-Tail QK Best
 2026_04_22_run_0007,1.525147,True,False,Interleaved Tail Recurrence Refinement
 2026_04_22_run_0008,1.524721,True,False,Reallocate Tail FP16 Budget Into Final Recurrent MLP Expansion
+2026_04_22_run_0009,1.523275,True,False,Tail-Local Quant-Aware Mix With Full Recurrent V Rescue
