@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15749962,
+  "code_bytes": 77637,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15672325,
+  "rationale": "Builds on the current best late-aligned recurrent-tail baseline and spends this run on the still-underexplored traversal-order category. The only behavioral change is a compile-stable reverse second pass through the recurrent tail, keeping size, quantization, and wallclock dynamics essentially unchanged while testing whether the deepest tail block should refine first and the shallower block should write the final hidden state.",
+  "run_id": "2026_04_22_run_0044",
+  "runtime_seconds": 623.757478,
+  "submitter": "frido22",
+  "title": "Reverse-Order Tail Recurrence On Late-Aligned Skips",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 540345,
+  "under_16mb": true,
+  "val_bpb": 1.51975119,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

@@ -241,3 +241,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_22_run_0041,1.524252,True,False,Late-Aligned Tail Recurrence With Learned Sublayer Scaling
 2026_04_22_run_0042,1.524521,True,False,Staged Tail-Recurrence Depth Schedule
 2026_04_22_run_0043,1.525882,True,False,Staged Tail-Recurrence Depth Schedule
+2026_04_22_run_0044,1.519751,True,False,Reverse-Order Tail Recurrence On Late-Aligned Skips
