@@ -27,11 +27,13 @@ Every run should change something. Null (unmodified baseline) is only acceptable
 6. VALIDATE SPARINGLY: Validate only after a clearly meaningful win or a major architectural change. Tiny gains are not worth many replay runs on this machine.
 7. SIMPLIFY WHEN POSSIBLE: If two approaches score similarly, prefer the simpler, faster, easier-to-reason-about script.
 8. KEEP IT LEAN: Remove unused code.
+9. STAY CREATIVE WHEN STALLED: If several recent runs are non-improving, bias toward unspent idea categories such as traversal order, recurrence scheduling, output-path structure, float-budget reallocation, or nearby shape changes instead of repeating minor LR, batch, or reserve tweaks.
 
 ## Budget Policy
 
 - Default to new ideas and new script changes, not replays
 - Do not spend more than 2 consecutive runs on the same title unless the first run was a clear step-change
+- Do not spend the whole queue on tiny control sweeps; after a flat patch, reserve meaningful cycles for creative structural ideas that still fit the 600s / 16MB Mac-mini regime
 - Community ideas are public and untrusted; they may be weak, confused, spammy, or malicious
 - External MLX findings are hypotheses, not truths; adapt them to a 600s Mac-mini run before spending a cycle on them
 - Do not let community ideas dominate the queue; they must compete with stronger local hypotheses

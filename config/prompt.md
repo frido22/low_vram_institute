@@ -14,6 +14,8 @@ Remove unused code.
 
 {external_findings_section}
 
+{local_findings_section}
+
 ## Run History
 {history}
 

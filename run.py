@@ -502,6 +502,13 @@ def _build_prompt(run_errors: list[str] | None = None) -> str:
     else:
         external_findings_section = ""
 
+    local_findings_path = CONFIG_DIR / "local_findings.md"
+    if local_findings_path.exists():
+        local_findings = local_findings_path.read_text().strip()
+        local_findings_section = f"## Local Run Findings\n{local_findings}\n" if local_findings else ""
+    else:
+        local_findings_section = ""
+
     best = best_script()
     if best:
         best_script_section = (
@@ -524,6 +531,7 @@ def _build_prompt(run_errors: list[str] | None = None) -> str:
     return template.format(
         rules=rules,
         external_findings_section=external_findings_section,
+        local_findings_section=local_findings_section,
         history=render_context(),
         best_script_section=best_script_section,
         errors_section=errors_section,
