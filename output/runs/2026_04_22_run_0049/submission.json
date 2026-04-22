@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15748203,
+  "code_bytes": 77411,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15670792,
+  "rationale": "Builds directly on the best late-aligned-skip recurrent-tail script, but trims one early decoder skip whenever the tail uses multi-block recurrence. The hypothesis is that the recurrent tail already supplies extra deep refinement, so concentrating encoder skip bandwidth on the last non-recurrent decoder block plus the recurrent tail blocks should improve the final int8 roundtrip metric more than replay or anchor variants did.",
+  "run_id": "2026_04_22_run_0049",
+  "runtime_seconds": 621.861202,
+  "submitter": "frido22",
+  "title": "Tail-Focused Late Decoder Skips",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 539554,
+  "under_16mb": true,
+  "val_bpb": 1.51827733,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
