@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15718126,
+  "code_bytes": 77032,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15641094,
+  "rationale": "The best local line is still the two-block recurrent tail with QK rescue, and recent schedule or gate variants mostly gave back quality. This change stays in the strongest family but spends the float budget differently: penultimate tail blocks now keep only attention output projections in FP16, while the final recurrent block adds FP16 MLP expansion and keeps its own MLP projection. The hypothesis is that the last block is the highest leverage place to spend bytes because it is both closest to the logits and executed again in the recurrent tail, so preserving its expansion-path weights should reduce final int8 roundtrip damage more effectively than keeping the penultimate block's MLP projection.",
+  "run_id": "2026_04_22_run_0008",
+  "runtime_seconds": 619.966389,
+  "submitter": "frido22",
+  "title": "Reallocate Tail FP16 Budget Into Final Recurrent MLP Expansion",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538540,
+  "under_16mb": true,
+  "val_bpb": 1.52472081,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
