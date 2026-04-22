@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15731768,
+  "code_bytes": 77257,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15654511,
+  "rationale": "Build directly on the current best late-aligned decoder-skip recurrent-tail script, but normalize the stored encoder skip states before the decoder reuses them. The winning path already depends on those late skips; this keeps the same topology, bytes, and wallclock behavior while making the skip additions more scale-stable for the final int8 roundtrip.",
+  "run_id": "2026_04_22_run_0037",
+  "runtime_seconds": 607.642832,
+  "submitter": "frido22",
+  "title": "RMS-Normalized Late Decoder Skips For Recurrent Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 524692,
+  "under_16mb": true,
+  "val_bpb": 1.52380114,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
