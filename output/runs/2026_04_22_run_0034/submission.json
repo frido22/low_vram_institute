@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15745721,
+  "code_bytes": 77459,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15668262,
+  "rationale": "Builds directly on the current late-aligned recurrent-tail best. The replayed tail blocks now reuse their own first-pass decoder inputs as stage-local anchors instead of the global embedding anchor, which is a minimal gated-carryover transplant: no new parameters, no extra compile variants, and the byte budget stays essentially unchanged while giving the recurrent tail a sharper, depth-local reuse signal under the 600s cap.",
+  "run_id": "2026_04_22_run_0034",
+  "runtime_seconds": 620.208297,
+  "submitter": "frido22",
+  "title": "Fixed First-Pass Carry Anchor For Recurrent Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538667,
+  "under_16mb": true,
+  "val_bpb": 1.5217965,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

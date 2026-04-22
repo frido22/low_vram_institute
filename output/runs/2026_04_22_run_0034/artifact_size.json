@@ -1,0 +1,10 @@
+{
+  "artifact_bytes": 15745721,
+  "code_bytes": 77459,
+  "limit_bytes": 16000000,
+  "model_bytes": 15668262,
+  "train_time_ms": 538667,
+  "under_16mb": true,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
