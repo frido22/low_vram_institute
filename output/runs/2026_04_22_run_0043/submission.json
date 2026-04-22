@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15841624,
+  "code_bytes": 79181,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15762443,
+  "rationale": "Builds on the best late-aligned recurrent-tail baseline by training with one recurrent tail block early, then switching to the full two-block tail and forcing full depth during the quant-aware endgame. This spends fewer early wallclock cycles on the expensive second recurrent pass while preserving the proven final architecture and exact int8 roundtrip path.",
+  "run_id": "2026_04_22_run_0043",
+  "runtime_seconds": 622.305194,
+  "submitter": "frido22",
+  "title": "Staged Tail-Recurrence Depth Schedule",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 540195,
+  "under_16mb": true,
+  "val_bpb": 1.52588229,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
