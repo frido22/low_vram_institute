@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15754760,
+  "code_bytes": 79943,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15674817,
+  "rationale": "Builds directly on the 9x512 recurrent-tail best and spends the next run on an untried export-path idea instead of another small LR/gate sweep. The change keeps the proven architecture and training loop, but upgrades the final int8 roundtrip for the remaining large recurrent-tail tensors: tail `mlp.fc.weight` matrices and the penultimate recurrent-tail `attn.c_v.weight` now use row-offset groupwise int8 scales. That is meant to recover more post-quant fidelity for the winning recurrent-tail path at a much smaller byte cost than full FP16 rescue, while keeping quant-aware roundtrips aligned with the exact final serializer.",
+  "run_id": "2026_04_22_run_0010",
+  "runtime_seconds": 619.984477,
+  "submitter": "frido22",
+  "title": "Tail Groupwise Int8 Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538608,
+  "under_16mb": true,
+  "val_bpb": 1.52331059,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
