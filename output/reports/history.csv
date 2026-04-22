@@ -242,3 +242,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_22_run_0042,1.524521,True,False,Staged Tail-Recurrence Depth Schedule
 2026_04_22_run_0043,1.525882,True,False,Staged Tail-Recurrence Depth Schedule
 2026_04_22_run_0044,1.519751,True,False,Reverse-Order Tail Recurrence On Late-Aligned Skips
+2026_04_22_run_0045,1.522579,True,False,First-Pass Input Anchors For Recurrent Tail

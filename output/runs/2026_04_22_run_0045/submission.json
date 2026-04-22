@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15745848,
+  "code_bytes": 77367,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15668481,
+  "rationale": "Build on the current best late-aligned decoder-skip baseline, but shift the recurrent replay anchor instead of another small control sweep. Each repeated tail block now reuses its own first-pass pre-block activation, captured after the winning late skip injection, so the recurrent pass refines the same late-skip-conditioned state instead of always anchoring back to the root embedding. This stays compile-stable, byte-neutral, and preserves the existing quant-aware/export path.",
+  "run_id": "2026_04_22_run_0045",
+  "runtime_seconds": 624.234976,
+  "submitter": "frido22",
+  "title": "First-Pass Input Anchors For Recurrent Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 540137,
+  "under_16mb": true,
+  "val_bpb": 1.52257852,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
