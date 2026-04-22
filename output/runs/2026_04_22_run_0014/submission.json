@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15754026,
+  "code_bytes": 77452,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15676574,
+  "rationale": "Build directly on the 9x512 recurrent-tail winner with a new minimal recurrence transplant instead of another small optimizer sweep. The current best replays the last two decoder blocks against the original token-embedding anchor only; this adds zero-init per-channel recurrent-anchor gates that let each repeated tail block borrow from its own first-pass decoder input inside the block residual mix while preserving the exact baseline at initialization. The change is compile-stable, keeps the exact int8+zlib endgame intact, costs only tiny float-kept control tensors, and targets a narrower anchor path than the earlier full carry-gated or fully anchored misses.",
+  "run_id": "2026_04_22_run_0014",
+  "runtime_seconds": 620.879779,
+  "submitter": "frido22",
+  "title": "Learned First-Pass Anchor On Recurrent Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538370,
+  "under_16mb": true,
+  "val_bpb": 1.52102372,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
