@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15755774,
+  "code_bytes": 78054,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15677720,
+  "rationale": "Build directly on the current 9x512 recurrent-tail QK baseline, but narrow the closest recent anchor idea to the one recurrent pass that has been the most reliable locally: the deepest repeated tail block. Earlier-tail interventions and curricula have been mixed, while learned first-pass anchoring was a close miss. This version adds a tiny learned first-pass anchor only to the final recurrent block, keeps the earlier recurrent block on the proven token-embedding anchor, preserves the exact quant-aware/endgame path, stays compile-stable, and adds only one extra FP32 control vector.",
+  "run_id": "2026_04_22_run_0023",
+  "runtime_seconds": 624.993459,
+  "submitter": "frido22",
+  "title": "Final-Block-Only First-Pass Anchor On Recurrent Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 540861,
+  "under_16mb": true,
+  "val_bpb": 1.52466873,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
