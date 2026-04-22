@@ -215,3 +215,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_22_run_0015,1.522341,True,False,Recurrent-Tail QK Weight Tying
 2026_04_22_run_0016,1.528382,True,False,Single-Block Tail Recurrence Warmup
 2026_04_22_run_0017,1.524222,True,False,Gated Tail Carryover On Recurrent Tail
+2026_04_22_run_0018,1.526028,True,False,Late Third Tail Recurrence Wake-In

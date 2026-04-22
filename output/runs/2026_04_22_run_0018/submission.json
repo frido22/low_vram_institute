@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15746214,
+  "code_bytes": 79373,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15666841,
+  "rationale": "Builds on the best 9x512 recurrent-tail baseline by testing an unspent recurrence-scheduling idea instead of another micro sweep: train most of the run on the proven 2-block recurrent tail, then switch late to a 3-block tail for the endgame. The extra recurrent block is byte-aware because FP16 QK rescue stays capped at the last two recurrent blocks, so the added depth costs almost no artifact bytes while still targeting the final int8+zlib score.",
+  "run_id": "2026_04_22_run_0018",
+  "runtime_seconds": 624.019467,
+  "submitter": "frido22",
+  "title": "Late Third Tail Recurrence Wake-In",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 535488,
+  "under_16mb": true,
+  "val_bpb": 1.52602788,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
