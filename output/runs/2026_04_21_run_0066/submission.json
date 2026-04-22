@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15750749,
+  "code_bytes": 78452,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15672297,
+  "rationale": "Builds directly on the 9x512 two-block recurrent-tail best. The change keeps the proven final recurrent block active from the start, but smoothly delays gradient flow into the earlier recurrent tail gate until the base decoder is established. That tests the underexplored recurrence-scheduling category without adding compile churn, changing evaluation, or spending artifact bytes on a new head. The script also stays under the 1500-line limit by removing a few redundant helper lines.",
+  "run_id": "2026_04_21_run_0066",
+  "runtime_seconds": 620.210198,
+  "submitter": "frido22",
+  "title": "Staged Earlier Tail Recurrence Warm-In",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538574,
+  "under_16mb": true,
+  "val_bpb": 1.52124958,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
