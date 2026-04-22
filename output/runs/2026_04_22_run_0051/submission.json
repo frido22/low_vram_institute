@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15750962,
+  "code_bytes": 77638,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15673324,
+  "rationale": "The current best line wins with reverse-order two-block tail recurrence, but those gates start at zero so the reused tail depth has to be learned from scratch inside a 600s run. I warm-start the recurrent gates with a small depth ramp so the deepest repeated block is active immediately and the shallower repeated block starts weaker. This keeps shapes, traversal, quant-aware training, and the int8 export path unchanged while biasing capacity toward the proven recurrent-tail path.",
+  "run_id": "2026_04_22_run_0051",
+  "runtime_seconds": 621.140101,
+  "submitter": "frido22",
+  "title": "Warm-Start Reverse Tail Recurrence Gates",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 539592,
+  "under_16mb": true,
+  "val_bpb": 1.51908132,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

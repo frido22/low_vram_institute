@@ -248,3 +248,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_22_run_0048,1.525030,True,False,First-Pass Tail Delta Replay On Late-Aligned Skips
 2026_04_22_run_0049,1.518277,True,True,Tail-Focused Late Decoder Skips
 2026_04_22_run_0050,1.517956,True,True,Reverse-Order Tail Recurrence On Tail-Focused Late Decoder Skips
+2026_04_22_run_0051,1.519081,True,False,Warm-Start Reverse Tail Recurrence Gates
