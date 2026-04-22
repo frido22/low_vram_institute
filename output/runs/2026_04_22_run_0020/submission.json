@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 14974307,
+  "code_bytes": 76790,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 14897517,
+  "rationale": "The local best remains the 9x512 recurrent-tail line, and the closest quantization miss was full QKV rescue on both recurrent tail blocks. This variant keeps that proven direction but funds it by reducing FP16 projection rescue from the last two blocks to only the final block, shifting byte budget toward the reused penultimate recurrent block value path instead of a separate projection path. Training compute and step structure stay unchanged; only the quant-aware endgame and final export allocation move toward tensors that are reused twice in the winning tail.",
+  "run_id": "2026_04_22_run_0020",
+  "runtime_seconds": 620.269215,
+  "submitter": "frido22",
+  "title": "Reallocate Tail FP16 Budget From Penultimate Projections To Full Recurrent QKV",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538812,
+  "under_16mb": true,
+  "val_bpb": 1.52144456,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
