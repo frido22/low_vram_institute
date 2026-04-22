@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15750055,
+  "code_bytes": 77462,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15672593,
+  "rationale": "Builds directly on the current late-aligned recurrent-tail best and changes only the tail recurrence carry path: each recurrent tail block now reuses its own first-pass output as the block-local anchor instead of falling back to the global embedding anchor. That is a minimal gated-carryover transplant in an underexplored local category, keeps the winning late decoder skip alignment intact, adds no new modules or extra forward passes, stays byte-neutral on the quantized artifact, and preserves the exact final int8+zlib evaluation path.",
+  "run_id": "2026_04_22_run_0040",
+  "runtime_seconds": 620.418507,
+  "submitter": "frido22",
+  "title": "First-Pass Output Carryover For Recurrent Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538976,
+  "under_16mb": true,
+  "val_bpb": 1.52206421,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
