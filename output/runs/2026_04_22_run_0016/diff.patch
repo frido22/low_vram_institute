@@ -1,0 +1,167 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -68,7 +68,7 @@
+     rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
+     qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 2.0))
+     tail_recur_blocks: int = int(os.environ.get("TAIL_RECUR_BLOCKS", 2))
+-    tail_recur_reverse: bool = bool(int(os.environ.get("TAIL_RECUR_REVERSE", "1")))
++    tail_recur_warmup_end: float = float(os.environ.get("TAIL_RECUR_WARMUP_END", 0.58))
+     beta1: float = float(os.environ.get("BETA1", 0.9))
+     beta2: float = float(os.environ.get("BETA2", 0.95))
+     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
+@@ -280,7 +280,7 @@
+ class GPT(nn.Module):
+     def __init__(self, vocab_size: int, num_layers: int, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int,
+                  logit_chunk_tokens: int, logit_softcap: float, rope_base: float, tied_embed_init_std: float,
+-                 qk_gain_init: float, tail_recur_blocks: int, tail_recur_reverse: bool):
++                 qk_gain_init: float, tail_recur_blocks: int):
+         super().__init__()
+         if logit_softcap <= 0.0:
+             raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
+@@ -298,8 +298,6 @@
+         ]
+         tail_recur_span = min(max(tail_recur_blocks, 0), self.num_decoder_layers)
+         self.tail_recur_start = num_layers - tail_recur_span
+-        self.tail_recur_reverse = tail_recur_reverse
+-        self.tail_recur_indices = tuple(reversed(range(self.tail_recur_start, len(self.blocks)))) if tail_recur_reverse else tuple(range(self.tail_recur_start, len(self.blocks)))
+         self.final_norm = RMSNormNoWeight()
+         self.tail_recur_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None
+         for b in self.blocks:
+@@ -311,7 +309,7 @@
+         if self.bigram_rank > 0 and prev_ids is not None:
+             logits = logits + self.bigram_scale.astype(x.dtype) * self.bigram_out(self.bigram_in(prev_ids.reshape(-1)).astype(x.dtype))
+         return self.softcap(logits + self.logit_bias.astype(x.dtype))
+-    def __call__(self, input_ids: mx.array) -> mx.array:
++    def __call__(self, input_ids: mx.array, active_tail_recur_blocks: int | None = None) -> mx.array:
+         x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))
+         x0 = x
+         skips: list[mx.array] = []
+@@ -323,11 +321,13 @@
+                 x = x + self.skip_weights[i].astype(x.dtype)[None, None, :] * skips.pop()
+             x = self.blocks[self.num_encoder_layers + i](x, x0)
+         if self.tail_recur_gates is not None:
+-            for recur_idx, block_idx in enumerate(self.tail_recur_indices):
++            active_recur = int(self.tail_recur_gates.shape[0]) if active_tail_recur_blocks is None else min(max(active_tail_recur_blocks, 0), int(self.tail_recur_gates.shape[0]))
++            for recur_idx in range(int(self.tail_recur_gates.shape[0]) - active_recur, int(self.tail_recur_gates.shape[0])):
++                block_idx = self.tail_recur_start + recur_idx
+                 x = x + mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](x, x0) - x)
+         return self.final_norm(x)
+-    def loss(self, input_ids: mx.array, target_ids: mx.array) -> mx.array:
+-        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
++    def loss(self, input_ids: mx.array, target_ids: mx.array, active_tail_recur_blocks: int | None = None) -> mx.array:
++        x = self(input_ids, active_tail_recur_blocks=active_tail_recur_blocks).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
+             logits = self.project_logits(x, prev_ids)
+             return nn.losses.cross_entropy(logits.astype(mx.float32), y, reduction="mean")
+@@ -483,10 +483,8 @@
+         prefix = f"blocks.{num_layers - 1}."
+         keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
+     return keep
+-def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
+-    return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL
+-def should_track_ema_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
+-    return name.endswith(BLOCK_FP16_PROJ_SUFFIXES) or should_keep_float_tensor(name, arr, int8_fp16_keep_names)
++def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool: return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL
++def should_track_ema_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool: return name.endswith(BLOCK_FP16_PROJ_SUFFIXES) or should_keep_float_tensor(name, arr, int8_fp16_keep_names)
+ def keep_float_array(name: str, arr: mx.array, passthrough_orig_dtypes: dict[str, str]) -> np.ndarray:
+     if any(pattern in name for pattern in INT8_KEEP_FLOAT_FP32_NAME_PATTERNS):
+         return np.ascontiguousarray(_np_float32(arr))
+@@ -1170,29 +1168,21 @@
+     sample_ms = 1000.0 * (time.perf_counter() - start)
+     return sample_ms * total_units / max(sample_units, 1)
+ def clip_grad_tree(grads_tree: dict, max_norm: float) -> dict:
+-    if max_norm <= 0:
+-        return grads_tree
++    if max_norm <= 0: return grads_tree
+     flat = dict(tree_flatten(grads_tree))
+-    total_sq = 0.0
+-    for grad in flat.values():
+-        total_sq += float(np.sum(np.square(_np_float32(grad)), dtype=np.float64))
+-    if total_sq <= 0.0:
+-        return grads_tree
+-    total_norm = math.sqrt(total_sq)
+-    if total_norm <= max_norm:
+-        return grads_tree
+-    scale = max_norm / (total_norm + 1e-12)
+-    return tree_unflatten([(k, g * scale) for k, g in flat.items()])
++    total_sq = sum(float(np.sum(np.square(_np_float32(grad)), dtype=np.float64)) for grad in flat.values())
++    if total_sq <= 0.0: return grads_tree
++    scale = max_norm / (math.sqrt(total_sq) + 1e-12)
++    return grads_tree if scale >= 1.0 else tree_unflatten([(k, g * scale) for k, g in flat.items()])
+ def should_activate_quant_aware(args: Hyperparameters, step: int, elapsed_ms: float, max_wallclock_ms: float | None, reserved_final_ms: float) -> bool:
+-    if args.quant_aware_every <= 0:
+-        return False
+-    if max_wallclock_ms is None:
+-        return args.quant_aware_iters > 0 and step >= max(args.iterations - args.quant_aware_iters, 0)
++    if args.quant_aware_every <= 0: return False
++    if max_wallclock_ms is None: return args.quant_aware_iters > 0 and step >= max(args.iterations - args.quant_aware_iters, 0)
+     return elapsed_ms >= max(max_wallclock_ms - reserved_final_ms - 1000.0 * args.quant_aware_train_seconds, 0.0)
+-def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tuple[float, float, float]:
+-    if not quant_aware_active:
+-        return 1.0, 1.0, 1.0
+-    return args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul
++def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tuple[float, float, float]: return (args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul) if quant_aware_active else (1.0, 1.0, 1.0)
++def train_active_tail_recur_blocks(args: Hyperparameters, step: int, elapsed_ms: float, max_wallclock_ms: float | None, reserved_final_ms: float) -> int:
++    if args.tail_recur_blocks <= 1 or args.tail_recur_warmup_end <= 0.0: return args.tail_recur_blocks
++    progress = step / max(args.iterations, 1) if max_wallclock_ms is None else elapsed_ms / max(max_wallclock_ms - reserved_final_ms, 1.0)
++    return args.tail_recur_blocks - 1 if min(max(progress, 0.0), 1.0) < args.tail_recur_warmup_end else args.tail_recur_blocks
+ def main() -> None:
+     args = Hyperparameters()
+     out_dir = Path(args.out_dir)
+@@ -1246,7 +1236,6 @@
+         tied_embed_init_std=args.tied_embed_init_std,
+         qk_gain_init=args.qk_gain_init,
+         tail_recur_blocks=args.tail_recur_blocks,
+-        tail_recur_reverse=args.tail_recur_reverse,
+     )
+     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
+     opt = SplitOptimizers(model, args)
+@@ -1260,6 +1249,9 @@
+         nn.value_and_grad(model, lambda x, y: model.loss(x, y)),
+         inputs=model.state,
+         outputs=model.state,
++    )
++    compiled_loss_and_grad_warmup = None if args.tail_recur_blocks <= 1 or args.tail_recur_warmup_end <= 0.0 else mx.compile(
++        nn.value_and_grad(model, lambda x, y: model.loss(x, y, active_tail_recur_blocks=args.tail_recur_blocks - 1)), inputs=model.state, outputs=model.state
+     )
+     if "MLX_EAGER_EVAL" not in os.environ:
+         args.mlx_eager_eval = not args.use_single_microbatch_path
+@@ -1333,7 +1325,7 @@
+         f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} "
+         f"active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}"
+     )
+-    log(f"tail_recur_order:{'reverse' if model.tail_recur_reverse else 'forward'}")
++    log(f"tail_recur_schedule:warmup_active:{max(args.tail_recur_blocks - 1, 0)} until:{args.tail_recur_warmup_end:.2f}")
+     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
+     train_time_ms = 0.0
+     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
+@@ -1377,12 +1369,13 @@
+             or should_activate_quant_aware(args, step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms)
+         )
+         embed_lr_mul, matrix_lr_mul, scalar_lr_mul = quant_aware_lr_muls(args, quant_aware_active)
++        compiled_step_loss_and_grad = compiled_loss_and_grad if compiled_loss_and_grad_warmup is None or train_active_tail_recur_blocks(args, step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms) == args.tail_recur_blocks else compiled_loss_and_grad_warmup
+         step_t0 = time.perf_counter()
+         should_log_train = args.train_log_every > 0 and (
+             step < 10 or (step + 1) % args.train_log_every == 0 or stop_after_step is not None
+         )
+         if args.use_single_microbatch_path:
+-            train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad)
++            train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_step_loss_and_grad)
+             if args.mlx_eager_eval:
+                 mx.eval(train_loss, grads)
+             grads = clip_grad_tree(grads, args.grad_clip_norm)
+@@ -1391,7 +1384,7 @@
+             train_loss = mx.array(0.0, dtype=mx.float32)
+             grad_scale = 1.0 / args.grad_accum_steps
+             for _ in range(args.grad_accum_steps):
+-                loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad)
++                loss, grads = train_step_loss_and_grad(args, train_loader, compiled_step_loss_and_grad)
+                 accum = accumulate_flat_grads(accum, grads, grad_scale)
+                 train_loss = train_loss + loss.astype(mx.float32) * grad_scale
+                 if args.mlx_eager_eval:
+@@ -1495,4 +1488,4 @@
+     log(f"final_int8_zlib_roundtrip val_loss:{q_val_loss:.4f} val_bpb:{q_val_bpb:.4f} eval_time:{q_eval_ms:.0f}ms")
+     log(f"final_int8_zlib_roundtrip_exact val_loss:{q_val_loss:.8f} val_bpb:{q_val_bpb:.8f}")
+ if __name__ == "__main__":
+-    main()
++    main()

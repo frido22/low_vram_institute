@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15839882,
+  "code_bytes": 78514,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15761368,
+  "rationale": "Builds on the 9x512 recurrent-tail best by saving early training compute: the model trains with only the final recurrent tail block active until 58% of the usable train budget, then switches back to the full two-block tail for the later phase and final scored eval. The hypothesis is that the second recurrent pass is low-value while gates are near zero, so dropping it early can buy extra steps within 600s without changing the end architecture or quantized export path.",
+  "run_id": "2026_04_22_run_0016",
+  "runtime_seconds": 615.572709,
+  "submitter": "frido22",
+  "title": "Single-Block Tail Recurrence Warmup",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 531651,
+  "under_16mb": true,
+  "val_bpb": 1.52838197,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
