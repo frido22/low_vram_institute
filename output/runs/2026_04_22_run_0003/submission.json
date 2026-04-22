@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15747920,
+  "code_bytes": 77083,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15670837,
+  "rationale": "Build on run 0041 without spending bytes or adding compile churn. The current best already wants two recurrent tail blocks, but the closest schedule misses suggest the earlier repeated block is easier to over-activate than the final repeated block under a 600-second budget. This change keeps the winning architecture and exact int8+zlib endgame intact while making every non-final tail recurrence gate self-damp near zero via `gate * abs(gate)`, so the deepest repeated block still grows linearly but the earlier repeated block has to earn activation with a stronger signal. The hypothesis is a cleaner recurrent tail state and slightly better final roundtrip behavior at essentially unchanged artifact size and throughput.",
+  "run_id": "2026_04_22_run_0003",
+  "runtime_seconds": 620.473287,
+  "submitter": "frido22",
+  "title": "Asymmetric Tail-Recur Gate On Recurrent-Tail QK Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538603,
+  "under_16mb": true,
+  "val_bpb": 1.52417555,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
