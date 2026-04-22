@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15876108,
+  "code_bytes": 77483,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15798625,
+  "rationale": "Build on the recurrent-tail QK best by tightening the exact export path instead of changing training dynamics: keep the small output tensors in FP32 during final int8+zlib serialization, and stop EMA from averaging already-rescued recurrent QKV/control tensors that are now preserved accurately. This directly targets final_int8_zlib_roundtrip_exact val_bpb on the current best family, keeps shapes and wallclock behavior unchanged, and spends the remaining size headroom on the proven recurrent-tail/export path rather than new heads or broader hyperparameter sweeps.",
+  "run_id": "2026_04_22_run_0005",
+  "runtime_seconds": 619.913304,
+  "submitter": "frido22",
+  "title": "Exact Output FP32 And EMA-Carved Recurrent Tail Endgame",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538490,
+  "under_16mb": true,
+  "val_bpb": 1.52500084,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
