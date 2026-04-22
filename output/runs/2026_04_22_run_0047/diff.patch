@@ -1,0 +1,126 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -68,7 +68,6 @@
+     rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
+     qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 2.0))
+     tail_recur_blocks: int = int(os.environ.get("TAIL_RECUR_BLOCKS", 2))
+-    tail_recur_reverse: bool = bool(int(os.environ.get("TAIL_RECUR_REVERSE", "1")))
+     beta1: float = float(os.environ.get("BETA1", 0.9))
+     beta2: float = float(os.environ.get("BETA2", 0.95))
+     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
+@@ -280,7 +279,7 @@
+ class GPT(nn.Module):
+     def __init__(self, vocab_size: int, num_layers: int, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int,
+                  logit_chunk_tokens: int, logit_softcap: float, rope_base: float, tied_embed_init_std: float,
+-                 qk_gain_init: float, tail_recur_blocks: int, tail_recur_reverse: bool):
++                 qk_gain_init: float, tail_recur_blocks: int):
+         super().__init__()
+         if logit_softcap <= 0.0:
+             raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
+@@ -292,14 +291,13 @@
+         self.num_encoder_layers = num_layers // 2
+         self.num_decoder_layers = num_layers - self.num_encoder_layers
+         self.skip_weights = mx.ones((min(self.num_encoder_layers, self.num_decoder_layers), dim), dtype=mx.float32)
++        self.decoder_skip_start = self.num_decoder_layers - int(self.skip_weights.shape[0])
+         self.blocks = [
+             Block(dim, num_heads, num_kv_heads, mlp_mult, rope_base, qk_gain_init)
+             for _ in range(num_layers)
+         ]
+         tail_recur_span = min(max(tail_recur_blocks, 0), self.num_decoder_layers)
+         self.tail_recur_start = num_layers - tail_recur_span
+-        self.tail_recur_reverse = tail_recur_reverse
+-        self.tail_recur_indices = tuple(reversed(range(self.tail_recur_start, len(self.blocks)))) if tail_recur_reverse else tuple(range(self.tail_recur_start, len(self.blocks)))
+         self.final_norm = RMSNormNoWeight()
+         self.tail_recur_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None
+         for b in self.blocks:
+@@ -319,11 +317,12 @@
+             x = self.blocks[i](x, x0)
+             skips.append(x)
+         for i in range(self.num_decoder_layers):
+-            if skips:
+-                x = x + self.skip_weights[i].astype(x.dtype)[None, None, :] * skips.pop()
++            skip_idx = i - self.decoder_skip_start
++            if 0 <= skip_idx < int(self.skip_weights.shape[0]) and skips:
++                x = x + self.skip_weights[skip_idx].astype(x.dtype)[None, None, :] * skips.pop()
+             x = self.blocks[self.num_encoder_layers + i](x, x0)
+         if self.tail_recur_gates is not None:
+-            for recur_idx, block_idx in enumerate(self.tail_recur_indices):
++            for recur_idx, block_idx in enumerate(range(self.tail_recur_start, len(self.blocks))):
+                 x = x + mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](x, x0) - x)
+         return self.final_norm(x)
+     def loss(self, input_ids: mx.array, target_ids: mx.array) -> mx.array:
+@@ -448,12 +447,9 @@
+ INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
+ INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
+ PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
++TAIL_EMA_TRACK_RECUR_V = bool(int(os.environ.get("TAIL_EMA_TRACK_RECUR_V", "1")))
+ INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
+-INT8_FP16_KEEP_NAMES = tuple(
+-    name
+-    for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
+-    if name
+-)
++INT8_FP16_KEEP_NAMES = tuple(name for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",") if name)
+ BLOCK_FP16_MATRIX_SUFFIXES = (
+     "attn.c_q.weight",
+     "attn.c_k.weight",
+@@ -1246,21 +1242,13 @@
+         tied_embed_init_std=args.tied_embed_init_std,
+         qk_gain_init=args.qk_gain_init,
+         tail_recur_blocks=args.tail_recur_blocks,
+-        tail_recur_reverse=args.tail_recur_reverse,
+     )
+     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
+     opt = SplitOptimizers(model, args)
+     compiled_loss = mx.compile(lambda x, y: model.loss(x, y), inputs=model.state, outputs=model.state)
+-    compiled_masked_loss = mx.compile(
+-        lambda x, y, m: model.masked_loss(x, y, m),
+-        inputs=model.state,
+-        outputs=model.state,
+-    )
+-    compiled_loss_and_grad = mx.compile(
+-        nn.value_and_grad(model, lambda x, y: model.loss(x, y)),
+-        inputs=model.state,
+-        outputs=model.state,
+-    )
++    tail_ema_extra_names = {name for block_idx in range(max(args.num_layers - args.tail_recur_blocks, 0), args.num_layers) if (name := f"blocks.{block_idx}.attn.c_v.weight") not in int8_fp16_keep_names} if TAIL_EMA_TRACK_RECUR_V else set()
++    compiled_masked_loss = mx.compile(lambda x, y, m: model.masked_loss(x, y, m), inputs=model.state, outputs=model.state)
++    compiled_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y: model.loss(x, y)), inputs=model.state, outputs=model.state)
+     if "MLX_EAGER_EVAL" not in os.environ:
+         args.mlx_eager_eval = not args.use_single_microbatch_path
+     elif args.use_single_microbatch_path and args.mlx_eager_eval:
+@@ -1333,8 +1321,8 @@
+         f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} "
+         f"active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}"
+     )
+-    log(f"tail_recur_order:{'reverse' if model.tail_recur_reverse else 'forward'}")
+-    log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
++    log(f"decoder_skip_alignment:start:{model.decoder_skip_start} count:{model.skip_weights.shape[0]}")
++    log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all extra_recur_v_roundtrip:{}".format(PROJ_EMA_DECAY, len(tail_ema_extra_names)))
+     train_time_ms = 0.0
+     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
+     stop_after_step: int | None = None
+@@ -1421,13 +1409,14 @@
+             flat_params = dict(tree_flatten(model.parameters()))
+             if tracked_ema is None:
+                 tracked_ema = {
+-                    name: arr + mx.zeros_like(arr)
++                    name: (roundtrip_tensor_like_final(name, arr, int8_fp16_keep_names) if name in tail_ema_extra_names else arr) + mx.zeros_like(arr)
+                     for name, arr in flat_params.items()
+-                    if mx.issubdtype(arr.dtype, mx.floating) and should_track_ema_tensor(name, arr, int8_fp16_keep_names)
++                    if mx.issubdtype(arr.dtype, mx.floating) and (should_track_ema_tensor(name, arr, int8_fp16_keep_names) or name in tail_ema_extra_names)
+                 }
+             else:
+                 for name in tracked_ema:
+-                    tracked_ema[name] = tracked_ema[name] + (flat_params[name] - tracked_ema[name]) * tracked_ema_keep
++                    arr = roundtrip_tensor_like_final(name, flat_params[name], int8_fp16_keep_names) if name in tail_ema_extra_names else flat_params[name]
++                    tracked_ema[name] = tracked_ema[name] + (arr - tracked_ema[name]) * tracked_ema_keep
+         mx.synchronize()
+         step_ms = 1000.0 * (time.perf_counter() - step_t0)
+         approx_train_time_ms = train_time_ms + 1000.0 * (time.perf_counter() - t0)
+@@ -1495,4 +1484,4 @@
+     log(f"final_int8_zlib_roundtrip val_loss:{q_val_loss:.4f} val_bpb:{q_val_bpb:.4f} eval_time:{q_eval_ms:.0f}ms")
+     log(f"final_int8_zlib_roundtrip_exact val_loss:{q_val_loss:.8f} val_bpb:{q_val_bpb:.8f}")
+ if __name__ == "__main__":
+-    main()
++    main()

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15741320,
+  "code_bytes": 77823,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15663497,
+  "rationale": "Builds on the current late-aligned recurrent-tail best while avoiding another byte-costly float rescue. The only recurrent-tail attention matrix still quantized at export is the first recurrent block's V projection, so this change tracks a post-roundtrip EMA target for that tensor during the quant-aware endgame. The hypothesis is that smoothing exactly the dequantized tensor used by final_int8_zlib_roundtrip_exact will recover some of the benefit of V rescue without spending artifact bytes or changing the hot forward path.",
+  "run_id": "2026_04_22_run_0047",
+  "runtime_seconds": 612.850544,
+  "submitter": "frido22",
+  "title": "Roundtrip EMA On Quantized First Recurrent V",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 528018,
+  "under_16mb": true,
+  "val_bpb": 1.52369058,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
