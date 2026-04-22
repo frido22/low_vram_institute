@@ -1,98 +1,94 @@
-#!/usr/bin/env python3
-from __future__ import annotations
-import glob
-import json
-import math
-import os
-import pickle
-import sys
-import time
-import uuid
-import zlib
-from collections.abc import Callable
-from pathlib import Path
-import numpy as np
-_OPTIONAL_IMPORT_ERROR = None
-try:
-    import sentencepiece as spm; import mlx.core as mx; import mlx.nn as nn; import mlx.optimizers as optim
-    from mlx.utils import tree_flatten, tree_unflatten
-except ModuleNotFoundError as exc:
-    _OPTIONAL_IMPORT_ERROR = exc
-    class _Missing:
-        class Module: pass
-        def __getattr__(self, _: str): return self
-        def __call__(self, *args, **kwargs): raise ModuleNotFoundError(f"Optional dependency missing: {_OPTIONAL_IMPORT_ERROR.name}") from _OPTIONAL_IMPORT_ERROR
-    spm = mx = nn = optim = _Missing(); tree_flatten = tree_unflatten = _Missing()
-COMPUTE_DTYPE = mx.bfloat16
-class Hyperparameters:
-    data_path: str = os.environ.get("DATA_PATH", "./data/datasets/fineweb10B_sp1024")
-    tokenizer_path: str = os.environ.get("TOKENIZER_PATH", "./data/tokenizers/fineweb_1024_bpe.model")
-    run_id: str = os.environ.get("RUN_ID", str(uuid.uuid4()))
-    seed: int = int(os.environ.get("SEED", 1337))
-    iterations: int = int(os.environ.get("ITERATIONS", 20_000))
-    val_loss_every: int = int(os.environ.get("VAL_LOSS_EVERY", 0))
-    val_batch_size: int = int(os.environ.get("VAL_BATCH_SIZE", 8_192))
-    train_log_every: int = int(os.environ.get("TRAIN_LOG_EVERY", 50))
-    train_batch_tokens: int = int(os.environ.get("TRAIN_BATCH_TOKENS", 6_144))
-    grad_accum_steps: int = int(os.environ.get("GRAD_ACCUM_STEPS", 1))
-    train_seq_len: int = int(os.environ.get("TRAIN_SEQ_LEN", os.environ.get("TRAIN_MAX_SEQ_LEN", 1024)))
-    mlx_max_microbatch_tokens: int = int(os.environ.get("MLX_MAX_MICROBATCH_TOKENS", 8_192))
-    mlx_eager_eval: bool = bool(int(os.environ.get("MLX_EAGER_EVAL", "0")))
-    warmdown_iters: int = int(os.environ.get("WARMDOWN_ITERS", 64))
-    max_wallclock_seconds: float = float(os.environ.get("MAX_WALLCLOCK_SECONDS", 600.0))
-    final_eval_reserve_seconds: float = float(os.environ.get("FINAL_EVAL_RESERVE_SECONDS", 72.0))
-    final_eval_reserve_scale: float = float(os.environ.get("FINAL_EVAL_RESERVE_SCALE", 1.35))
-    final_eval_estimate_batches: int = int(os.environ.get("FINAL_EVAL_ESTIMATE_BATCHES", 2))
-    final_eval_serialization_seconds: float = float(os.environ.get("FINAL_EVAL_SERIALIZATION_SECONDS", 5.0))
-    quant_aware_train_seconds: float = float(os.environ.get("QUANT_AWARE_TRAIN_SECONDS", 48.0))
-    quant_aware_iters: int = int(os.environ.get("QUANT_AWARE_ITERS", 96))
-    quant_aware_every: int = int(os.environ.get("QUANT_AWARE_EVERY", 24))
-    quant_aware_embed_lr_mul: float = float(os.environ.get("QUANT_AWARE_EMBED_LR_MUL", 0.6))
-    quant_aware_matrix_lr_mul: float = float(os.environ.get("QUANT_AWARE_MATRIX_LR_MUL", 0.35))
-    quant_aware_scalar_lr_mul: float = float(os.environ.get("QUANT_AWARE_SCALAR_LR_MUL", 0.8))
-    quant_aware_proj_start: float = float(os.environ.get("QUANT_AWARE_PROJ_START", 0.55))
-    quant_aware_proj_step: float = float(os.environ.get("QUANT_AWARE_PROJ_STEP", 0.2))
-    quant_aware_proj_end: float = float(os.environ.get("QUANT_AWARE_PROJ_END", 0.95))
-    vocab_size: int = int(os.environ.get("VOCAB_SIZE", 1024))
-    num_layers: int = int(os.environ.get("NUM_LAYERS", 9))
-    model_dim: int = int(os.environ.get("MODEL_DIM", 512))
-    num_heads: int = int(os.environ.get("NUM_HEADS", 8))
-    num_kv_heads: int = int(os.environ.get("NUM_KV_HEADS", 4))
-    mlp_mult: int = int(os.environ.get("MLP_MULT", 2))
-    tie_embeddings: bool = bool(int(os.environ.get("TIE_EMBEDDINGS", "1")))
-    tied_embed_init_std: float = float(os.environ.get("TIED_EMBED_INIT_STD", 0.005))
-    logit_chunk_tokens: int = int(os.environ.get("LOGIT_CHUNK_TOKENS", 0))
-    logit_softcap: float = float(os.environ.get("LOGIT_SOFTCAP", 30.0))
-    eval_stride: int = int(os.environ.get("EVAL_STRIDE", 64))
-    eval_doc_isolated: bool = bool(int(os.environ.get("EVAL_DOC_ISOLATED", "1")))
-    rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
-    qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 2.0))
-    tail_recur_blocks: int = int(os.environ.get("TAIL_RECUR_BLOCKS", 2))
-    beta1: float = float(os.environ.get("BETA1", 0.9))
-    beta2: float = float(os.environ.get("BETA2", 0.95))
-    adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
-    tied_embed_lr: float = float(os.environ.get("TIED_EMBED_LR", 0.03))
-    matrix_lr: float = float(os.environ.get("MATRIX_LR", 0.02))
-    scalar_lr: float = float(os.environ.get("SCALAR_LR", 0.02))
-    muon_momentum: float = float(os.environ.get("MUON_MOMENTUM", 0.95))
-    muon_backend_steps: int = int(os.environ.get("MUON_BACKEND_STEPS", 5))
-    muon_momentum_warmup_start: float = float(os.environ.get("MUON_MOMENTUM_WARMUP_START", 0.85))
-    muon_momentum_warmup_steps: int = int(os.environ.get("MUON_MOMENTUM_WARMUP_STEPS", 500))
-    grad_clip_norm: float = float(os.environ.get("GRAD_CLIP_NORM", 0.0))
-    out_dir: str = os.environ.get("OUT_DIR", "logs")
-    @property
-    def train_files(self) -> str:
-        return f"{self.data_path}/fineweb_train_*.bin"
-    @property
-    def val_files(self) -> str:
-        return f"{self.data_path}/fineweb_val_*.bin"
-    @property
-    def microbatch_tokens(self) -> int:
-        return self.train_batch_tokens // self.grad_accum_steps
-    @property
-    def use_single_microbatch_path(self) -> bool:
-        return self.grad_accum_steps == 1 and self.microbatch_tokens <= self.mlx_max_microbatch_tokens
-    def lr_mul(self, step: int, elapsed_ms: float) -> float:
+/Users/frido_mac/Projects/low_vram_institute/logs/parameter_golf/2026_04_22_run_0032.txt
+WARNING: disabling MLX_EAGER_EVAL on single_microbatch_path for throughput
+run_id:2026_04_22_run_0032
+mlx_version:0.29.3
+train_loader:shards pattern=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/datasets/fineweb10B_sp1024/fineweb_train_*.bin
+val_loader:shards pattern=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/datasets/fineweb10B_sp1024/fineweb_val_*.bin tokens:261120
+WARNING: train_loader:subset dataset:fineweb10B_sp1024 train_shards:1/195 new epochs will arrive sooner than the full dataset
+tokenizer_path:/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/tokenizers/fineweb_1024_bpe.model
+model_params:17193034 vocab_size:1024 layers:9 dim:512 heads:8 kv_heads:4 seq_len:1024 tie_embeddings:True
+iterations:20000 train_batch_tokens:6144 grad_accum_steps:1 microbatch_tokens:6144 microbatch_batch_size:6 val_batch_size:8192 max_wallclock_seconds:600.000
+mlx_max_microbatch_tokens:8192
+optimizer:muon+adam muon_matrix_params:54 scalar_params:43 embed_lr:0.03 matrix_lr:0.02 scalar_lr:0.02 muon_momentum:0.95 muon_steps:5
+val_bpb:enabled tokenizer_kind=sentencepiece tokenizer_path=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/tokenizers/fineweb_1024_bpe.model
+eval_mode:doc_isolated_sliding bos_token_id:1 val_docs:233
+eval_stride:64
+compute_dtype:mlx.core.bfloat16 compile:True
+dtypes tok_emb:mlx.core.bfloat16 linear_weight:mlx.core.float32 skip_weights:mlx.core.float32
+final_eval_budget:estimate_ms:42982 reserve_ms:72000 estimate_batches:2
+quant_aware:train_seconds:48.0 iters:96 every:24
+quant_aware_lr_mul:embed:0.6 matrix:0.35 scalar:0.8
+quant_aware_proj_mix:start:0.55 step:0.2 end:0.95
+int8_transpose_suffixes:mlp.fc.weight
+int8_fp16_keep:count:10 tail_full_blocks:0 tail_proj_blocks:2
+tail_recur:blocks:2 start:7 active:2
+decoder_skip_alignment:start:1 count:4
+tail_ema:decay:0.94 tracked_float_kept:all tracked_proj_suffixes:all
+step:1/20000 train_loss:6.9419 train_time:8ms step_avg:7.82ms tok_s:785711
+step:2/20000 train_loss:13.3888 train_time:236ms step_avg:118.24ms tok_s:268753
+step:3/20000 train_loss:11.0221 train_time:941ms step_avg:313.60ms tok_s:2570398
+step:4/20000 train_loss:9.1547 train_time:1637ms step_avg:409.26ms tok_s:2873937
+step:5/20000 train_loss:7.8251 train_time:2333ms step_avg:466.59ms tok_s:2996098
+step:6/20000 train_loss:7.2346 train_time:3030ms step_avg:504.93ms tok_s:3014905
+step:7/20000 train_loss:7.1747 train_time:3723ms step_avg:531.80ms tok_s:3044285
+step:8/20000 train_loss:6.5703 train_time:4418ms step_avg:552.23ms tok_s:3034324
+step:9/20000 train_loss:6.2183 train_time:5113ms step_avg:568.09ms tok_s:3107675
+step:10/20000 train_loss:6.2955 train_time:5809ms step_avg:580.93ms tok_s:3051782
+step:50/20000 train_loss:4.6580 train_time:6813ms step_avg:136.26ms tok_s:703491
+step:100/20000 train_loss:4.3252 train_time:34695ms step_avg:346.95ms tok_s:650678
+step:150/20000 train_loss:4.1267 train_time:69521ms step_avg:463.47ms tok_s:3146332
+WARNING: starting epoch:2 dataset:fineweb10B_sp1024 train_shards:1
+step:200/20000 train_loss:4.1437 train_time:104361ms step_avg:521.81ms tok_s:3014413
+step:250/20000 train_loss:3.8974 train_time:139151ms step_avg:556.60ms tok_s:3051718
+step:300/20000 train_loss:3.6472 train_time:173996ms step_avg:579.99ms tok_s:2925482
+WARNING: starting epoch:3 dataset:fineweb10B_sp1024 train_shards:1
+step:350/20000 train_loss:3.7011 train_time:208806ms step_avg:596.59ms tok_s:2989477
+step:400/20000 train_loss:3.6031 train_time:243673ms step_avg:609.18ms tok_s:2920383
+step:450/20000 train_loss:3.5652 train_time:278513ms step_avg:618.92ms tok_s:2982644
+step:500/20000 train_loss:3.3112 train_time:313335ms step_avg:626.67ms tok_s:2968952
+WARNING: starting epoch:4 dataset:fineweb10B_sp1024 train_shards:1
+step:550/20000 train_loss:3.3475 train_time:348193ms step_avg:633.08ms tok_s:2981439
+step:600/20000 train_loss:3.4983 train_time:382998ms step_avg:638.33ms tok_s:2916918
+step:650/20000 train_loss:3.4375 train_time:417875ms step_avg:642.88ms tok_s:2922641
+WARNING: starting epoch:5 dataset:fineweb10B_sp1024 train_shards:1
+step:700/20000 train_loss:3.2541 train_time:452679ms step_avg:646.68ms tok_s:3004524
+quant_aware_roundtrip:step:701
+quant_aware_roundtrip:step:725
+quant_aware_roundtrip:step:749
+step:750/20000 train_loss:3.4375 train_time:522660ms step_avg:696.88ms tok_s:2263400
+quant_aware_roundtrip:step:773
+val_progress:1/255
+val_progress:25/255
+val_progress:50/255
+val_progress:75/255
+val_progress:100/255
+val_progress:125/255
+val_progress:150/255
+val_progress:175/255
+val_progress:200/255
+val_progress:225/255
+val_progress:250/255
+val_progress:255/255
+step:773/20000 val_loss:3.4771 val_bpb:1.5414 train_time:539580ms step_avg:698.03ms
+stopping_early: wallclock_cap train_time:539580ms step:773/20000
+saved_model:/Users/frido_mac/Projects/low_vram_institute/logs/parameter_golf/2026_04_22_run_0032_mlx_model.npz bytes:67745920
+serialized_model_int8_zlib:15674257 bytes (payload:20481316 raw_pickle:20490696 payload_ratio:3.31x)
+val_progress:1/255
+val_progress:25/255
+val_progress:50/255
+val_progress:75/255
+val_progress:100/255
+val_progress:125/255
+val_progress:150/255
+val_progress:175/255
+val_progress:200/255
+val_progress:225/255
+val_progress:250/255
+val_progress:255/255
+throughput:avg_tok_s:8801.87 total_tokens:4749312
+final_int8_zlib_roundtrip val_loss:3.4278 val_bpb:1.5195 eval_time:40065ms
+final_int8_zlib_roundtrip_exact val_loss:3.42783648 val_bpb:1.51951946
+ def lr_mul(self, step: int, elapsed_ms: float) -> float:
         if self.warmdown_iters <= 0:
             return 1.0
         if self.max_wallclock_seconds <= 0:
@@ -1494,3 +1490,98 @@ def main() -> None:
     log(f"final_int8_zlib_roundtrip_exact val_loss:{q_val_loss:.8f} val_bpb:{q_val_bpb:.8f}")
 if __name__ == "__main__":
     main()
+
+====================================================================================================
+Running Python 3.9.6 (default, Jan  9 2026, 11:03:41) 
+[Clang 17.0.0 (clang-1700.6.4.2)]
+Running MLX 0.29.3
+====================================================================================================
+WARNING: disabling MLX_EAGER_EVAL on single_microbatch_path for throughput
+run_id:2026_04_22_run_0032
+mlx_version:0.29.3
+train_loader:shards pattern=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/datasets/fineweb10B_sp1024/fineweb_train_*.bin
+val_loader:shards pattern=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/datasets/fineweb10B_sp1024/fineweb_val_*.bin tokens:261120
+WARNING: train_loader:subset dataset:fineweb10B_sp1024 train_shards:1/195 new epochs will arrive sooner than the full dataset
+tokenizer_path:/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/tokenizers/fineweb_1024_bpe.model
+model_params:17193034 vocab_size:1024 layers:9 dim:512 heads:8 kv_heads:4 seq_len:1024 tie_embeddings:True
+iterations:20000 train_batch_tokens:6144 grad_accum_steps:1 microbatch_tokens:6144 microbatch_batch_size:6 val_batch_size:8192 max_wallclock_seconds:600.000
+mlx_max_microbatch_tokens:8192
+optimizer:muon+adam muon_matrix_params:54 scalar_params:43 embed_lr:0.03 matrix_lr:0.02 scalar_lr:0.02 muon_momentum:0.95 muon_steps:5
+val_bpb:enabled tokenizer_kind=sentencepiece tokenizer_path=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/tokenizers/fineweb_1024_bpe.model
+eval_mode:doc_isolated_sliding bos_token_id:1 val_docs:233
+eval_stride:64
+compute_dtype:mlx.core.bfloat16 compile:True
+dtypes tok_emb:mlx.core.bfloat16 linear_weight:mlx.core.float32 skip_weights:mlx.core.float32
+final_eval_budget:estimate_ms:42982 reserve_ms:72000 estimate_batches:2
+quant_aware:train_seconds:48.0 iters:96 every:24
+quant_aware_lr_mul:embed:0.6 matrix:0.35 scalar:0.8
+quant_aware_proj_mix:start:0.55 step:0.2 end:0.95
+int8_transpose_suffixes:mlp.fc.weight
+int8_fp16_keep:count:10 tail_full_blocks:0 tail_proj_blocks:2
+tail_recur:blocks:2 start:7 active:2
+decoder_skip_alignment:start:1 count:4
+tail_ema:decay:0.94 tracked_float_kept:all tracked_proj_suffixes:all
+step:1/20000 train_loss:6.9419 train_time:8ms step_avg:7.82ms tok_s:785711
+step:2/20000 train_loss:13.3888 train_time:236ms step_avg:118.24ms tok_s:268753
+step:3/20000 train_loss:11.0221 train_time:941ms step_avg:313.60ms tok_s:2570398
+step:4/20000 train_loss:9.1547 train_time:1637ms step_avg:409.26ms tok_s:2873937
+step:5/20000 train_loss:7.8251 train_time:2333ms step_avg:466.59ms tok_s:2996098
+step:6/20000 train_loss:7.2346 train_time:3030ms step_avg:504.93ms tok_s:3014905
+step:7/20000 train_loss:7.1747 train_time:3723ms step_avg:531.80ms tok_s:3044285
+step:8/20000 train_loss:6.5703 train_time:4418ms step_avg:552.23ms tok_s:3034324
+step:9/20000 train_loss:6.2183 train_time:5113ms step_avg:568.09ms tok_s:3107675
+step:10/20000 train_loss:6.2955 train_time:5809ms step_avg:580.93ms tok_s:3051782
+step:50/20000 train_loss:4.6580 train_time:6813ms step_avg:136.26ms tok_s:703491
+step:100/20000 train_loss:4.3252 train_time:34695ms step_avg:346.95ms tok_s:650678
+step:150/20000 train_loss:4.1267 train_time:69521ms step_avg:463.47ms tok_s:3146332
+WARNING: starting epoch:2 dataset:fineweb10B_sp1024 train_shards:1
+step:200/20000 train_loss:4.1437 train_time:104361ms step_avg:521.81ms tok_s:3014413
+step:250/20000 train_loss:3.8974 train_time:139151ms step_avg:556.60ms tok_s:3051718
+step:300/20000 train_loss:3.6472 train_time:173996ms step_avg:579.99ms tok_s:2925482
+WARNING: starting epoch:3 dataset:fineweb10B_sp1024 train_shards:1
+step:350/20000 train_loss:3.7011 train_time:208806ms step_avg:596.59ms tok_s:2989477
+step:400/20000 train_loss:3.6031 train_time:243673ms step_avg:609.18ms tok_s:2920383
+step:450/20000 train_loss:3.5652 train_time:278513ms step_avg:618.92ms tok_s:2982644
+step:500/20000 train_loss:3.3112 train_time:313335ms step_avg:626.67ms tok_s:2968952
+WARNING: starting epoch:4 dataset:fineweb10B_sp1024 train_shards:1
+step:550/20000 train_loss:3.3475 train_time:348193ms step_avg:633.08ms tok_s:2981439
+step:600/20000 train_loss:3.4983 train_time:382998ms step_avg:638.33ms tok_s:2916918
+step:650/20000 train_loss:3.4375 train_time:417875ms step_avg:642.88ms tok_s:2922641
+WARNING: starting epoch:5 dataset:fineweb10B_sp1024 train_shards:1
+step:700/20000 train_loss:3.2541 train_time:452679ms step_avg:646.68ms tok_s:3004524
+quant_aware_roundtrip:step:701
+quant_aware_roundtrip:step:725
+quant_aware_roundtrip:step:749
+step:750/20000 train_loss:3.4375 train_time:522660ms step_avg:696.88ms tok_s:2263400
+quant_aware_roundtrip:step:773
+val_progress:1/255
+val_progress:25/255
+val_progress:50/255
+val_progress:75/255
+val_progress:100/255
+val_progress:125/255
+val_progress:150/255
+val_progress:175/255
+val_progress:200/255
+val_progress:225/255
+val_progress:250/255
+val_progress:255/255
+step:773/20000 val_loss:3.4771 val_bpb:1.5414 train_time:539580ms step_avg:698.03ms
+stopping_early: wallclock_cap train_time:539580ms step:773/20000
+saved_model:/Users/frido_mac/Projects/low_vram_institute/logs/parameter_golf/2026_04_22_run_0032_mlx_model.npz bytes:67745920
+serialized_model_int8_zlib:15674257 bytes (payload:20481316 raw_pickle:20490696 payload_ratio:3.31x)
+val_progress:1/255
+val_progress:25/255
+val_progress:50/255
+val_progress:75/255
+val_progress:100/255
+val_progress:125/255
+val_progress:150/255
+val_progress:175/255
+val_progress:200/255
+val_progress:225/255
+val_progress:250/255
+val_progress:255/255
+throughput:avg_tok_s:8801.87 total_tokens:4749312
+final_int8_zlib_roundtrip val_loss:3.4278 val_bpb:1.5195 eval_time:40065ms
+final_int8_zlib_roundtrip_exact val_loss:3.42783648 val_bpb:1.51951946

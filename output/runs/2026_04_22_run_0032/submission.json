@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15751505,
+  "code_bytes": 77248,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15674257,
+  "rationale": "Builds directly on the current 9x512 recurrent-tail best without adding new modules, extra parameters, or extra forward passes. The change late-aligns the existing encoder-decoder skip injections so both recurrent tail blocks receive direct skip context, which targets an underexplored traversal/output-path idea that fits the 600-second Mac-mini budget and compounds with the proven tail QK float-rescue endgame.",
+  "run_id": "2026_04_22_run_0032",
+  "runtime_seconds": 621.083068,
+  "submitter": "frido22",
+  "title": "Late-Aligned Decoder Skips For Recurrent Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 539580,
+  "under_16mb": true,
+  "val_bpb": 1.51951946,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
