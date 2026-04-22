@@ -222,3 +222,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_22_run_0022,1.522450,True,False,Recurrent-Pass Tail Attention Softening
 2026_04_22_run_0023,1.524669,True,False,Final-Block-Only First-Pass Anchor On Recurrent Tail
 2026_04_22_run_0024,1.521032,True,False,Shift Tail V Rescue To The First Recurrent Block
+2026_04_22_run_0025,1.524386,True,False,Full Recurrent QKV Plus Final Recurrent MLP Expansion

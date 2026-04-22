@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15567581,
+  "code_bytes": 77082,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15490499,
+  "rationale": "Builds directly on the recurrent-tail QK winner by spending the next run on a byte reallocation that stays inside the strongest local family. The closest recent export-path miss moved the penultimate recurrent block from QK-only to full QKV rescue while dropping one projection block and still left substantial artifact headroom. This variant keeps that stronger two-pass recurrent attention path, then spends part of the recovered budget on the final recurrent block's `mlp.fc.weight`, which is both the last large expansion matrix before the logits and the only MLP expansion reused by the winning recurrent tail. Training dynamics, wallclock behavior, quant-aware timing, and the exact `final_int8_zlib_roundtrip_exact` path remain unchanged; only the FP16 keep allocation shifts toward tensors that are reused twice in the proven tail and closest to the scored output.",
+  "run_id": "2026_04_22_run_0025",
+  "runtime_seconds": 620.201733,
+  "submitter": "frido22",
+  "title": "Full Recurrent QKV Plus Final Recurrent MLP Expansion",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538661,
+  "under_16mb": true,
+  "val_bpb": 1.52438577,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
