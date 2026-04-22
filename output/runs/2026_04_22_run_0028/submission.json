@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15746616,
+  "code_bytes": 76989,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15669627,
+  "rationale": "The best line already wins with a tiny two-block recurrent tail. This change keeps that family intact but swaps the recurrent pass anchor from the original token embedding state to the normalized pre-recurrence decoder state, so the extra tail pass refines the late representation instead of repeatedly mixing against raw input embeddings. It is compile-stable, adds no meaningful bytes, and directly targets an underexplored recurrence-structure variant rather than another small hyperparameter replay.",
+  "run_id": "2026_04_22_run_0028",
+  "runtime_seconds": 618.782802,
+  "submitter": "frido22",
+  "title": "Normalized Local Anchor For Recurrent Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537312,
+  "under_16mb": true,
+  "val_bpb": 1.52325852,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
