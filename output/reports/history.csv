@@ -199,3 +199,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_21_run_0065,1.521910,True,False,Refine current best
 2026_04_21_run_0066,1.521250,True,False,Staged Earlier Tail Recurrence Warm-In
 2026_04_22_run_0001,1.531342,True,False,Shallow-Then-Full Tail Recurrence Schedule
+2026_04_22_run_0002,1.522405,True,False,Forward-Mix Earlier Tail Recurrence Curriculum
