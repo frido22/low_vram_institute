@@ -238,3 +238,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_22_run_0038,1.526735,True,False,Late-Aligned Decoder Skips With Tail-Recurrence Warm-In
 2026_04_22_run_0039,1.519851,True,False,Late-Skip Tail QKV Float Rescue
 2026_04_22_run_0040,1.522064,True,False,First-Pass Output Carryover For Recurrent Tail
+2026_04_22_run_0041,1.524252,True,False,Late-Aligned Tail Recurrence With Learned Sublayer Scaling

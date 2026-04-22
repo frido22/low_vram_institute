@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15749455,
+  "code_bytes": 77765,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15671690,
+  "rationale": "Build on the current best late-aligned decoder-skip recurrent-tail baseline, but give each repeated tail block a tiny zero-init two-scalar control over recurrent attention vs recurrent MLP strength. This is a new recurrence-scheduling idea rather than another LR or head sweep, keeps shapes/step structure compile-stable, adds negligible size, preserves the winning late skip alignment, and directly targets the recurrent tail that has carried the strongest local results.",
+  "run_id": "2026_04_22_run_0041",
+  "runtime_seconds": 622.888448,
+  "submitter": "frido22",
+  "title": "Late-Aligned Tail Recurrence With Learned Sublayer Scaling",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 540462,
+  "under_16mb": true,
+  "val_bpb": 1.52425231,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
