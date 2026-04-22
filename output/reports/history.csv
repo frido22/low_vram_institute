@@ -219,3 +219,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_22_run_0019,1.524003,True,False,Anchored Two-Block Recurrent Tail With Full QKV Rescue
 2026_04_22_run_0020,1.521445,True,False,Reallocate Tail FP16 Budget From Penultimate Projections To Full Recurrent QKV
 2026_04_22_run_0021,1.525048,True,False,Widen Bigram Residual And Keep It Export-Safe
+2026_04_22_run_0022,1.522450,True,False,Recurrent-Pass Tail Attention Softening

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15749500,
+  "code_bytes": 77731,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15671769,
+  "rationale": "Build on the best 9x512 recurrent-tail script by making the repeated tail blocks behave more like refinement passes than exact replays. This adds a tiny learned per-head multiplier that only applies to the recurrent tail attention pass, initialized below 1.0 so the second pass starts slightly softer while the first pass and all non-tail blocks stay unchanged. The change is compile-stable, costs almost no bytes, preserves the proven quant-aware endgame and FP16 tail rescue, and directly targets the underexplored recurrence-scheduling behavior that still looks more promising here than another small optimizer sweep.",
+  "run_id": "2026_04_22_run_0022",
+  "runtime_seconds": 624.384657,
+  "submitter": "frido22",
+  "title": "Recurrent-Pass Tail Attention Softening",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 540746,
+  "under_16mb": true,
+  "val_bpb": 1.52244998,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
