@@ -203,3 +203,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_22_run_0003,1.524176,True,False,Asymmetric Tail-Recur Gate On Recurrent-Tail QK Best
 2026_04_22_run_0004,1.524544,True,False,Gated Tail State Carryover On Recurrent-Tail Best
 2026_04_22_run_0005,1.525001,True,False,Exact Output FP32 And EMA-Carved Recurrent Tail Endgame
+2026_04_22_run_0006,1.523027,True,False,Late Endgame Tail-Recurrence Collapse On Recurrent-Tail QK Best
