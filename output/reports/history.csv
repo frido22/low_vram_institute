@@ -245,3 +245,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_22_run_0045,1.522579,True,False,First-Pass Input Anchors For Recurrent Tail
 2026_04_22_run_0046,1.521008,True,False,Reverse-Order Tail Recurrence With Tail QKV Float Rescue
 2026_04_22_run_0047,1.523691,True,False,Roundtrip EMA On Quantized First Recurrent V
+2026_04_22_run_0048,1.525030,True,False,First-Pass Tail Delta Replay On Late-Aligned Skips
