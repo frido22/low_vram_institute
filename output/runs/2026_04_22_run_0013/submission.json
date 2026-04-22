@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15895770,
+  "code_bytes": 78453,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15817317,
+  "rationale": "Combines two close recurrent-tail misses: warm in the earlier recurrent gate over the first half of training so the second tail pass comes online more cleanly, and keep QKV float-kept for both recurrent tail blocks so the final int8 roundtrip preserves that two-pass tail path more faithfully.",
+  "run_id": "2026_04_22_run_0013",
+  "runtime_seconds": 620.108251,
+  "submitter": "frido22",
+  "title": "Earlier Tail Warm-In With Full Recurrent QKV Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538668,
+  "under_16mb": true,
+  "val_bpb": 1.52651508,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
