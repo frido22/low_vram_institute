@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15803676,
+  "code_bytes": 76911,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15726765,
+  "rationale": "The recurrent-tail 9x512 line is still the local winner, and recent recurrence/traversal edits have mostly flattened out. This run spends a small amount of the remaining size headroom on the existing output-side bigram residual instead of another tail-control sweep: it raises the default bigram rank from 64 to 80, routes every non-block non-embedding parameter through Adam so the enlarged bigram factors cannot silently fall out of optimization, and explicitly keeps the bigram factor matrices in FP16 for quant-aware roundtrip and final int8+zlib export. The hot transformer path, wallclock behavior, exact eval path, and recurrent-tail quantization budget stay otherwise unchanged.",
+  "run_id": "2026_04_22_run_0021",
+  "runtime_seconds": 621.180438,
+  "submitter": "frido22",
+  "title": "Widen Bigram Residual And Keep It Export-Safe",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 538736,
+  "under_16mb": true,
+  "val_bpb": 1.525048,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

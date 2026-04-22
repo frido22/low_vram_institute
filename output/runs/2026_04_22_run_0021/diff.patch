@@ -1,0 +1,106 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -61,6 +61,7 @@
+     mlp_mult: int = int(os.environ.get("MLP_MULT", 2))
+     tie_embeddings: bool = bool(int(os.environ.get("TIE_EMBEDDINGS", "1")))
+     tied_embed_init_std: float = float(os.environ.get("TIED_EMBED_INIT_STD", 0.005))
++    bigram_rank: int = int(os.environ.get("BIGRAM_RANK", 80))
+     logit_chunk_tokens: int = int(os.environ.get("LOGIT_CHUNK_TOKENS", 0))
+     logit_softcap: float = float(os.environ.get("LOGIT_SOFTCAP", 30.0))
+     eval_stride: int = int(os.environ.get("EVAL_STRIDE", 64))
+@@ -68,7 +69,6 @@
+     rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
+     qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 2.0))
+     tail_recur_blocks: int = int(os.environ.get("TAIL_RECUR_BLOCKS", 2))
+-    tail_recur_reverse: bool = bool(int(os.environ.get("TAIL_RECUR_REVERSE", "1")))
+     beta1: float = float(os.environ.get("BETA1", 0.9))
+     beta2: float = float(os.environ.get("BETA2", 0.95))
+     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
+@@ -280,13 +280,13 @@
+ class GPT(nn.Module):
+     def __init__(self, vocab_size: int, num_layers: int, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int,
+                  logit_chunk_tokens: int, logit_softcap: float, rope_base: float, tied_embed_init_std: float,
+-                 qk_gain_init: float, tail_recur_blocks: int, tail_recur_reverse: bool):
++                 qk_gain_init: float, tail_recur_blocks: int, bigram_rank: int):
+         super().__init__()
+         if logit_softcap <= 0.0:
+             raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
+         self.logit_chunk_tokens = logit_chunk_tokens; self.logit_softcap = logit_softcap
+         self.tok_emb = nn.Embedding(vocab_size, dim)
+-        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32); self.logit_gain = mx.array(1.0, dtype=mx.float32); self.bigram_rank = int(os.environ.get("BIGRAM_RANK", 64))
++        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32); self.logit_gain = mx.array(1.0, dtype=mx.float32); self.bigram_rank = bigram_rank
+         if self.bigram_rank > 0:
+             self.bigram_in = nn.Embedding(vocab_size, self.bigram_rank); self.bigram_out = CastedLinear(self.bigram_rank, vocab_size); self.bigram_scale = mx.array(0.0, dtype=mx.float32)
+         self.num_encoder_layers = num_layers // 2
+@@ -298,8 +298,6 @@
+         ]
+         tail_recur_span = min(max(tail_recur_blocks, 0), self.num_decoder_layers)
+         self.tail_recur_start = num_layers - tail_recur_span
+-        self.tail_recur_reverse = tail_recur_reverse
+-        self.tail_recur_indices = tuple(reversed(range(self.tail_recur_start, len(self.blocks)))) if tail_recur_reverse else tuple(range(self.tail_recur_start, len(self.blocks)))
+         self.final_norm = RMSNormNoWeight()
+         self.tail_recur_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None
+         for b in self.blocks:
+@@ -323,7 +321,7 @@
+                 x = x + self.skip_weights[i].astype(x.dtype)[None, None, :] * skips.pop()
+             x = self.blocks[self.num_encoder_layers + i](x, x0)
+         if self.tail_recur_gates is not None:
+-            for recur_idx, block_idx in enumerate(self.tail_recur_indices):
++            for recur_idx, block_idx in enumerate(range(self.tail_recur_start, len(self.blocks))):
+                 x = x + mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](x, x0) - x)
+         return self.final_norm(x)
+     def loss(self, input_ids: mx.array, target_ids: mx.array) -> mx.array:
+@@ -389,11 +387,7 @@
+             for k, p in params.items()
+             if k.startswith("blocks.") and p.ndim == 2 and not any(pattern in k for pattern in CONTROL_TENSOR_NAME_PATTERNS)
+         ]
+-        self.scalar_keys = [
+-            k
+-            for k, p in params.items()
+-            if k != self.embed_key and k not in self.matrix_keys and (k == "skip_weights" or p.ndim < 2 or any(pattern in k for pattern in CONTROL_TENSOR_NAME_PATTERNS) or int(p.size) <= 65_536)
+-        ]
++        self.scalar_keys = [k for k in params if k != self.embed_key and k not in self.matrix_keys]
+         self.muon = Muon(self.matrix_keys, params, args)
+         self.adam_embed = optim.Adam(
+             learning_rate=args.tied_embed_lr,
+@@ -451,7 +445,7 @@
+ INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
+ INT8_FP16_KEEP_NAMES = tuple(
+     name
+-    for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
++    for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight,bigram_in.weight,bigram_out.weight").split(",")
+     if name
+ )
+ BLOCK_FP16_MATRIX_SUFFIXES = (
+@@ -1246,7 +1240,7 @@
+         tied_embed_init_std=args.tied_embed_init_std,
+         qk_gain_init=args.qk_gain_init,
+         tail_recur_blocks=args.tail_recur_blocks,
+-        tail_recur_reverse=args.tail_recur_reverse,
++        bigram_rank=args.bigram_rank,
+     )
+     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
+     opt = SplitOptimizers(model, args)
+@@ -1286,7 +1280,7 @@
+     log(
+         f"model_params:{n_params} vocab_size:{args.vocab_size} layers:{args.num_layers} "
+         f"dim:{args.model_dim} heads:{args.num_heads} kv_heads:{args.num_kv_heads} "
+-        f"seq_len:{args.train_seq_len} tie_embeddings:{args.tie_embeddings}"
++        f"seq_len:{args.train_seq_len} tie_embeddings:{args.tie_embeddings} bigram_rank:{args.bigram_rank}"
+     )
+     log(
+         f"iterations:{args.iterations} train_batch_tokens:{args.train_batch_tokens} grad_accum_steps:{args.grad_accum_steps} "
+@@ -1333,7 +1327,6 @@
+         f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} "
+         f"active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}"
+     )
+-    log(f"tail_recur_order:{'reverse' if model.tail_recur_reverse else 'forward'}")
+     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
+     train_time_ms = 0.0
+     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
+@@ -1495,4 +1488,4 @@
+     log(f"final_int8_zlib_roundtrip val_loss:{q_val_loss:.4f} val_bpb:{q_val_bpb:.4f} eval_time:{q_eval_ms:.0f}ms")
+     log(f"final_int8_zlib_roundtrip_exact val_loss:{q_val_loss:.8f} val_bpb:{q_val_bpb:.8f}")
+ if __name__ == "__main__":
+-    main()
++    main()
