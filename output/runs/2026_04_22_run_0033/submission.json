@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15743163,
+  "code_bytes": 77628,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15665535,
+  "rationale": "Replay the winning late decoder skips during recurrent tail passes so the shared tail sees the same aligned context on both passes, compounding the current best structural win without adding new trainable weights or changing the exact int8+zlib evaluation path.",
+  "run_id": "2026_04_22_run_0033",
+  "runtime_seconds": 623.404764,
+  "submitter": "frido22",
+  "title": "Replayed Late Decoder Skips On Recurrent Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541521,
+  "under_16mb": true,
+  "val_bpb": 1.52263365,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

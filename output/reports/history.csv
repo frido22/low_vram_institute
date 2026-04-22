@@ -230,3 +230,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_22_run_0030,1.528811,True,False,Gated Shared Bridge Recurrence On Recurrent-Tail Best
 2026_04_22_run_0031,1.526971,True,False,Float-Kept Low-Rank Tail Adapters On Recurrent Blocks
 2026_04_22_run_0032,1.519519,True,True,Late-Aligned Decoder Skips For Recurrent Tail
+2026_04_22_run_0033,1.522634,True,False,Replayed Late Decoder Skips On Recurrent Tail
