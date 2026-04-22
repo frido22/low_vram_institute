@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15841669,
+  "code_bytes": 78728,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15762941,
+  "rationale": "Keeps the current best late-aligned decoder-skip scaffold, but trains with only the deepest recurrent tail block active until about 54% of the train budget, then switches to the full two-block tail recurrence. The hypothesis is that the skip-aligned decoder benefits from a less noisy early optimization path, while final evaluation/export stays unchanged on the full recurrent model.",
+  "run_id": "2026_04_22_run_0038",
+  "runtime_seconds": 619.384347,
+  "submitter": "frido22",
+  "title": "Late-Aligned Decoder Skips With Tail-Recurrence Warm-In",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 535808,
+  "under_16mb": true,
+  "val_bpb": 1.52673497,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
