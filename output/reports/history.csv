@@ -233,3 +233,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_22_run_0033,1.522634,True,False,Replayed Late Decoder Skips On Recurrent Tail
 2026_04_22_run_0034,1.521796,True,False,Fixed First-Pass Carry Anchor For Recurrent Tail
 2026_04_22_run_0035,1.524493,True,False,Gated Replay Of Late Decoder Skips In Tail Recurrence
+2026_04_22_run_0036,1.522295,True,False,Late Skip Anchors For Recurrent Tail

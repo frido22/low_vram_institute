@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15749882,
+  "code_bytes": 77514,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15672368,
+  "rationale": "Build on the current best late-aligned decoder-skip branch without replaying skips into the recurrent state. The recurrent tail now reuses the already-learned late skip residual for each tail block as the Block x0 anchor, giving resid_mix a skip-conditioned reference while keeping the winning topology, exact eval path, and byte budget essentially unchanged.",
+  "run_id": "2026_04_22_run_0036",
+  "runtime_seconds": 621.417631,
+  "submitter": "frido22",
+  "title": "Late Skip Anchors For Recurrent Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 539825,
+  "under_16mb": true,
+  "val_bpb": 1.52229543,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
