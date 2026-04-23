@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15680430,
+  "code_bytes": 4821,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15675609,
+  "rationale": "Builds on the frozen 9x512 reverse recurrent-tail best while keeping its final evaluator, serialization, quant-aware endgame, data paths, and print formats intact. The only training-path change is to route value_and_grad through a compile-stable train_loss that keeps all tokens supervised but upweights the final eval_stride positions, matching the official sliding-window scoring context better than uniform loss. The wrapper also fixes masked_loss accumulation for chunked logits and avoids recursive state/best_script imports if it becomes the saved best.",
+  "run_id": "2026_04_23_run_0089",
+  "runtime_seconds": 622.810019,
+  "submitter": "frido22",
+  "title": "Tail-Position Weighted Training Loss",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 540879,
+  "under_16mb": true,
+  "val_bpb": 1.52327613,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
