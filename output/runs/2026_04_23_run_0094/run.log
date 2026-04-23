@@ -1,102 +1,96 @@
-#!/usr/bin/env python3
-from __future__ import annotations
-import glob
-import json
-import math
-import os
-import pickle
-import sys
-import time
-import uuid
-import zlib
-from collections.abc import Callable
-from pathlib import Path
-import numpy as np
-_OPTIONAL_IMPORT_ERROR = None
-try:
-    import sentencepiece as spm; import mlx.core as mx; import mlx.nn as nn; import mlx.optimizers as optim
-    from mlx.utils import tree_flatten, tree_unflatten
-except ModuleNotFoundError as exc:
-    _OPTIONAL_IMPORT_ERROR = exc
-    class _Missing:
-        class Module: pass
-        def __getattr__(self, _: str): return self
-        def __call__(self, *args, **kwargs): raise ModuleNotFoundError(f"Optional dependency missing: {_OPTIONAL_IMPORT_ERROR.name}") from _OPTIONAL_IMPORT_ERROR
-    spm = mx = nn = optim = _Missing(); tree_flatten = tree_unflatten = _Missing()
-COMPUTE_DTYPE = mx.bfloat16
-class Hyperparameters:
-    data_path: str = os.environ.get("DATA_PATH", "./data/datasets/fineweb10B_sp1024")
-    tokenizer_path: str = os.environ.get("TOKENIZER_PATH", "./data/tokenizers/fineweb_1024_bpe.model")
-    run_id: str = os.environ.get("RUN_ID", str(uuid.uuid4()))
-    seed: int = int(os.environ.get("SEED", 1337))
-    iterations: int = int(os.environ.get("ITERATIONS", 20_000))
-    val_loss_every: int = int(os.environ.get("VAL_LOSS_EVERY", 0))
-    val_batch_size: int = int(os.environ.get("VAL_BATCH_SIZE", 8_192))
-    train_log_every: int = int(os.environ.get("TRAIN_LOG_EVERY", 50))
-    train_batch_tokens: int = int(os.environ.get("TRAIN_BATCH_TOKENS", 6_144))
-    grad_accum_steps: int = int(os.environ.get("GRAD_ACCUM_STEPS", 1))
-    train_seq_len: int = int(os.environ.get("TRAIN_SEQ_LEN", os.environ.get("TRAIN_MAX_SEQ_LEN", 1024)))
-    mlx_max_microbatch_tokens: int = int(os.environ.get("MLX_MAX_MICROBATCH_TOKENS", 8_192))
-    mlx_eager_eval: bool = bool(int(os.environ.get("MLX_EAGER_EVAL", "0")))
-    warmdown_iters: int = int(os.environ.get("WARMDOWN_ITERS", 64))
-    max_wallclock_seconds: float = float(os.environ.get("MAX_WALLCLOCK_SECONDS", 600.0))
-    final_eval_reserve_seconds: float = float(os.environ.get("FINAL_EVAL_RESERVE_SECONDS", 72.0))
-    final_eval_reserve_scale: float = float(os.environ.get("FINAL_EVAL_RESERVE_SCALE", 1.35))
-    final_eval_estimate_batches: int = int(os.environ.get("FINAL_EVAL_ESTIMATE_BATCHES", 2))
-    final_eval_serialization_seconds: float = float(os.environ.get("FINAL_EVAL_SERIALIZATION_SECONDS", 5.0))
-    quant_aware_train_seconds: float = float(os.environ.get("QUANT_AWARE_TRAIN_SECONDS", 48.0))
-    quant_aware_iters: int = int(os.environ.get("QUANT_AWARE_ITERS", 96))
-    quant_aware_every: int = int(os.environ.get("QUANT_AWARE_EVERY", 24))
-    quant_aware_embed_lr_mul: float = float(os.environ.get("QUANT_AWARE_EMBED_LR_MUL", 0.6))
-    quant_aware_matrix_lr_mul: float = float(os.environ.get("QUANT_AWARE_MATRIX_LR_MUL", 0.35))
-    quant_aware_scalar_lr_mul: float = float(os.environ.get("QUANT_AWARE_SCALAR_LR_MUL", 0.8))
-    quant_aware_proj_start: float = float(os.environ.get("QUANT_AWARE_PROJ_START", 0.55))
-    quant_aware_proj_step: float = float(os.environ.get("QUANT_AWARE_PROJ_STEP", 0.2))
-    quant_aware_proj_end: float = float(os.environ.get("QUANT_AWARE_PROJ_END", 0.95))
-    vocab_size: int = int(os.environ.get("VOCAB_SIZE", 1024))
-    num_layers: int = int(os.environ.get("NUM_LAYERS", 9))
-    model_dim: int = int(os.environ.get("MODEL_DIM", 512))
-    num_heads: int = int(os.environ.get("NUM_HEADS", 8))
-    num_kv_heads: int = int(os.environ.get("NUM_KV_HEADS", 4))
-    mlp_mult: int = int(os.environ.get("MLP_MULT", 2))
-    tie_embeddings: bool = bool(int(os.environ.get("TIE_EMBEDDINGS", "1")))
-    tied_embed_init_std: float = float(os.environ.get("TIED_EMBED_INIT_STD", 0.005))
-    logit_chunk_tokens: int = int(os.environ.get("LOGIT_CHUNK_TOKENS", 0))
-    logit_softcap: float = float(os.environ.get("LOGIT_SOFTCAP", 30.0))
-    eval_stride: int = int(os.environ.get("EVAL_STRIDE", 64))
-    eval_doc_isolated: bool = bool(int(os.environ.get("EVAL_DOC_ISOLATED", "1")))
-    rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
-    qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 2.0))
-    tail_recur_blocks: int = int(os.environ.get("TAIL_RECUR_BLOCKS", 2))
-    tail_recur_scale_start: float = float(os.environ.get("TAIL_RECUR_SCALE_START", 0.20))
-    tail_recur_scale_end: float = float(os.environ.get("TAIL_RECUR_SCALE_END", 0.90))
-    tail_recur_scale_max: float = float(os.environ.get("TAIL_RECUR_SCALE_MAX", 1.0))
-    beta1: float = float(os.environ.get("BETA1", 0.9))
-    beta2: float = float(os.environ.get("BETA2", 0.95))
-    adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
-    tied_embed_lr: float = float(os.environ.get("TIED_EMBED_LR", 0.03))
-    matrix_lr: float = float(os.environ.get("MATRIX_LR", 0.02))
-    scalar_lr: float = float(os.environ.get("SCALAR_LR", 0.02))
-    muon_momentum: float = float(os.environ.get("MUON_MOMENTUM", 0.95))
-    muon_backend_steps: int = int(os.environ.get("MUON_BACKEND_STEPS", 5))
-    muon_momentum_warmup_start: float = float(os.environ.get("MUON_MOMENTUM_WARMUP_START", 0.85))
-    muon_momentum_warmup_steps: int = int(os.environ.get("MUON_MOMENTUM_WARMUP_STEPS", 500))
-    grad_clip_norm: float = float(os.environ.get("GRAD_CLIP_NORM", 0.0))
-    out_dir: str = os.environ.get("OUT_DIR", "logs")
-    @property
-    def train_files(self) -> str:
-        return f"{self.data_path}/fineweb_train_*.bin"
-    @property
-    def val_files(self) -> str:
-        return f"{self.data_path}/fineweb_val_*.bin"
-    @property
-    def microbatch_tokens(self) -> int:
-        return self.train_batch_tokens // self.grad_accum_steps
-    @property
-    def use_single_microbatch_path(self) -> bool:
-        return self.grad_accum_steps == 1 and self.microbatch_tokens <= self.mlx_max_microbatch_tokens
-    def lr_mul(self, step: int, elapsed_ms: float) -> float:
-        if self.warmdown_iters <= 0:
+/Users/frido_mac/Projects/low_vram_institute/logs/parameter_golf/2026_04_23_run_0094.txt
+WARNING: disabling MLX_EAGER_EVAL on single_microbatch_path for throughput
+run_id:2026_04_23_run_0094
+mlx_version:0.29.3
+train_loader:shards pattern=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/datasets/fineweb10B_sp1024/fineweb_train_*.bin
+val_loader:shards pattern=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/datasets/fineweb10B_sp1024/fineweb_val_*.bin tokens:261120
+WARNING: train_loader:subset dataset:fineweb10B_sp1024 train_shards:1/195 new epochs will arrive sooner than the full dataset
+tokenizer_path:/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/tokenizers/fineweb_1024_bpe.model
+model_params:17193546 vocab_size:1024 layers:9 dim:512 heads:8 kv_heads:4 seq_len:1024 tie_embeddings:True
+iterations:20000 train_batch_tokens:6144 grad_accum_steps:1 microbatch_tokens:6144 microbatch_batch_size:6 val_batch_size:8192 max_wallclock_seconds:600.000
+mlx_max_microbatch_tokens:8192
+optimizer:muon+adam muon_matrix_params:54 scalar_params:44 embed_lr:0.03 matrix_lr:0.02 scalar_lr:0.02 muon_momentum:0.95 muon_steps:5
+val_bpb:enabled tokenizer_kind=sentencepiece tokenizer_path=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/tokenizers/fineweb_1024_bpe.model
+eval_mode:doc_isolated_sliding bos_token_id:1 val_docs:233
+eval_stride:64
+compute_dtype:mlx.core.bfloat16 compile:True
+dtypes tok_emb:mlx.core.bfloat16 linear_weight:mlx.core.float32 skip_weights:mlx.core.float32
+final_eval_budget:estimate_ms:42452 reserve_ms:72000 estimate_batches:2
+quant_aware:train_seconds:48.0 iters:96 every:24
+quant_aware_lr_mul:embed:0.6 matrix:0.35 scalar:0.8
+quant_aware_proj_mix:start:0.55 step:0.2 end:0.95
+int8_transpose_suffixes:mlp.fc.weight
+int8_fp16_keep:count:10 tail_full_blocks:0 tail_proj_blocks:2
+tail_recur:blocks:2 start:7 active:2
+decoder_skip_alignment:start:2 count:3 trim:1
+tail_recur_order:reverse
+tail_recur_carry:decoder_output_anchor
+tail_ema:decay:0.94 tracked_float_kept:all tracked_proj_suffixes:all
+step:1/20000 train_loss:6.9419 train_time:9ms step_avg:8.92ms tok_s:688735
+step:2/20000 train_loss:13.3254 train_time:239ms step_avg:119.45ms tok_s:260322
+step:3/20000 train_loss:10.9063 train_time:948ms step_avg:315.98ms tok_s:2530435
+step:4/20000 train_loss:9.0020 train_time:1650ms step_avg:412.41ms tok_s:2403442
+step:5/20000 train_loss:7.6721 train_time:2348ms step_avg:469.54ms tok_s:2348399
+step:6/20000 train_loss:7.1215 train_time:3050ms step_avg:508.40ms tok_s:2600865
+step:7/20000 train_loss:7.0716 train_time:3752ms step_avg:535.98ms tok_s:2252819
+step:8/20000 train_loss:6.5364 train_time:4450ms step_avg:556.29ms tok_s:2548144
+step:9/20000 train_loss:6.1882 train_time:5147ms step_avg:571.89ms tok_s:2567713
+step:10/20000 train_loss:6.2757 train_time:5848ms step_avg:584.81ms tok_s:2408585
+step:50/20000 train_loss:4.6483 train_time:6883ms step_avg:137.66ms tok_s:664548
+step:100/20000 train_loss:4.3147 train_time:34966ms step_avg:349.66ms tok_s:642678
+step:150/20000 train_loss:4.1021 train_time:69941ms step_avg:466.27ms tok_s:3026601
+WARNING: starting epoch:2 dataset:fineweb10B_sp1024 train_shards:1
+step:200/20000 train_loss:4.1110 train_time:104988ms step_avg:524.94ms tok_s:3007464
+step:250/20000 train_loss:3.8847 train_time:139993ms step_avg:559.97ms tok_s:2969671
+step:300/20000 train_loss:3.6341 train_time:175063ms step_avg:583.54ms tok_s:2876686
+WARNING: starting epoch:3 dataset:fineweb10B_sp1024 train_shards:1
+step:350/20000 train_loss:3.6795 train_time:210098ms step_avg:600.28ms tok_s:2896008
+step:400/20000 train_loss:3.5772 train_time:245127ms step_avg:612.82ms tok_s:2866620
+step:450/20000 train_loss:3.5484 train_time:280170ms step_avg:622.60ms tok_s:2907714
+step:500/20000 train_loss:3.2831 train_time:315151ms step_avg:630.30ms tok_s:2922294
+WARNING: starting epoch:4 dataset:fineweb10B_sp1024 train_shards:1
+step:550/20000 train_loss:3.3272 train_time:350193ms step_avg:636.71ms tok_s:2892768
+step:600/20000 train_loss:3.4733 train_time:385238ms step_avg:642.06ms tok_s:2944526
+step:650/20000 train_loss:3.4051 train_time:420320ms step_avg:646.65ms tok_s:2842635
+WARNING: starting epoch:5 dataset:fineweb10B_sp1024 train_shards:1
+step:700/20000 train_loss:3.2383 train_time:455372ms step_avg:650.53ms tok_s:2919805
+quant_aware_roundtrip:step:701
+quant_aware_roundtrip:step:725
+quant_aware_roundtrip:step:749
+step:750/20000 train_loss:3.3993 train_time:525751ms step_avg:701.00ms tok_s:2212924
+quant_aware_roundtrip:step:773
+val_progress:1/255
+val_progress:25/255
+val_progress:50/255
+val_progress:75/255
+val_progress:100/255
+val_progress:125/255
+val_progress:150/255
+val_progress:175/255
+val_progress:200/255
+val_progress:225/255
+val_progress:250/255
+val_progress:255/255
+step:773/20000 val_loss:3.4710 val_bpb:1.5387 train_time:542758ms step_avg:702.14ms
+stopping_early: wallclock_cap train_time:542758ms step:773/20000
+saved_model:/Users/frido_mac/Projects/low_vram_institute/logs/parameter_golf/2026_04_23_run_0094_mlx_model.npz bytes:67748186
+serialized_model_int8_zlib:15669420 bytes (payload:20483364 raw_pickle:20492785 payload_ratio:3.31x)
+val_progress:1/255
+val_progress:25/255
+val_progress:50/255
+val_progress:75/255
+val_progress:100/255
+val_progress:125/255
+val_progress:150/255
+val_progress:175/255
+val_progress:200/255
+val_progress:225/255
+val_progress:250/255
+val_progress:255/255
+throughput:avg_tok_s:8750.34 total_tokens:4749312
+final_int8_zlib_roundtrip val_loss:3.4219 val_bpb:1.5169 eval_time:41079ms
+final_int8_zlib_roundtrip_exact val_loss:3.42190835 val_bpb:1.51689159
+mdown_iters <= 0:
             return 1.0
         if self.max_wallclock_seconds <= 0:
             warmdown_start = max(self.iterations - self.warmdown_iters, 0)
@@ -106,8 +100,6 @@ class Hyperparameters:
         remaining_ms = max(1000.0 * self.max_wallclock_seconds - elapsed_ms, 0.0)
         return remaining_ms / max(warmdown_ms, 1e-9) if remaining_ms <= warmdown_ms else 1.0
 CONTROL_TENSOR_NAME_PATTERNS = tuple(pattern for pattern in os.environ.get("CONTROL_TENSOR_NAME_PATTERNS", "attn_scale,attn_scales,mlp_scale,mlp_scales,resid_mix,resid_mixes,q_gain,skip_weight,skip_weights,tail_recur_gates,tail_carry_gates").split(",") if pattern)
-NON_LEARNED_CONTROL_TENSOR_NAME_PATTERNS = ("tail_recur_scale",)
-CONTROL_TENSOR_NAME_PATTERNS += NON_LEARNED_CONTROL_TENSOR_NAME_PATTERNS
 INT8_KEEP_FLOAT_FP32_NAME_PATTERNS = tuple(pattern for pattern in os.environ.get("INT8_KEEP_FLOAT_FP32_NAME_PATTERNS", ",".join(CONTROL_TENSOR_NAME_PATTERNS)).split(",") if pattern)
 def token_chunks(total_tokens: int, seq_len: int, max_chunk_tokens: int) -> list[int]:
     usable_total = (total_tokens // seq_len) * seq_len
@@ -304,7 +296,6 @@ class GPT(nn.Module):
             for _ in range(num_layers)
         ]
         self.tail_recur_start = num_layers - tail_recur_span
-        self.tail_recur_scale = mx.array(0.0, dtype=mx.float32)
         self.final_norm = RMSNormNoWeight()
         self.tail_recur_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None; self.tail_carry_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None
         for b in self.blocks:
@@ -330,21 +321,9 @@ class GPT(nn.Module):
             x = self.blocks[self.num_encoder_layers + i](x, x0)
         if self.tail_recur_gates is not None:
             tail_anchor = x
-            tail_scale = self.tail_recur_scale.astype(x.dtype)
-            tail_block_count = int(self.tail_recur_gates.shape[0])
-            tail_block_progress = tail_scale * float(tail_block_count)
-            tail_block_weights = mx.clip(
-                mx.arange(1, tail_block_count + 1, dtype=tail_scale.dtype) - 1
-                + tail_block_progress,
-                0.0,
-                1.0,
-            )
             for block_idx in range(len(self.blocks) - 1, self.tail_recur_start - 1, -1):
                 recur_idx = block_idx - self.tail_recur_start
-                recur_weight = tail_block_weights[recur_idx]
-                recur_gate = tail_scale * recur_weight * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)
-                carry_gate = tail_scale * recur_weight * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)
-                recur_x = x + carry_gate[None, None, :] * (tail_anchor - x); x = recur_x + recur_gate[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
+                recur_x = x + mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
         return self.final_norm(x)
     def loss(self, input_ids: mx.array, target_ids: mx.array) -> mx.array:
         x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
@@ -404,7 +383,6 @@ class SplitOptimizers:
         self.args = args
         params = dict(tree_flatten(model.parameters()))
         self.embed_key = "tok_emb.weight"
-        self.non_learned_control_keys = set(NON_LEARNED_CONTROL_TENSOR_NAME_PATTERNS)
         self.matrix_keys = [
             k
             for k, p in params.items()
@@ -413,9 +391,7 @@ class SplitOptimizers:
         self.scalar_keys = [
             k
             for k, p in params.items()
-            if k != self.embed_key and k not in self.matrix_keys and k not in self.non_learned_control_keys and (
-                k == "skip_weights" or p.ndim < 2 or any(pattern in k for pattern in CONTROL_TENSOR_NAME_PATTERNS) or int(p.size) <= 65_536
-            )
+            if k != self.embed_key and k not in self.matrix_keys and (k == "skip_weights" or p.ndim < 2 or any(pattern in k for pattern in CONTROL_TENSOR_NAME_PATTERNS) or int(p.size) <= 65_536)
         ]
         self.muon = Muon(self.matrix_keys, params, args)
         self.adam_embed = optim.Adam(
@@ -503,7 +479,7 @@ def build_int8_fp16_keep_names(num_layers: int, tail_recur_blocks: int) -> set[s
         prefix = f"blocks.{block_idx}."
         keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:2])
     if num_layers > 0:
-        prefix = f"blocks.{num_layers - 1}."
+        prefix = f"blocks.{max(num_layers - tail_recur_blocks, 0)}."
         keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
     return keep
 def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
@@ -1216,29 +1192,6 @@ def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tupl
     if not quant_aware_active:
         return 1.0, 1.0, 1.0
     return args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul
-def tail_recur_scale_schedule(
-    args: Hyperparameters,
-    step: int,
-    elapsed_ms: float,
-    max_wallclock_ms: float | None,
-    reserved_final_ms: float,
-) -> float:
-    start = float(args.tail_recur_scale_start)
-    end = float(args.tail_recur_scale_end)
-    if end <= start:
-        return float(args.tail_recur_scale_max)
-    if max_wallclock_ms is None or args.max_wallclock_seconds <= 0:
-        if args.iterations <= 0:
-            return float(args.tail_recur_scale_max)
-        progress = min(max(step / float(args.iterations), 0.0), 1.0)
-    else:
-        train_ms_budget = max(max_wallclock_ms - reserved_final_ms, 1.0)
-        progress = min(max(elapsed_ms / train_ms_budget, 0.0), 1.0)
-    if progress <= start:
-        return 0.0
-    if progress >= end:
-        return float(args.tail_recur_scale_max)
-    return float(args.tail_recur_scale_max * (progress - start) / (end - start))
 def main() -> None:
     args = Hyperparameters()
     out_dir = Path(args.out_dir)
@@ -1418,11 +1371,6 @@ def main() -> None:
             break
         approx_train_time_ms = train_time_ms + 1000.0 * (time.perf_counter() - t0)
         lr_mul = args.lr_mul(step, approx_train_time_ms)
-        model.update(
-            tree_unflatten(
-                [("tail_recur_scale", mx.array(tail_recur_scale_schedule(args, step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms), dtype=mx.float32))]
-            )
-        )
         quant_aware_active = (
             last_quant_aware_step is not None
             or should_activate_quant_aware(args, step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms)
@@ -1547,3 +1495,99 @@ def main() -> None:
     log(f"final_int8_zlib_roundtrip_exact val_loss:{q_val_loss:.8f} val_bpb:{q_val_bpb:.8f}")
 if __name__ == "__main__":
     main()
+====================================================================================================
+Running Python 3.9.6 (default, Jan  9 2026, 11:03:41) 
+[Clang 17.0.0 (clang-1700.6.4.2)]
+Running MLX 0.29.3
+====================================================================================================
+WARNING: disabling MLX_EAGER_EVAL on single_microbatch_path for throughput
+run_id:2026_04_23_run_0094
+mlx_version:0.29.3
+train_loader:shards pattern=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/datasets/fineweb10B_sp1024/fineweb_train_*.bin
+val_loader:shards pattern=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/datasets/fineweb10B_sp1024/fineweb_val_*.bin tokens:261120
+WARNING: train_loader:subset dataset:fineweb10B_sp1024 train_shards:1/195 new epochs will arrive sooner than the full dataset
+tokenizer_path:/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/tokenizers/fineweb_1024_bpe.model
+model_params:17193546 vocab_size:1024 layers:9 dim:512 heads:8 kv_heads:4 seq_len:1024 tie_embeddings:True
+iterations:20000 train_batch_tokens:6144 grad_accum_steps:1 microbatch_tokens:6144 microbatch_batch_size:6 val_batch_size:8192 max_wallclock_seconds:600.000
+mlx_max_microbatch_tokens:8192
+optimizer:muon+adam muon_matrix_params:54 scalar_params:44 embed_lr:0.03 matrix_lr:0.02 scalar_lr:0.02 muon_momentum:0.95 muon_steps:5
+val_bpb:enabled tokenizer_kind=sentencepiece tokenizer_path=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/tokenizers/fineweb_1024_bpe.model
+eval_mode:doc_isolated_sliding bos_token_id:1 val_docs:233
+eval_stride:64
+compute_dtype:mlx.core.bfloat16 compile:True
+dtypes tok_emb:mlx.core.bfloat16 linear_weight:mlx.core.float32 skip_weights:mlx.core.float32
+final_eval_budget:estimate_ms:42452 reserve_ms:72000 estimate_batches:2
+quant_aware:train_seconds:48.0 iters:96 every:24
+quant_aware_lr_mul:embed:0.6 matrix:0.35 scalar:0.8
+quant_aware_proj_mix:start:0.55 step:0.2 end:0.95
+int8_transpose_suffixes:mlp.fc.weight
+int8_fp16_keep:count:10 tail_full_blocks:0 tail_proj_blocks:2
+tail_recur:blocks:2 start:7 active:2
+decoder_skip_alignment:start:2 count:3 trim:1
+tail_recur_order:reverse
+tail_recur_carry:decoder_output_anchor
+tail_ema:decay:0.94 tracked_float_kept:all tracked_proj_suffixes:all
+step:1/20000 train_loss:6.9419 train_time:9ms step_avg:8.92ms tok_s:688735
+step:2/20000 train_loss:13.3254 train_time:239ms step_avg:119.45ms tok_s:260322
+step:3/20000 train_loss:10.9063 train_time:948ms step_avg:315.98ms tok_s:2530435
+step:4/20000 train_loss:9.0020 train_time:1650ms step_avg:412.41ms tok_s:2403442
+step:5/20000 train_loss:7.6721 train_time:2348ms step_avg:469.54ms tok_s:2348399
+step:6/20000 train_loss:7.1215 train_time:3050ms step_avg:508.40ms tok_s:2600865
+step:7/20000 train_loss:7.0716 train_time:3752ms step_avg:535.98ms tok_s:2252819
+step:8/20000 train_loss:6.5364 train_time:4450ms step_avg:556.29ms tok_s:2548144
+step:9/20000 train_loss:6.1882 train_time:5147ms step_avg:571.89ms tok_s:2567713
+step:10/20000 train_loss:6.2757 train_time:5848ms step_avg:584.81ms tok_s:2408585
+step:50/20000 train_loss:4.6483 train_time:6883ms step_avg:137.66ms tok_s:664548
+step:100/20000 train_loss:4.3147 train_time:34966ms step_avg:349.66ms tok_s:642678
+step:150/20000 train_loss:4.1021 train_time:69941ms step_avg:466.27ms tok_s:3026601
+WARNING: starting epoch:2 dataset:fineweb10B_sp1024 train_shards:1
+step:200/20000 train_loss:4.1110 train_time:104988ms step_avg:524.94ms tok_s:3007464
+step:250/20000 train_loss:3.8847 train_time:139993ms step_avg:559.97ms tok_s:2969671
+step:300/20000 train_loss:3.6341 train_time:175063ms step_avg:583.54ms tok_s:2876686
+WARNING: starting epoch:3 dataset:fineweb10B_sp1024 train_shards:1
+step:350/20000 train_loss:3.6795 train_time:210098ms step_avg:600.28ms tok_s:2896008
+step:400/20000 train_loss:3.5772 train_time:245127ms step_avg:612.82ms tok_s:2866620
+step:450/20000 train_loss:3.5484 train_time:280170ms step_avg:622.60ms tok_s:2907714
+step:500/20000 train_loss:3.2831 train_time:315151ms step_avg:630.30ms tok_s:2922294
+WARNING: starting epoch:4 dataset:fineweb10B_sp1024 train_shards:1
+step:550/20000 train_loss:3.3272 train_time:350193ms step_avg:636.71ms tok_s:2892768
+step:600/20000 train_loss:3.4733 train_time:385238ms step_avg:642.06ms tok_s:2944526
+step:650/20000 train_loss:3.4051 train_time:420320ms step_avg:646.65ms tok_s:2842635
+WARNING: starting epoch:5 dataset:fineweb10B_sp1024 train_shards:1
+step:700/20000 train_loss:3.2383 train_time:455372ms step_avg:650.53ms tok_s:2919805
+quant_aware_roundtrip:step:701
+quant_aware_roundtrip:step:725
+quant_aware_roundtrip:step:749
+step:750/20000 train_loss:3.3993 train_time:525751ms step_avg:701.00ms tok_s:2212924
+quant_aware_roundtrip:step:773
+val_progress:1/255
+val_progress:25/255
+val_progress:50/255
+val_progress:75/255
+val_progress:100/255
+val_progress:125/255
+val_progress:150/255
+val_progress:175/255
+val_progress:200/255
+val_progress:225/255
+val_progress:250/255
+val_progress:255/255
+step:773/20000 val_loss:3.4710 val_bpb:1.5387 train_time:542758ms step_avg:702.14ms
+stopping_early: wallclock_cap train_time:542758ms step:773/20000
+saved_model:/Users/frido_mac/Projects/low_vram_institute/logs/parameter_golf/2026_04_23_run_0094_mlx_model.npz bytes:67748186
+serialized_model_int8_zlib:15669420 bytes (payload:20483364 raw_pickle:20492785 payload_ratio:3.31x)
+val_progress:1/255
+val_progress:25/255
+val_progress:50/255
+val_progress:75/255
+val_progress:100/255
+val_progress:125/255
+val_progress:150/255
+val_progress:175/255
+val_progress:200/255
+val_progress:225/255
+val_progress:250/255
+val_progress:255/255
+throughput:avg_tok_s:8750.34 total_tokens:4749312
+final_int8_zlib_roundtrip val_loss:3.4219 val_bpb:1.5169 eval_time:41079ms
+final_int8_zlib_roundtrip_exact val_loss:3.42190835 val_bpb:1.51689159

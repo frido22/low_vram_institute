@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15747264,
+  "code_bytes": 77844,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15669420,
+  "rationale": "Builds on the best reverse recurrent-tail script by moving the single extra value-projection fp16 rescue from the last block to the first block of the recurrent tail. In this reverse traversal, that earlier tail block is the recurrence exit before final normalization, so preserving its value projection may reduce final int8 roundtrip damage without increasing artifact size or changing the hot training path. The import line is compacted to keep the full script under the 1500-line hard limit.",
+  "run_id": "2026_04_23_run_0094",
+  "runtime_seconds": 626.27089,
+  "submitter": "frido22",
+  "title": "Recurrent-Exit Value FP16 Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 542758,
+  "under_16mb": true,
+  "val_bpb": 1.51689159,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
