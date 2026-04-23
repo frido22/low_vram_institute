@@ -350,3 +350,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_23_run_0098,1.519040,True,False,Refine current best
 2026_04_23_run_0099,1.518639,True,False,Refine current best
 2026_04_23_run_0100,1.518184,True,False,Late-Phase Validation-Aligned Tail Loss
+2026_04_23_run_0101,1.523629,True,False,Prev-Token Class Bias On Reverse Tail Best

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15770534,
+  "code_bytes": 79159,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15691375,
+  "rationale": "Build on the current reverse recurrent-tail best, but pivot away from repeated refine replays and failed generic output-head expansions. This patch removes the losing multi-stream shard path and adds a tiny tokenizer-aware conditional bias head keyed only by previous token class (special/boundary, byte, leading-space, continuation). The new head is byte-cheap, float-kept under the existing small-tensor rule, survives the final int8+zlib roundtrip well, and gives the proven bigram-plus-recurrent baseline a cleaner inductive bias for SentencePiece boundary transitions without disturbing the winning tail recurrence or wallclock behavior.",
+  "run_id": "2026_04_23_run_0101",
+  "runtime_seconds": 626.354966,
+  "submitter": "frido22",
+  "title": "Prev-Token Class Bias On Reverse Tail Best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 543357,
+  "under_16mb": true,
+  "val_bpb": 1.52362867,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
