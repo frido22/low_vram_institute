@@ -1,0 +1,387 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -68,7 +68,6 @@
+     rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
+     qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 2.0))
+     tail_recur_blocks: int = int(os.environ.get("TAIL_RECUR_BLOCKS", 2))
+-    tail_recur_reverse: bool = bool(int(os.environ.get("TAIL_RECUR_REVERSE", "1")))
+     beta1: float = float(os.environ.get("BETA1", 0.9))
+     beta2: float = float(os.environ.get("BETA2", 0.95))
+     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
+@@ -103,7 +102,7 @@
+         warmdown_ms = self.warmdown_iters * step_ms
+         remaining_ms = max(1000.0 * self.max_wallclock_seconds - elapsed_ms, 0.0)
+         return remaining_ms / max(warmdown_ms, 1e-9) if remaining_ms <= warmdown_ms else 1.0
+-CONTROL_TENSOR_NAME_PATTERNS = tuple(pattern for pattern in os.environ.get("CONTROL_TENSOR_NAME_PATTERNS", "attn_scale,attn_scales,mlp_scale,mlp_scales,resid_mix,resid_mixes,q_gain,skip_weight,skip_weights,tail_recur_gates").split(",") if pattern)
++CONTROL_TENSOR_NAME_PATTERNS = tuple(pattern for pattern in os.environ.get("CONTROL_TENSOR_NAME_PATTERNS", "attn_scale,attn_scales,mlp_scale,mlp_scales,resid_mix,resid_mixes,q_gain,skip_weight,skip_weights,tail_recur_gates,tail_carry_gates").split(",") if pattern)
+ INT8_KEEP_FLOAT_FP32_NAME_PATTERNS = tuple(pattern for pattern in os.environ.get("INT8_KEEP_FLOAT_FP32_NAME_PATTERNS", ",".join(CONTROL_TENSOR_NAME_PATTERNS)).split(",") if pattern)
+ def token_chunks(total_tokens: int, seq_len: int, max_chunk_tokens: int) -> list[int]:
+     usable_total = (total_tokens // seq_len) * seq_len
+@@ -280,7 +279,7 @@
+ class GPT(nn.Module):
+     def __init__(self, vocab_size: int, num_layers: int, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int,
+                  logit_chunk_tokens: int, logit_softcap: float, rope_base: float, tied_embed_init_std: float,
+-                 qk_gain_init: float, tail_recur_blocks: int, tail_recur_reverse: bool):
++                 qk_gain_init: float, tail_recur_blocks: int):
+         super().__init__()
+         if logit_softcap <= 0.0:
+             raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
+@@ -291,17 +290,17 @@
+             self.bigram_in = nn.Embedding(vocab_size, self.bigram_rank); self.bigram_out = CastedLinear(self.bigram_rank, vocab_size); self.bigram_scale = mx.array(0.0, dtype=mx.float32)
+         self.num_encoder_layers = num_layers // 2
+         self.num_decoder_layers = num_layers - self.num_encoder_layers
+-        self.skip_weights = mx.ones((min(self.num_encoder_layers, self.num_decoder_layers), dim), dtype=mx.float32)
++        tail_recur_span = min(max(tail_recur_blocks, 0), self.num_decoder_layers)
++        skip_count = max(min(self.num_encoder_layers, self.num_decoder_layers) - max(tail_recur_span - 1, 0), 0)
++        self.skip_weights = mx.ones((skip_count, dim), dtype=mx.float32)
++        self.decoder_skip_start = self.num_decoder_layers - int(self.skip_weights.shape[0])
+         self.blocks = [
+             Block(dim, num_heads, num_kv_heads, mlp_mult, rope_base, qk_gain_init)
+             for _ in range(num_layers)
+         ]
+-        tail_recur_span = min(max(tail_recur_blocks, 0), self.num_decoder_layers)
+         self.tail_recur_start = num_layers - tail_recur_span
+-        self.tail_recur_reverse = tail_recur_reverse
+-        self.tail_recur_indices = tuple(reversed(range(self.tail_recur_start, len(self.blocks)))) if tail_recur_reverse else tuple(range(self.tail_recur_start, len(self.blocks)))
+         self.final_norm = RMSNormNoWeight()
+-        self.tail_recur_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None
++        self.tail_recur_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None; self.tail_carry_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None
+         for b in self.blocks:
+             b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight); b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
+         self.tok_emb.weight = (mx.random.normal(self.tok_emb.weight.shape, dtype=mx.float32) * tied_embed_init_std).astype(COMPUTE_DTYPE)
+@@ -319,12 +318,15 @@
+             x = self.blocks[i](x, x0)
+             skips.append(x)
+         for i in range(self.num_decoder_layers):
+-            if skips:
+-                x = x + self.skip_weights[i].astype(x.dtype)[None, None, :] * skips.pop()
++            skip_idx = i - self.decoder_skip_start
++            if 0 <= skip_idx < int(self.skip_weights.shape[0]) and skips:
++                x = x + self.skip_weights[skip_idx].astype(x.dtype)[None, None, :] * skips.pop()
+             x = self.blocks[self.num_encoder_layers + i](x, x0)
+         if self.tail_recur_gates is not None:
+-            for recur_idx, block_idx in enumerate(self.tail_recur_indices):
+-                x = x + mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](x, x0) - x)
++            tail_anchor = x
++            for block_idx in range(len(self.blocks) - 1, self.tail_recur_start - 1, -1):
++                recur_idx = block_idx - self.tail_recur_start
++                recur_x = x + mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
+         return self.final_norm(x)
+     def loss(self, input_ids: mx.array, target_ids: mx.array) -> mx.array:
+         x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+@@ -395,49 +397,21 @@
+             if k != self.embed_key and k not in self.matrix_keys and (k == "skip_weights" or p.ndim < 2 or any(pattern in k for pattern in CONTROL_TENSOR_NAME_PATTERNS) or int(p.size) <= 65_536)
+         ]
+         self.muon = Muon(self.matrix_keys, params, args)
+-        self.adam_embed = optim.Adam(
+-            learning_rate=args.tied_embed_lr,
+-            betas=[args.beta1, args.beta2],
+-            eps=args.adam_eps,
+-            bias_correction=True,
+-        )
+-        self.adam_scalar = optim.Adam(
+-            learning_rate=args.scalar_lr,
+-            betas=[args.beta1, args.beta2],
+-            eps=args.adam_eps,
+-            bias_correction=True,
+-        )
+-    def step(
+-        self,
+-        model: GPT,
+-        grads_tree: dict,
+-        step: int,
+-        lr_mul: float,
+-        embed_lr_mul: float = 1.0,
+-        matrix_lr_mul: float = 1.0,
+-        scalar_lr_mul: float = 1.0,
+-    ) -> None:
++        self.adam_embed = optim.Adam(learning_rate=args.tied_embed_lr, betas=[args.beta1, args.beta2], eps=args.adam_eps, bias_correction=True)
++        self.adam_scalar = optim.Adam(learning_rate=args.scalar_lr, betas=[args.beta1, args.beta2], eps=args.adam_eps, bias_correction=True)
++    def step(self, model: GPT, grads_tree: dict, step: int, lr_mul: float, embed_lr_mul: float = 1.0, matrix_lr_mul: float = 1.0, scalar_lr_mul: float = 1.0) -> None:
+         params = dict(tree_flatten(model.parameters()))
+         grads = dict(tree_flatten(grads_tree))
+         updated = dict(params)
+         updated.update(self.muon.step(params, grads, step=step, lr_mul=lr_mul * matrix_lr_mul))
+         self.adam_embed.learning_rate = self.args.tied_embed_lr * lr_mul * embed_lr_mul
+-        updated.update(
+-            self.adam_embed.apply_gradients(
+-                {self.embed_key: grads[self.embed_key]},
+-                {self.embed_key: params[self.embed_key]},
+-            )
+-        )
++        updated.update(self.adam_embed.apply_gradients({self.embed_key: grads[self.embed_key]}, {self.embed_key: params[self.embed_key]}))
+         self.adam_scalar.learning_rate = self.args.scalar_lr * lr_mul * scalar_lr_mul
+         scalar_grads = {k: grads[k] for k in self.scalar_keys}
+         scalar_params = {k: params[k] for k in self.scalar_keys}
+         updated.update(self.adam_scalar.apply_gradients(scalar_grads, scalar_params))
+         model.update(tree_unflatten(list(updated.items())))
+-MX_DTYPE_FROM_NAME = {
+-    "float32": mx.float32,
+-    "float16": mx.float16,
+-    "bfloat16": mx.bfloat16,
+-}
++MX_DTYPE_FROM_NAME = {"float32": mx.float32, "float16": mx.float16, "bfloat16": mx.bfloat16}
+ INT8_KEEP_FLOAT_MAX_NUMEL = 65_536
+ INT8_KEEP_FLOAT_STORE_DTYPE = np.float16
+ INT8_PER_ROW_SCALE_DTYPE = np.float16
+@@ -447,13 +421,11 @@
+ INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
+ INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
+ INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
++INT8_DYNAMIC_KEEP_BYTES_BUDGET = int(os.environ.get("INT8_DYNAMIC_KEEP_BYTES_BUDGET", 262_144))
++INT8_DYNAMIC_KEEP_CANDIDATE_BLOCKS = int(os.environ.get("INT8_DYNAMIC_KEEP_CANDIDATE_BLOCKS", 3))
+ PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
+ INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
+-INT8_FP16_KEEP_NAMES = tuple(
+-    name
+-    for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
+-    if name
+-)
++INT8_FP16_KEEP_NAMES = tuple(name for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",") if name)
+ BLOCK_FP16_MATRIX_SUFFIXES = (
+     "attn.c_q.weight",
+     "attn.c_k.weight",
+@@ -463,6 +435,7 @@
+     "mlp.proj.weight",
+ )
+ BLOCK_FP16_PROJ_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
++BLOCK_FP16_DYNAMIC_SUFFIXES = ("attn.c_v.weight", "attn.proj.weight", "mlp.fc.weight", "mlp.proj.weight")
+ def _np_float32(arr: mx.array) -> np.ndarray:
+     return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
+ def int8_clip_q(name: str) -> float:
+@@ -483,6 +456,9 @@
+         prefix = f"blocks.{num_layers - 1}."
+         keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
+     return keep
++def build_int8_dynamic_keep_candidates(num_layers: int, tail_recur_blocks: int) -> tuple[str, ...]:
++    start = max(num_layers - max(INT8_DYNAMIC_KEEP_CANDIDATE_BLOCKS, tail_recur_blocks + 1), 0)
++    return tuple(f"blocks.{block_idx}.{suffix}" for block_idx in range(start, num_layers) for suffix in BLOCK_FP16_DYNAMIC_SUFFIXES)
+ def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
+     return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL
+ def should_track_ema_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
+@@ -521,10 +497,6 @@
+         scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
+         q = np.clip(np.round(clipped / scale[:, None]), -127, 127).astype(np.int8, copy=False)
+         return np.ascontiguousarray(q), np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False)), None, transposed
+-    clip_abs = float(np.quantile(np.abs(f32).reshape(-1), clip_q)) if f32.size else 0.0
+-    scale = np.array(clip_abs / 127.0 if clip_abs > 0.0 else 1.0, dtype=np.float32)
+-    q = np.clip(np.round(np.clip(f32, -clip_abs, clip_abs) / scale), -127, 127).astype(np.int8, copy=False)
+-    return np.ascontiguousarray(q), scale, None, transposed
+ def quantize_state_dict_int8(
+     flat_state: dict[str, mx.array],
+     int8_fp16_keep_names: set[str],
+@@ -622,6 +594,35 @@
+     if transposed:
+         out_arr = np.ascontiguousarray(out_arr.T)
+     return mx.array(np.ascontiguousarray(out_arr), dtype=arr.dtype)
++def select_int8_dynamic_keep_names(
++    flat_state: dict[str, mx.array],
++    int8_fp16_keep_names: set[str],
++    candidate_names: tuple[str, ...],
++) -> tuple[set[str], tuple[str, ...]]:
++    if INT8_DYNAMIC_KEEP_BYTES_BUDGET <= 0 or not candidate_names:
++        return int8_fp16_keep_names, ()
++    ranked: list[tuple[float, int, str]] = []
++    for name in candidate_names:
++        arr = flat_state.get(name)
++        if arr is None or name in int8_fp16_keep_names or not mx.issubdtype(arr.dtype, mx.floating):
++            continue
++        q, s, o, transposed = quantize_float_array(name, arr)
++        keep_bytes = keep_float_array(name, arr, {}).nbytes
++        extra_bytes = keep_bytes - (q.nbytes + s.nbytes + (0 if o is None else o.nbytes))
++        if extra_bytes <= 0:
++            continue
++        scale = np.asarray(s, dtype=np.float32)
++        rt = q.astype(np.float32) * (scale.reshape((q.shape[0],) + (1,) * (q.ndim - 1)) if scale.ndim > 0 else float(scale))
++        if o is not None:
++            rt = rt + np.asarray(o, dtype=np.float32).reshape((q.shape[0],) + (1,) * (q.ndim - 1))
++        if transposed:
++            rt = np.ascontiguousarray(rt.T)
++        ranked.append((float(np.sum(np.square(_np_float32(arr) - rt), dtype=np.float64)) / extra_bytes, extra_bytes, name))
++    selected: list[str] = []; remaining = INT8_DYNAMIC_KEEP_BYTES_BUDGET; keep = set(int8_fp16_keep_names)
++    for _, extra_bytes, name in sorted(ranked, reverse=True):
++        if extra_bytes <= remaining:
++            keep.add(name); selected.append(name); remaining -= extra_bytes
++    return keep, tuple(selected)
+ def blend_tensor_toward_final(
+     name: str,
+     arr: mx.array,
+@@ -1200,8 +1201,7 @@
+     logfile = out_dir / f"{args.run_id}.txt"
+     print(logfile)
+     def log(msg: str, console: bool = True) -> None:
+-        if console:
+-            print(msg)
++        if console: print(msg)
+         with logfile.open("a", encoding="utf-8") as f:
+             print(msg, file=f)
+     code = Path(__file__).read_text(encoding="utf-8")
+@@ -1217,50 +1217,22 @@
+     if not args.tokenizer_path.endswith(".model"):
+         raise ValueError(f"TOKENIZER_PATH must point to a SentencePiece .model file: {args.tokenizer_path}")
+     sp = spm.SentencePieceProcessor(model_file=args.tokenizer_path)
+-    if int(sp.vocab_size()) != args.vocab_size:
+-        raise ValueError(
+-            f"VOCAB_SIZE={args.vocab_size} does not match tokenizer vocab_size={int(sp.vocab_size())}"
+-        )
+-    dataset_name, actual_train_files, expected_train_files = validate_dataset_tokenizer_pair(
+-        args.data_path,
+-        args.tokenizer_path,
+-    )
++    if int(sp.vocab_size()) != args.vocab_size: raise ValueError(f"VOCAB_SIZE={args.vocab_size} does not match tokenizer vocab_size={int(sp.vocab_size())}")
++    dataset_name, actual_train_files, expected_train_files = validate_dataset_tokenizer_pair(args.data_path, args.tokenizer_path)
+     val_tokens = load_validation_tokens(args.val_files, args.train_seq_len)
+     bos_token_id = int(sp.bos_id())
+     doc_spans = build_validation_doc_spans(val_tokens, bos_token_id) if bos_token_id >= 0 else None
+-    base_bytes_lut, has_leading_space_lut, is_boundary_token_lut = build_sentencepiece_luts(
+-        sp, args.vocab_size
+-    )
++    base_bytes_lut, has_leading_space_lut, is_boundary_token_lut = build_sentencepiece_luts(sp, args.vocab_size)
+     mx.random.seed(args.seed)
+     train_loader = TokenLoader(args.train_files, log_fn=log, dataset_name=dataset_name)
+-    model = GPT(
+-        vocab_size=args.vocab_size,
+-        num_layers=args.num_layers,
+-        dim=args.model_dim,
+-        num_heads=args.num_heads,
+-        num_kv_heads=args.num_kv_heads,
+-        mlp_mult=args.mlp_mult,
+-        logit_chunk_tokens=args.logit_chunk_tokens,
+-        logit_softcap=args.logit_softcap,
+-        rope_base=args.rope_base,
+-        tied_embed_init_std=args.tied_embed_init_std,
+-        qk_gain_init=args.qk_gain_init,
+-        tail_recur_blocks=args.tail_recur_blocks,
+-        tail_recur_reverse=args.tail_recur_reverse,
+-    )
++    model = GPT(vocab_size=args.vocab_size, num_layers=args.num_layers, dim=args.model_dim, num_heads=args.num_heads, num_kv_heads=args.num_kv_heads, mlp_mult=args.mlp_mult, logit_chunk_tokens=args.logit_chunk_tokens, logit_softcap=args.logit_softcap, rope_base=args.rope_base, tied_embed_init_std=args.tied_embed_init_std, qk_gain_init=args.qk_gain_init, tail_recur_blocks=args.tail_recur_blocks)
+     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
++    int8_dynamic_keep_candidates = build_int8_dynamic_keep_candidates(args.num_layers, args.tail_recur_blocks)
++    int8_dynamic_keep_names: tuple[str, ...] = ()
+     opt = SplitOptimizers(model, args)
+     compiled_loss = mx.compile(lambda x, y: model.loss(x, y), inputs=model.state, outputs=model.state)
+-    compiled_masked_loss = mx.compile(
+-        lambda x, y, m: model.masked_loss(x, y, m),
+-        inputs=model.state,
+-        outputs=model.state,
+-    )
+-    compiled_loss_and_grad = mx.compile(
+-        nn.value_and_grad(model, lambda x, y: model.loss(x, y)),
+-        inputs=model.state,
+-        outputs=model.state,
+-    )
++    compiled_masked_loss = mx.compile(lambda x, y, m: model.masked_loss(x, y, m), inputs=model.state, outputs=model.state)
++    compiled_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y: model.loss(x, y)), inputs=model.state, outputs=model.state)
+     if "MLX_EAGER_EVAL" not in os.environ:
+         args.mlx_eager_eval = not args.use_single_microbatch_path
+     elif args.use_single_microbatch_path and args.mlx_eager_eval:
+@@ -1272,68 +1244,32 @@
+     log(f"mlx_version:{mx.__version__}")
+     log(f"train_loader:shards pattern={args.train_files}")
+     log(f"val_loader:shards pattern={args.val_files} tokens:{val_tokens.size - 1}")
+-    if expected_train_files is None:
+-        log(f"train_loader:dataset:{dataset_name} train_shards:{actual_train_files}")
+-    elif actual_train_files < expected_train_files:
+-        log(
+-            f"WARNING: train_loader:subset dataset:{dataset_name} "
+-            f"train_shards:{actual_train_files}/{expected_train_files} "
+-            f"new epochs will arrive sooner than the full dataset"
+-        )
+-    else:
+-        log(f"train_loader:dataset:{dataset_name} train_shards:{actual_train_files}/{expected_train_files}")
++    if expected_train_files is None: log(f"train_loader:dataset:{dataset_name} train_shards:{actual_train_files}")
++    elif actual_train_files < expected_train_files: log(f"WARNING: train_loader:subset dataset:{dataset_name} train_shards:{actual_train_files}/{expected_train_files} new epochs will arrive sooner than the full dataset")
++    else: log(f"train_loader:dataset:{dataset_name} train_shards:{actual_train_files}/{expected_train_files}")
+     log(f"tokenizer_path:{args.tokenizer_path}")
+-    log(
+-        f"model_params:{n_params} vocab_size:{args.vocab_size} layers:{args.num_layers} "
+-        f"dim:{args.model_dim} heads:{args.num_heads} kv_heads:{args.num_kv_heads} "
+-        f"seq_len:{args.train_seq_len} tie_embeddings:{args.tie_embeddings}"
+-    )
+-    log(
+-        f"iterations:{args.iterations} train_batch_tokens:{args.train_batch_tokens} grad_accum_steps:{args.grad_accum_steps} "
+-        f"microbatch_tokens:{args.microbatch_tokens} microbatch_batch_size:{args.microbatch_tokens // args.train_seq_len} "
+-        f"val_batch_size:{args.val_batch_size} "
+-        f"max_wallclock_seconds:{args.max_wallclock_seconds:.3f}"
+-    )
++    log(f"model_params:{n_params} vocab_size:{args.vocab_size} layers:{args.num_layers} dim:{args.model_dim} heads:{args.num_heads} kv_heads:{args.num_kv_heads} seq_len:{args.train_seq_len} tie_embeddings:{args.tie_embeddings}")
++    log(f"iterations:{args.iterations} train_batch_tokens:{args.train_batch_tokens} grad_accum_steps:{args.grad_accum_steps} microbatch_tokens:{args.microbatch_tokens} microbatch_batch_size:{args.microbatch_tokens // args.train_seq_len} val_batch_size:{args.val_batch_size} max_wallclock_seconds:{args.max_wallclock_seconds:.3f}")
+     log(f"mlx_max_microbatch_tokens:{args.mlx_max_microbatch_tokens}")
+-    log(
+-        f"optimizer:muon+adam muon_matrix_params:{len(opt.matrix_keys)} scalar_params:{len(opt.scalar_keys)} "
+-        f"embed_lr:{args.tied_embed_lr} "
+-        f"matrix_lr:{args.matrix_lr} scalar_lr:{args.scalar_lr} "
+-        f"muon_momentum:{args.muon_momentum} muon_steps:{args.muon_backend_steps}"
+-    )
++    log(f"optimizer:muon+adam muon_matrix_params:{len(opt.matrix_keys)} scalar_params:{len(opt.scalar_keys)} embed_lr:{args.tied_embed_lr} matrix_lr:{args.matrix_lr} scalar_lr:{args.scalar_lr} muon_momentum:{args.muon_momentum} muon_steps:{args.muon_backend_steps}")
+     log(f"val_bpb:enabled tokenizer_kind=sentencepiece tokenizer_path={args.tokenizer_path}")
+     eval_mode = "doc_isolated_sliding" if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0 else "flat_stream"
+     log(f"eval_mode:{eval_mode} bos_token_id:{bos_token_id} val_docs:{0 if doc_spans is None else len(doc_spans)}")
+     log(f"eval_stride:{args.eval_stride}")
+     log(f"compute_dtype:{COMPUTE_DTYPE} compile:True")
+-    log(
+-        f"dtypes tok_emb:{model.tok_emb.weight.dtype} "
+-        f"linear_weight:{model.blocks[0].attn.c_q.weight.dtype} "
+-        f"skip_weights:{model.skip_weights.dtype}"
+-    )
+-    estimated_final_eval_ms = estimate_eval_time_ms(
+-        args,
+-        compiled_loss,
+-        compiled_masked_loss,
+-        val_tokens,
+-        doc_spans,
+-        bos_token_id,
+-    )
+-    reserved_final_ms = max(
+-        1000.0 * args.final_eval_reserve_seconds,
+-        estimated_final_eval_ms * args.final_eval_reserve_scale + 1000.0 * args.final_eval_serialization_seconds,
+-    )
++    log(f"dtypes tok_emb:{model.tok_emb.weight.dtype} linear_weight:{model.blocks[0].attn.c_q.weight.dtype} skip_weights:{model.skip_weights.dtype}")
++    estimated_final_eval_ms = estimate_eval_time_ms(args, compiled_loss, compiled_masked_loss, val_tokens, doc_spans, bos_token_id)
++    reserved_final_ms = max(1000.0 * args.final_eval_reserve_seconds, estimated_final_eval_ms * args.final_eval_reserve_scale + 1000.0 * args.final_eval_serialization_seconds)
+     log(f"final_eval_budget:estimate_ms:{estimated_final_eval_ms:.0f} reserve_ms:{reserved_final_ms:.0f} estimate_batches:{args.final_eval_estimate_batches}")
+     log(f"quant_aware:train_seconds:{args.quant_aware_train_seconds:.1f} iters:{args.quant_aware_iters} every:{args.quant_aware_every}")
+     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
+     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
+     log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
+     log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
+-    log(
+-        f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} "
+-        f"active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}"
+-    )
+-    log(f"tail_recur_order:{'reverse' if model.tail_recur_reverse else 'forward'}")
++    log(f"int8_dynamic_keep:budget_bytes:{INT8_DYNAMIC_KEEP_BYTES_BUDGET} candidates:{len(int8_dynamic_keep_candidates)}")
++    log(f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}")
++    log(f"decoder_skip_alignment:start:{model.decoder_skip_start} count:{model.skip_weights.shape[0]} trim:{max((0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]) - 1, 0)}")
++    log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
+     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
+     train_time_ms = 0.0
+     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
+@@ -1413,6 +1349,13 @@
+         if should_activate_quant_aware(args, next_step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms) and (
+             last_quant_aware_step is None or next_step - last_quant_aware_step >= args.quant_aware_every
+         ):
++            if last_quant_aware_step is None and int8_dynamic_keep_candidates:
++                int8_fp16_keep_names, int8_dynamic_keep_names = select_int8_dynamic_keep_names(
++                    {k: v for k, v in tree_flatten(model.state)},
++                    int8_fp16_keep_names,
++                    int8_dynamic_keep_candidates,
++                )
++                log(f"int8_dynamic_keep:selected:{','.join(int8_dynamic_keep_names) if int8_dynamic_keep_names else 'none'}")
+             apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix)
+             last_quant_aware_step = next_step
+             quant_aware_proj_mix = min(quant_aware_proj_mix + args.quant_aware_proj_step, args.quant_aware_proj_end)
+@@ -1451,6 +1394,13 @@
+         apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
+         mx.synchronize()
+         log(f"quant_aware_roundtrip:step:{step} final_pre_save")
++    elif not int8_dynamic_keep_names and int8_dynamic_keep_candidates:
++        int8_fp16_keep_names, int8_dynamic_keep_names = select_int8_dynamic_keep_names(
++            {k: v for k, v in tree_flatten(model.state)},
++            int8_fp16_keep_names,
++            int8_dynamic_keep_candidates,
++        )
++        log(f"int8_dynamic_keep:selected:{','.join(int8_dynamic_keep_names) if int8_dynamic_keep_names else 'none'} final_pre_save")
+     if tracked_ema:
+         model.update(tree_unflatten(list(tracked_ema.items())))
+         apply_final_roundtrip_to_state(model, int8_fp16_keep_names)

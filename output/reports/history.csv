@@ -352,3 +352,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_23_run_0100,1.518184,True,False,Late-Phase Validation-Aligned Tail Loss
 2026_04_23_run_0101,1.523629,True,False,Prev-Token Class Bias On Reverse Tail Best
 2026_04_23_run_0102,1.516866,True,False,Dual Recurrent-Tail V FP16 Rescue
+2026_04_23_run_0103,1.519370,True,False,Greedy Tail FP16 Rescue Selection
