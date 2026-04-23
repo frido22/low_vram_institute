@@ -342,3 +342,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_23_run_0090,1.522549,True,False,Final-Block Tail Recurrence
 2026_04_23_run_0091,1.722302,True,False,Strided In-Shard Batch Traversal
 2026_04_23_run_0092,1.522714,True,False,Learned Local Anchor Gate For Reverse Tail Recurrence
+2026_04_23_run_0093,1.520345,True,False,Contiguous Train Shard Rotation
