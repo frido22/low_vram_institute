@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15751816,
+  "code_bytes": 77826,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15673990,
+  "rationale": "Build on the current best reverse-order recurrent-tail baseline with a minimal EvoNAS-style gated carryover transplant instead of another small LR or float-keep sweep. The repeated tail blocks now get a learned per-dimension carry path back toward the decoder-output anchor before applying their existing recurrent delta, preserving the winning late-skip/tail structure while giving recurrence a controlled state-reuse mechanism that is compile-stable, cheap in bytes, and directly targeted at final int8+zlib roundtrip quality.",
+  "run_id": "2026_04_22_run_0052",
+  "runtime_seconds": 623.285553,
+  "submitter": "frido22",
+  "title": "Gated Decoder-Anchor Carry For Reverse Tail Recurrence",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541287,
+  "under_16mb": true,
+  "val_bpb": 1.5176452,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
