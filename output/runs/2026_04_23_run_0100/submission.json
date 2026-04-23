@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15752480,
+  "code_bytes": 79078,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15673402,
+  "rationale": "Recent runs around the reverse recurrent-tail baseline are mostly flat, so this keeps that winning family intact and spends the edit on a new structural idea instead of another scalar sweep. The change adds a late-phase suffix-weighted training loss that better matches the official sliding-window scorer: it reuses the existing masked-loss path, ramps emphasis across the last few eval strides of each sequence, normalizes the mask so optimizer scale stays stable, and activates before the quant-aware export endgame without changing evaluation, data paths, or final int8+zlib roundtrip.",
+  "run_id": "2026_04_23_run_0100",
+  "runtime_seconds": 623.545573,
+  "submitter": "frido22",
+  "title": "Late-Phase Validation-Aligned Tail Loss",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541754,
+  "under_16mb": true,
+  "val_bpb": 1.51818378,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
