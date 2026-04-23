@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15896166,
+  "code_bytes": 77879,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15818287,
+  "rationale": "Builds on the current reverse-order gated-carry recurrent-tail best and spends part of the remaining size headroom directly on the scored export path instead of another replay or scalar sweep. The closest export miss showed that moving the single FP16-kept value matrix from the last block to the first recurrent block was competitive, which suggests the recurrent-tail value path is more sensitive than the current one-matrix rescue captures. This edit keeps the existing reverse tail, decoder-output carry anchor, quant-aware roundtrip training, and exact final evaluation intact, but float-keeps both recurrent-tail attention V matrices so each reused tail block preserves its transported content through the final int8+zlib roundtrip.",
+  "run_id": "2026_04_23_run_0102",
+  "runtime_seconds": 623.469588,
+  "submitter": "frido22",
+  "title": "Dual Recurrent-Tail V FP16 Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541677,
+  "under_16mb": true,
+  "val_bpb": 1.5168656,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
