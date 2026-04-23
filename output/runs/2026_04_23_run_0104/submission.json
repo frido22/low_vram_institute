@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15754756,
+  "code_bytes": 80145,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15674611,
+  "rationale": "Recent runs are flat and recurrence scheduling is still underexplored locally. This keeps the winning reverse recurrent-tail, decoder-anchor carry, skips, and quant-aware export path intact, but during training it downweights earlier recurrent blocks early, ramps them smoothly to full strength over the train budget, and forces full recurrence for the quant-aware/final endgame so the exact scored architecture is unchanged at evaluation.",
+  "run_id": "2026_04_23_run_0104",
+  "runtime_seconds": 624.614874,
+  "submitter": "frido22",
+  "title": "Tail-Recur Depth Curriculum Before Quant-Aware Endgame",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 542193,
+  "under_16mb": true,
+  "val_bpb": 1.51851488,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
