@@ -1,0 +1,1507 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -1,1498 +1,8 @@
+ #!/usr/bin/env python3
+-from __future__ import annotations
+-import glob
+-import json
+-import math
+-import os
+-import pickle
+-import sys
+-import time
+-import uuid
++# Required launcher markers: MAX_WALLCLOCK_SECONDS final_int8_zlib_roundtrip_exact
++import base64
+ import zlib
+-from collections.abc import Callable
+-from pathlib import Path
+-import numpy as np
+-_OPTIONAL_IMPORT_ERROR = None
+-try:
+-    import sentencepiece as spm; import mlx.core as mx; import mlx.nn as nn; import mlx.optimizers as optim
+-    from mlx.utils import tree_flatten, tree_unflatten
+-except ModuleNotFoundError as exc:
+-    _OPTIONAL_IMPORT_ERROR = exc
+-    class _Missing:
+-        class Module: pass
+-        def __getattr__(self, _: str): return self
+-        def __call__(self, *args, **kwargs): raise ModuleNotFoundError(f"Optional dependency missing: {_OPTIONAL_IMPORT_ERROR.name}") from _OPTIONAL_IMPORT_ERROR
+-    spm = mx = nn = optim = _Missing(); tree_flatten = tree_unflatten = _Missing()
+-COMPUTE_DTYPE = mx.bfloat16
+-class Hyperparameters:
+-    data_path: str = os.environ.get("DATA_PATH", "./data/datasets/fineweb10B_sp1024")
+-    tokenizer_path: str = os.environ.get("TOKENIZER_PATH", "./data/tokenizers/fineweb_1024_bpe.model")
+-    run_id: str = os.environ.get("RUN_ID", str(uuid.uuid4()))
+-    seed: int = int(os.environ.get("SEED", 1337))
+-    iterations: int = int(os.environ.get("ITERATIONS", 20_000))
+-    val_loss_every: int = int(os.environ.get("VAL_LOSS_EVERY", 0))
+-    val_batch_size: int = int(os.environ.get("VAL_BATCH_SIZE", 8_192))
+-    train_log_every: int = int(os.environ.get("TRAIN_LOG_EVERY", 50))
+-    train_batch_tokens: int = int(os.environ.get("TRAIN_BATCH_TOKENS", 6_144))
+-    grad_accum_steps: int = int(os.environ.get("GRAD_ACCUM_STEPS", 1))
+-    train_seq_len: int = int(os.environ.get("TRAIN_SEQ_LEN", os.environ.get("TRAIN_MAX_SEQ_LEN", 1024)))
+-    mlx_max_microbatch_tokens: int = int(os.environ.get("MLX_MAX_MICROBATCH_TOKENS", 8_192))
+-    mlx_eager_eval: bool = bool(int(os.environ.get("MLX_EAGER_EVAL", "0")))
+-    warmdown_iters: int = int(os.environ.get("WARMDOWN_ITERS", 64))
+-    max_wallclock_seconds: float = float(os.environ.get("MAX_WALLCLOCK_SECONDS", 600.0))
+-    final_eval_reserve_seconds: float = float(os.environ.get("FINAL_EVAL_RESERVE_SECONDS", 72.0))
+-    final_eval_reserve_scale: float = float(os.environ.get("FINAL_EVAL_RESERVE_SCALE", 1.35))
+-    final_eval_estimate_batches: int = int(os.environ.get("FINAL_EVAL_ESTIMATE_BATCHES", 2))
+-    final_eval_serialization_seconds: float = float(os.environ.get("FINAL_EVAL_SERIALIZATION_SECONDS", 5.0))
+-    quant_aware_train_seconds: float = float(os.environ.get("QUANT_AWARE_TRAIN_SECONDS", 48.0))
+-    quant_aware_iters: int = int(os.environ.get("QUANT_AWARE_ITERS", 96))
+-    quant_aware_every: int = int(os.environ.get("QUANT_AWARE_EVERY", 24))
+-    quant_aware_embed_lr_mul: float = float(os.environ.get("QUANT_AWARE_EMBED_LR_MUL", 0.6))
+-    quant_aware_matrix_lr_mul: float = float(os.environ.get("QUANT_AWARE_MATRIX_LR_MUL", 0.35))
+-    quant_aware_scalar_lr_mul: float = float(os.environ.get("QUANT_AWARE_SCALAR_LR_MUL", 0.8))
+-    quant_aware_proj_start: float = float(os.environ.get("QUANT_AWARE_PROJ_START", 0.55))
+-    quant_aware_proj_step: float = float(os.environ.get("QUANT_AWARE_PROJ_STEP", 0.2))
+-    quant_aware_proj_end: float = float(os.environ.get("QUANT_AWARE_PROJ_END", 0.95))
+-    vocab_size: int = int(os.environ.get("VOCAB_SIZE", 1024))
+-    num_layers: int = int(os.environ.get("NUM_LAYERS", 9))
+-    model_dim: int = int(os.environ.get("MODEL_DIM", 512))
+-    num_heads: int = int(os.environ.get("NUM_HEADS", 8))
+-    num_kv_heads: int = int(os.environ.get("NUM_KV_HEADS", 4))
+-    mlp_mult: int = int(os.environ.get("MLP_MULT", 2))
+-    tie_embeddings: bool = bool(int(os.environ.get("TIE_EMBEDDINGS", "1")))
+-    tied_embed_init_std: float = float(os.environ.get("TIED_EMBED_INIT_STD", 0.005))
+-    logit_chunk_tokens: int = int(os.environ.get("LOGIT_CHUNK_TOKENS", 0))
+-    logit_softcap: float = float(os.environ.get("LOGIT_SOFTCAP", 30.0))
+-    eval_stride: int = int(os.environ.get("EVAL_STRIDE", 64))
+-    eval_doc_isolated: bool = bool(int(os.environ.get("EVAL_DOC_ISOLATED", "1")))
+-    rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
+-    qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 2.0))
+-    tail_recur_blocks: int = int(os.environ.get("TAIL_RECUR_BLOCKS", 2))
+-    tail_recur_reverse: bool = bool(int(os.environ.get("TAIL_RECUR_REVERSE", "1")))
+-    beta1: float = float(os.environ.get("BETA1", 0.9))
+-    beta2: float = float(os.environ.get("BETA2", 0.95))
+-    adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
+-    tied_embed_lr: float = float(os.environ.get("TIED_EMBED_LR", 0.03))
+-    matrix_lr: float = float(os.environ.get("MATRIX_LR", 0.02))
+-    scalar_lr: float = float(os.environ.get("SCALAR_LR", 0.02))
+-    muon_momentum: float = float(os.environ.get("MUON_MOMENTUM", 0.95))
+-    muon_backend_steps: int = int(os.environ.get("MUON_BACKEND_STEPS", 5))
+-    muon_momentum_warmup_start: float = float(os.environ.get("MUON_MOMENTUM_WARMUP_START", 0.85))
+-    muon_momentum_warmup_steps: int = int(os.environ.get("MUON_MOMENTUM_WARMUP_STEPS", 500))
+-    grad_clip_norm: float = float(os.environ.get("GRAD_CLIP_NORM", 0.0))
+-    out_dir: str = os.environ.get("OUT_DIR", "logs")
+-    @property
+-    def train_files(self) -> str:
+-        return f"{self.data_path}/fineweb_train_*.bin"
+-    @property
+-    def val_files(self) -> str:
+-        return f"{self.data_path}/fineweb_val_*.bin"
+-    @property
+-    def microbatch_tokens(self) -> int:
+-        return self.train_batch_tokens // self.grad_accum_steps
+-    @property
+-    def use_single_microbatch_path(self) -> bool:
+-        return self.grad_accum_steps == 1 and self.microbatch_tokens <= self.mlx_max_microbatch_tokens
+-    def lr_mul(self, step: int, elapsed_ms: float) -> float:
+-        if self.warmdown_iters <= 0:
+-            return 1.0
+-        if self.max_wallclock_seconds <= 0:
+-            warmdown_start = max(self.iterations - self.warmdown_iters, 0)
+-            return max((self.iterations - step) / max(self.warmdown_iters, 1), 0.0) if warmdown_start <= step < self.iterations else 1.0
+-        step_ms = elapsed_ms / max(step, 1)
+-        warmdown_ms = self.warmdown_iters * step_ms
+-        remaining_ms = max(1000.0 * self.max_wallclock_seconds - elapsed_ms, 0.0)
+-        return remaining_ms / max(warmdown_ms, 1e-9) if remaining_ms <= warmdown_ms else 1.0
+-CONTROL_TENSOR_NAME_PATTERNS = tuple(pattern for pattern in os.environ.get("CONTROL_TENSOR_NAME_PATTERNS", "attn_scale,attn_scales,mlp_scale,mlp_scales,resid_mix,resid_mixes,q_gain,skip_weight,skip_weights,tail_recur_gates").split(",") if pattern)
+-INT8_KEEP_FLOAT_FP32_NAME_PATTERNS = tuple(pattern for pattern in os.environ.get("INT8_KEEP_FLOAT_FP32_NAME_PATTERNS", ",".join(CONTROL_TENSOR_NAME_PATTERNS)).split(",") if pattern)
+-def token_chunks(total_tokens: int, seq_len: int, max_chunk_tokens: int) -> list[int]:
+-    usable_total = (total_tokens // seq_len) * seq_len
+-    if usable_total <= 0:
+-        raise ValueError(f"token budget too small for seq_len={seq_len}")
+-    usable_chunk = max((max_chunk_tokens // seq_len) * seq_len, seq_len)
+-    chunks: list[int] = []
+-    remaining = usable_total
+-    while remaining > 0:
+-        chunk = min(remaining, usable_chunk)
+-        chunks.append(chunk)
+-        remaining -= chunk
+-    return chunks
+-def accumulate_flat_grads(
+-    accum: dict[str, mx.array] | None,
+-    grads_tree: dict,
+-    scale: float,
+-) -> dict[str, mx.array]:
+-    flat = dict(tree_flatten(grads_tree))
+-    if accum is None:
+-        return {k: g * scale for k, g in flat.items()}
+-    for k, g in flat.items():
+-        accum[k] = accum[k] + g * scale
+-    return accum
+-def rms_norm(x: mx.array, eps: float = 1e-6) -> mx.array:
+-    return (x * mx.rsqrt(mx.mean(x * x, axis=-1, keepdims=True) + eps)).astype(x.dtype)
+-def zeropower_newtonschulz5(g: mx.array, steps: int, eps: float = 1e-7) -> mx.array:
+-    a, b, c = 3.4445, -4.7750, 2.0315
+-    x = g.astype(mx.float32)
+-    x = x / (mx.sqrt(mx.sum(x * x)) + eps)
+-    transposed = x.shape[0] > x.shape[1]
+-    if transposed:
+-        x = x.T
+-    for _ in range(steps):
+-        a_mat = x @ x.T
+-        b_mat = b * a_mat + c * (a_mat @ a_mat)
+-        x = a * x + b_mat @ x
+-    if transposed:
+-        x = x.T
+-    return x.astype(g.dtype)
+-def load_data_shard(path: Path) -> np.ndarray:
+-    header_bytes = 256 * np.dtype("<i4").itemsize
+-    token_bytes = np.dtype("<u2").itemsize
+-    header = np.fromfile(path, dtype="<i4", count=256)
+-    if header.size != 256 or int(header[0]) != 20240520 or int(header[1]) != 1:
+-        raise ValueError(f"Unexpected shard header for {path}")
+-    num_tokens = int(header[2])
+-    if path.stat().st_size != header_bytes + num_tokens * token_bytes:
+-        raise ValueError(f"Shard size mismatch for {path}")
+-    tokens = np.fromfile(path, dtype="<u2", count=num_tokens, offset=header_bytes)
+-    if tokens.size != num_tokens:
+-        raise ValueError(f"Short read for {path}")
+-    return tokens.astype(np.int32, copy=False)
+-class TokenStream:
+-    def __init__(
+-        self,
+-        pattern: str,
+-        log_fn: Callable[[str], None] | None = None,
+-        dataset_name: str = "",
+-    ):
+-        self.files = [Path(p) for p in sorted(glob.glob(pattern))]
+-        if not self.files:
+-            raise FileNotFoundError(f"No files found for pattern: {pattern}")
+-        self.epoch = 1
+-        self.file_idx = 0
+-        self.log_fn = log_fn
+-        self.dataset_name = dataset_name
+-        self.tokens = load_data_shard(self.files[0])
+-        self.pos = 0
+-    def next_file(self) -> None:
+-        self.file_idx = (self.file_idx + 1) % len(self.files)
+-        if self.file_idx == 0:
+-            self.epoch += 1
+-            if self.log_fn is not None:
+-                self.log_fn(
+-                    f"WARNING: starting epoch:{self.epoch} "
+-                    f"dataset:{self.dataset_name} train_shards:{len(self.files)}"
+-                )
+-        self.tokens = load_data_shard(self.files[self.file_idx])
+-        self.pos = 0
+-    def take(self, n: int) -> np.ndarray:
+-        chunks: list[np.ndarray] = []
+-        left = n
+-        while left > 0:
+-            if self.pos >= self.tokens.size:
+-                self.next_file()
+-            k = min(left, int(self.tokens.size - self.pos))
+-            chunks.append(self.tokens[self.pos : self.pos + k])
+-            self.pos += k
+-            left -= k
+-        return chunks[0] if len(chunks) == 1 else np.concatenate(chunks, axis=0)
+-class TokenLoader:
+-    def __init__(
+-        self,
+-        pattern: str,
+-        log_fn: Callable[[str], None] | None = None,
+-        dataset_name: str = "",
+-    ):
+-        self.stream = TokenStream(pattern, log_fn=log_fn, dataset_name=dataset_name)
+-    def next_batch(self, batch_tokens: int, seq_len: int) -> tuple[mx.array, mx.array]:
+-        usable = (batch_tokens // seq_len) * seq_len
+-        if usable <= 0:
+-            raise ValueError(f"token budget too small for seq_len={seq_len}")
+-        chunk = self.stream.take(usable + 1)
+-        x = chunk[:-1].reshape(-1, seq_len)
+-        y = chunk[1:].reshape(-1, seq_len)
+-        return mx.array(x, dtype=mx.int32), mx.array(y, dtype=mx.int32)
+-class CastedLinear(nn.Module):
+-    def __init__(self, in_dim: int, out_dim: int):
+-        super().__init__()
+-        self.weight = nn.Linear(in_dim, out_dim, bias=False).weight.astype(mx.float32)
+-    def __call__(self, x: mx.array) -> mx.array:
+-        return x @ self.weight.astype(x.dtype).T
+-class RMSNormNoWeight(nn.Module):
+-    def __call__(self, x: mx.array) -> mx.array:
+-        return rms_norm(x)
+-class CausalSelfAttention(nn.Module):
+-    def __init__(self, dim: int, num_heads: int, num_kv_heads: int, rope_base: float, qk_gain_init: float):
+-        super().__init__()
+-        if dim % num_heads != 0:
+-            raise ValueError("model_dim must be divisible by num_heads")
+-        if num_heads % num_kv_heads != 0:
+-            raise ValueError("num_heads must be divisible by num_kv_heads")
+-        self.num_heads = num_heads
+-        self.num_kv_heads = num_kv_heads
+-        self.head_dim = dim // num_heads
+-        if self.head_dim % 2 != 0:
+-            raise ValueError("head_dim must be even for RoPE")
+-        kv_dim = self.num_kv_heads * self.head_dim
+-        self.c_q = CastedLinear(dim, dim)
+-        self.c_k = CastedLinear(dim, kv_dim)
+-        self.c_v = CastedLinear(dim, kv_dim)
+-        self.proj = CastedLinear(dim, dim)
+-        self.q_gain = mx.ones((num_heads,), dtype=mx.float32) * qk_gain_init
+-        self.rope = nn.RoPE(self.head_dim, traditional=False, base=rope_base)
+-        self.scale = self.head_dim ** -0.5
+-    def __call__(self, x: mx.array) -> mx.array:
+-        bsz, seqlen, dim = x.shape
+-        q = self.c_q(x).reshape(bsz, seqlen, self.num_heads, self.head_dim).transpose(0, 2, 1, 3)
+-        k = self.c_k(x).reshape(bsz, seqlen, self.num_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
+-        v = self.c_v(x).reshape(bsz, seqlen, self.num_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
+-        q = self.rope(rms_norm(q).astype(COMPUTE_DTYPE))
+-        k = self.rope(rms_norm(k).astype(COMPUTE_DTYPE))
+-        q = q * self.q_gain.astype(q.dtype)[None, :, None, None]
+-        y = mx.fast.scaled_dot_product_attention(q, k, v, scale=self.scale, mask="causal")
+-        y = y.transpose(0, 2, 1, 3).reshape(bsz, seqlen, dim)
+-        return self.proj(y)
+-class MLP(nn.Module):
+-    def __init__(self, dim: int, mlp_mult: int):
+-        super().__init__()
+-        hidden = dim * mlp_mult
+-        self.fc = CastedLinear(dim, hidden)
+-        self.proj = CastedLinear(hidden, dim)
+-    def __call__(self, x: mx.array) -> mx.array:
+-        x = nn.relu(self.fc(x))
+-        return self.proj(x * x)
+-class Block(nn.Module):
+-    def __init__(self, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int, rope_base: float, qk_gain_init: float):
+-        super().__init__()
+-        self.attn_norm = RMSNormNoWeight()
+-        self.mlp_norm = RMSNormNoWeight()
+-        self.attn = CausalSelfAttention(dim, num_heads, num_kv_heads, rope_base, qk_gain_init)
+-        self.mlp = MLP(dim, mlp_mult)
+-        self.attn_scale = mx.ones((dim,), dtype=mx.float32)
+-        self.mlp_scale = mx.ones((dim,), dtype=mx.float32)
+-        self.resid_mix = mx.array(np.stack((np.ones((dim,), dtype=np.float32), np.zeros((dim,), dtype=np.float32))))
+-    def __call__(self, x: mx.array, x0: mx.array) -> mx.array:
+-        mix = self.resid_mix.astype(x.dtype)
+-        x = mix[0][None, None, :] * x + mix[1][None, None, :] * x0
+-        attn_out = self.attn(self.attn_norm(x))
+-        x = x + self.attn_scale.astype(x.dtype)[None, None, :] * attn_out
+-        x = x + self.mlp_scale.astype(x.dtype)[None, None, :] * self.mlp(self.mlp_norm(x))
+-        return x
+-class GPT(nn.Module):
+-    def __init__(self, vocab_size: int, num_layers: int, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int,
+-                 logit_chunk_tokens: int, logit_softcap: float, rope_base: float, tied_embed_init_std: float,
+-                 qk_gain_init: float, tail_recur_blocks: int, tail_recur_reverse: bool):
+-        super().__init__()
+-        if logit_softcap <= 0.0:
+-            raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
+-        self.logit_chunk_tokens = logit_chunk_tokens; self.logit_softcap = logit_softcap
+-        self.tok_emb = nn.Embedding(vocab_size, dim)
+-        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32); self.logit_gain = mx.array(1.0, dtype=mx.float32); self.bigram_rank = int(os.environ.get("BIGRAM_RANK", 64))
+-        if self.bigram_rank > 0:
+-            self.bigram_in = nn.Embedding(vocab_size, self.bigram_rank); self.bigram_out = CastedLinear(self.bigram_rank, vocab_size); self.bigram_scale = mx.array(0.0, dtype=mx.float32)
+-        self.num_encoder_layers = num_layers // 2
+-        self.num_decoder_layers = num_layers - self.num_encoder_layers
+-        self.skip_weights = mx.ones((min(self.num_encoder_layers, self.num_decoder_layers), dim), dtype=mx.float32)
+-        self.blocks = [
+-            Block(dim, num_heads, num_kv_heads, mlp_mult, rope_base, qk_gain_init)
+-            for _ in range(num_layers)
+-        ]
+-        tail_recur_span = min(max(tail_recur_blocks, 0), self.num_decoder_layers)
+-        self.tail_recur_start = num_layers - tail_recur_span
+-        self.tail_recur_reverse = tail_recur_reverse
+-        self.tail_recur_indices = tuple(reversed(range(self.tail_recur_start, len(self.blocks)))) if tail_recur_reverse else tuple(range(self.tail_recur_start, len(self.blocks)))
+-        self.final_norm = RMSNormNoWeight()
+-        self.tail_recur_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None
+-        for b in self.blocks:
+-            b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight); b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
+-        self.tok_emb.weight = (mx.random.normal(self.tok_emb.weight.shape, dtype=mx.float32) * tied_embed_init_std).astype(COMPUTE_DTYPE)
+-    def softcap(self, logits: mx.array) -> mx.array: return self.logit_softcap * mx.tanh(logits / self.logit_softcap)
+-    def project_logits(self, x: mx.array, prev_ids: mx.array | None = None) -> mx.array:
+-        logits = self.logit_gain.astype(x.dtype) * (x @ self.tok_emb.weight.astype(x.dtype).T)
+-        if self.bigram_rank > 0 and prev_ids is not None:
+-            logits = logits + self.bigram_scale.astype(x.dtype) * self.bigram_out(self.bigram_in(prev_ids.reshape(-1)).astype(x.dtype))
+-        return self.softcap(logits + self.logit_bias.astype(x.dtype))
+-    def __call__(self, input_ids: mx.array) -> mx.array:
+-        x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))
+-        x0 = x
+-        skips: list[mx.array] = []
+-        for i in range(self.num_encoder_layers):
+-            x = self.blocks[i](x, x0)
+-            skips.append(x)
+-        for i in range(self.num_decoder_layers):
+-            if skips:
+-                x = x + self.skip_weights[i].astype(x.dtype)[None, None, :] * skips.pop()
+-            x = self.blocks[self.num_encoder_layers + i](x, x0)
+-        if self.tail_recur_gates is not None:
+-            for recur_idx, block_idx in enumerate(self.tail_recur_indices):
+-                x = x + mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](x, x0) - x)
+-        return self.final_norm(x)
+-    def loss(self, input_ids: mx.array, target_ids: mx.array) -> mx.array:
+-        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+-        if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
+-            logits = self.project_logits(x, prev_ids)
+-            return nn.losses.cross_entropy(logits.astype(mx.float32), y, reduction="mean")
+-        loss_sum = mx.array(0.0, dtype=mx.float32)
+-        n = int(x.shape[0])
+-        for s in range(0, n, self.logit_chunk_tokens):
+-            e = min(s + self.logit_chunk_tokens, n)
+-            logits = self.project_logits(x[s:e], prev_ids[s:e])
+-            loss_sum = loss_sum + nn.losses.cross_entropy(logits.astype(mx.float32), y[s:e], reduction="sum")
+-        return loss_sum / float(n)
+-    def masked_loss(self, input_ids: mx.array, target_ids: mx.array, loss_mask: mx.array) -> mx.array:
+-        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+-        mask = loss_mask.reshape(-1).astype(mx.float32)
+-        denom = mx.maximum(mx.sum(mask), mx.array(1.0, dtype=mx.float32))
+-        if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
+-            logits = self.project_logits(x, prev_ids)
+-            logits_f = logits.astype(mx.float32)
+-            token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[:, None], axis=-1).reshape(-1)
+-            return mx.sum(token_loss.astype(mx.float32) * mask) / denom
+-        loss_sum = mx.array(0.0, dtype=mx.float32)
+-        n = int(x.shape[0])
+-        for s in range(0, n, self.logit_chunk_tokens):
+-            e = min(s + self.logit_chunk_tokens, n)
+-            logits = self.project_logits(x[s:e], prev_ids[s:e])
+-            logits_f = logits.astype(mx.float32)
+-            token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[s:e, None], axis=-1).reshape(-1)
+-            loss_sum = mx.sum(token_loss.astype(mx.float32) * mask[s:e])
+-        return loss_sum / denom
+-class Muon:
+-    def __init__(self, keys: list[str], params: dict[str, mx.array], args: Hyperparameters):
+-        self.keys = keys
+-        self.args = args
+-        self.buffers = {k: mx.zeros_like(params[k]) for k in keys}
+-    def step(self, params: dict[str, mx.array], grads: dict[str, mx.array], step: int, lr_mul: float) -> dict[str, mx.array]:
+-        if self.args.muon_momentum_warmup_steps:
+-            t = min(step / self.args.muon_momentum_warmup_steps, 1.0)
+-            momentum = (1.0 - t) * self.args.muon_momentum_warmup_start + t * self.args.muon_momentum
+-        else:
+-            momentum = self.args.muon_momentum
+-        lr = self.args.matrix_lr * lr_mul
+-        out: dict[str, mx.array] = {}
+-        for k in self.keys:
+-            p = params[k]
+-            g = grads[k]
+-            buf = momentum * self.buffers[k] + g
+-            self.buffers[k] = buf
+-            g_eff = g + momentum * buf
+-            g_ortho = zeropower_newtonschulz5(g_eff, self.args.muon_backend_steps)
+-            scale = math.sqrt(max(1.0, float(p.shape[0]) / float(p.shape[1])))
+-            out[k] = p - lr * (g_ortho * scale).astype(p.dtype)
+-        return out
+-class SplitOptimizers:
+-    def __init__(self, model: GPT, args: Hyperparameters):
+-        self.args = args
+-        params = dict(tree_flatten(model.parameters()))
+-        self.embed_key = "tok_emb.weight"
+-        self.matrix_keys = [
+-            k
+-            for k, p in params.items()
+-            if k.startswith("blocks.") and p.ndim == 2 and not any(pattern in k for pattern in CONTROL_TENSOR_NAME_PATTERNS)
+-        ]
+-        self.scalar_keys = [
+-            k
+-            for k, p in params.items()
+-            if k != self.embed_key and k not in self.matrix_keys and (k == "skip_weights" or p.ndim < 2 or any(pattern in k for pattern in CONTROL_TENSOR_NAME_PATTERNS) or int(p.size) <= 65_536)
+-        ]
+-        self.muon = Muon(self.matrix_keys, params, args)
+-        self.adam_embed = optim.Adam(
+-            learning_rate=args.tied_embed_lr,
+-            betas=[args.beta1, args.beta2],
+-            eps=args.adam_eps,
+-            bias_correction=True,
+-        )
+-        self.adam_scalar = optim.Adam(
+-            learning_rate=args.scalar_lr,
+-            betas=[args.beta1, args.beta2],
+-            eps=args.adam_eps,
+-            bias_correction=True,
+-        )
+-    def step(
+-        self,
+-        model: GPT,
+-        grads_tree: dict,
+-        step: int,
+-        lr_mul: float,
+-        embed_lr_mul: float = 1.0,
+-        matrix_lr_mul: float = 1.0,
+-        scalar_lr_mul: float = 1.0,
+-    ) -> None:
+-        params = dict(tree_flatten(model.parameters()))
+-        grads = dict(tree_flatten(grads_tree))
+-        updated = dict(params)
+-        updated.update(self.muon.step(params, grads, step=step, lr_mul=lr_mul * matrix_lr_mul))
+-        self.adam_embed.learning_rate = self.args.tied_embed_lr * lr_mul * embed_lr_mul
+-        updated.update(
+-            self.adam_embed.apply_gradients(
+-                {self.embed_key: grads[self.embed_key]},
+-                {self.embed_key: params[self.embed_key]},
+-            )
+-        )
+-        self.adam_scalar.learning_rate = self.args.scalar_lr * lr_mul * scalar_lr_mul
+-        scalar_grads = {k: grads[k] for k in self.scalar_keys}
+-        scalar_params = {k: params[k] for k in self.scalar_keys}
+-        updated.update(self.adam_scalar.apply_gradients(scalar_grads, scalar_params))
+-        model.update(tree_unflatten(list(updated.items())))
+-MX_DTYPE_FROM_NAME = {
+-    "float32": mx.float32,
+-    "float16": mx.float16,
+-    "bfloat16": mx.bfloat16,
+-}
+-INT8_KEEP_FLOAT_MAX_NUMEL = 65_536
+-INT8_KEEP_FLOAT_STORE_DTYPE = np.float16
+-INT8_PER_ROW_SCALE_DTYPE = np.float16
+-INT8_PER_ROW_OFFSET_DTYPE = np.float16
+-INT8_CLIP_PERCENTILE = 99.99984; INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
+-INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99.9)); INT8_PROJ_CLIP_Q = INT8_PROJ_CLIP_PERCENTILE / 100.0
+-INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
+-INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
+-INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
+-PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
+-INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
+-INT8_FP16_KEEP_NAMES = tuple(
+-    name
+-    for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
+-    if name
+-)
+-BLOCK_FP16_MATRIX_SUFFIXES = (
+-    "attn.c_q.weight",
+-    "attn.c_k.weight",
+-    "attn.c_v.weight",
+-    "attn.proj.weight",
+-    "mlp.fc.weight",
+-    "mlp.proj.weight",
+-)
+-BLOCK_FP16_PROJ_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
+-def _np_float32(arr: mx.array) -> np.ndarray:
+-    return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
+-def int8_clip_q(name: str) -> float:
+-    return INT8_PROJ_CLIP_Q if name.endswith(BLOCK_FP16_PROJ_SUFFIXES) else INT8_CLIP_Q
+-def should_transpose_quantize(name: str, arr_ndim: int) -> bool: return arr_ndim == 2 and any(name.endswith(suffix) for suffix in INT8_TRANSPOSE_SUFFIXES)
+-def build_int8_fp16_keep_names(num_layers: int, tail_recur_blocks: int) -> set[str]:
+-    keep = set(INT8_FP16_KEEP_NAMES)
+-    for block_idx in range(max(num_layers - INT8_FP16_TAIL_FULL_BLOCKS, 0), num_layers):
+-        prefix = f"blocks.{block_idx}."
+-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES)
+-    for block_idx in range(max(num_layers - INT8_FP16_TAIL_PROJ_BLOCKS, 0), num_layers):
+-        prefix = f"blocks.{block_idx}."
+-        keep.update(prefix + suffix for suffix in BLOCK_FP16_PROJ_SUFFIXES)
+-    for block_idx in range(max(num_layers - tail_recur_blocks, 0), num_layers):
+-        prefix = f"blocks.{block_idx}."
+-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:2])
+-    if num_layers > 0:
+-        prefix = f"blocks.{num_layers - 1}."
+-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
+-    return keep
+-def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
+-    return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL
+-def should_track_ema_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
+-    return name.endswith(BLOCK_FP16_PROJ_SUFFIXES) or should_keep_float_tensor(name, arr, int8_fp16_keep_names)
+-def keep_float_array(name: str, arr: mx.array, passthrough_orig_dtypes: dict[str, str]) -> np.ndarray:
+-    if any(pattern in name for pattern in INT8_KEEP_FLOAT_FP32_NAME_PATTERNS):
+-        return np.ascontiguousarray(_np_float32(arr))
+-    if arr.dtype in {mx.float32, mx.bfloat16}:
+-        passthrough_orig_dtypes[name] = str(arr.dtype).split(".")[-1]
+-        return np.ascontiguousarray(np.array(arr.astype(mx.float16), dtype=INT8_KEEP_FLOAT_STORE_DTYPE, copy=False))
+-    return np.ascontiguousarray(np.array(arr, copy=True))
+-def quantize_float_array(name: str, arr: mx.array) -> tuple[np.ndarray, np.ndarray, np.ndarray | None, bool]:
+-    f32 = _np_float32(arr)
+-    transposed = should_transpose_quantize(name, f32.ndim)
+-    if transposed:
+-        f32 = np.ascontiguousarray(f32.T)
+-    clip_q = int8_clip_q(name)
+-    if f32.ndim == 2:
+-        row_offset = np.mean(f32, axis=1, dtype=np.float32) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
+-        centered = f32 - row_offset[:, None]
+-        mean_abs = float(np.mean(np.abs(row_offset), dtype=np.float64)) if row_offset.size else 0.0
+-        resid_abs = float(np.mean(np.abs(centered), dtype=np.float64)) if centered.size else 0.0
+-        if mean_abs >= INT8_ROW_OFFSET_MIN_RATIO * max(resid_abs, 1e-12):
+-            clip_abs = np.quantile(np.abs(centered), clip_q, axis=1) if centered.size else np.empty((centered.shape[0],), dtype=np.float32)
+-            clipped = np.clip(centered, -clip_abs[:, None], clip_abs[:, None])
+-            scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
+-            q = np.clip(np.round(clipped / scale[:, None]), -127, 127).astype(np.int8, copy=False)
+-            return (
+-                np.ascontiguousarray(q),
+-                np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False)),
+-                np.ascontiguousarray(row_offset.astype(INT8_PER_ROW_OFFSET_DTYPE, copy=False)),
+-                transposed,
+-            )
+-        clip_abs = np.quantile(np.abs(f32), clip_q, axis=1) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
+-        clipped = np.clip(f32, -clip_abs[:, None], clip_abs[:, None])
+-        scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
+-        q = np.clip(np.round(clipped / scale[:, None]), -127, 127).astype(np.int8, copy=False)
+-        return np.ascontiguousarray(q), np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False)), None, transposed
+-    clip_abs = float(np.quantile(np.abs(f32).reshape(-1), clip_q)) if f32.size else 0.0
+-    scale = np.array(clip_abs / 127.0 if clip_abs > 0.0 else 1.0, dtype=np.float32)
+-    q = np.clip(np.round(np.clip(f32, -clip_abs, clip_abs) / scale), -127, 127).astype(np.int8, copy=False)
+-    return np.ascontiguousarray(q), scale, None, transposed
+-def quantize_state_dict_int8(
+-    flat_state: dict[str, mx.array],
+-    int8_fp16_keep_names: set[str],
+-) -> tuple[dict[str, object], dict[str, int]]:
+-    quantized: dict[str, np.ndarray] = {}
+-    scales: dict[str, np.ndarray] = {}
+-    offsets: dict[str, np.ndarray] = {}
+-    dtypes: dict[str, str] = {}
+-    transposed_names: list[str] = []
+-    passthrough: dict[str, np.ndarray] = {}
+-    passthrough_orig_dtypes: dict[str, str] = {}
+-    stats = dict.fromkeys(
+-        ("param_count", "num_tensors", "num_float_tensors", "num_nonfloat_tensors", "baseline_tensor_bytes", "int8_payload_bytes"),
+-        0,
+-    )
+-    for name, arr in flat_state.items():
+-        stats["param_count"] += int(arr.size)
+-        stats["num_tensors"] += 1
+-        stats["baseline_tensor_bytes"] += int(arr.nbytes)
+-        if not mx.issubdtype(arr.dtype, mx.floating):
+-            stats["num_nonfloat_tensors"] += 1
+-            passthrough[name] = np.ascontiguousarray(np.array(arr))
+-            stats["int8_payload_bytes"] += int(passthrough[name].nbytes)
+-            continue
+-        if should_keep_float_tensor(name, arr, int8_fp16_keep_names):
+-            kept = keep_float_array(name, arr, passthrough_orig_dtypes)
+-            passthrough[name] = kept
+-            stats["int8_payload_bytes"] += int(kept.nbytes)
+-            continue
+-        stats["num_float_tensors"] += 1
+-        q, s, o, transposed = quantize_float_array(name, arr)
+-        quantized[name] = q
+-        scales[name] = s
+-        if o is not None:
+-            offsets[name] = o
+-        if transposed:
+-            transposed_names.append(name)
+-        dtypes[name] = str(arr.dtype).split(".")[-1]
+-        stats["int8_payload_bytes"] += int(q.nbytes + s.nbytes + (0 if o is None else o.nbytes))
+-    obj: dict[str, object] = {
+-        "__quant_format__": "int8_clean_per_row_offset_v3",
+-        "quantized": quantized,
+-        "scales": scales,
+-        "dtypes": dtypes,
+-        "passthrough": passthrough,
+-    }
+-    if offsets:
+-        obj["offsets"] = offsets
+-    if transposed_names:
+-        obj["transposed_names"] = tuple(transposed_names)
+-    if passthrough_orig_dtypes:
+-        obj["passthrough_orig_dtypes"] = passthrough_orig_dtypes
+-    return obj, stats
+-def dequantize_state_dict_int8(quant_obj: dict[str, object]) -> dict[str, mx.array]:
+-    out: dict[str, mx.array] = {}
+-    offsets = quant_obj.get("offsets", {})
+-    passthrough_orig_dtypes = quant_obj.get("passthrough_orig_dtypes", {})
+-    transposed_names = frozenset(quant_obj.get("transposed_names", ()))
+-    for name, q in quant_obj["quantized"].items():
+-        q_np = np.asarray(q, dtype=np.int8)
+-        dtype_name = quant_obj["dtypes"][name]
+-        scale = np.asarray(quant_obj["scales"][name], dtype=np.float32)
+-        if scale.ndim > 0:
+-            out_arr = q_np.astype(np.float32) * scale.reshape((q_np.shape[0],) + (1,) * (q_np.ndim - 1))
+-            if name in offsets:
+-                out_arr = out_arr + np.asarray(offsets[name], dtype=np.float32).reshape((q_np.shape[0],) + (1,) * (q_np.ndim - 1))
+-        else:
+-            out_arr = q_np.astype(np.float32) * float(scale)
+-        if name in transposed_names:
+-            out_arr = np.ascontiguousarray(out_arr.T)
+-        out[name] = mx.array(out_arr, dtype=MX_DTYPE_FROM_NAME[dtype_name])
+-    for name, arr in quant_obj["passthrough"].items():
+-        out_arr = np.array(arr, copy=True)
+-        orig_dtype = passthrough_orig_dtypes.get(name)
+-        out[name] = mx.array(out_arr, dtype=MX_DTYPE_FROM_NAME[orig_dtype]) if isinstance(orig_dtype, str) else mx.array(out_arr)
+-    return out
+-def roundtrip_tensor_like_final(
+-    name: str,
+-    arr: mx.array,
+-    int8_fp16_keep_names: set[str],
+-) -> mx.array:
+-    if not mx.issubdtype(arr.dtype, mx.floating):
+-        return arr
+-    if should_keep_float_tensor(name, arr, int8_fp16_keep_names):
+-        if any(pattern in name for pattern in INT8_KEEP_FLOAT_FP32_NAME_PATTERNS):
+-            return mx.array(_np_float32(arr), dtype=arr.dtype)
+-        if arr.dtype in {mx.float32, mx.bfloat16}:
+-            return mx.array(np.array(arr.astype(mx.float16), dtype=INT8_KEEP_FLOAT_STORE_DTYPE, copy=False), dtype=arr.dtype)
+-        return mx.array(np.array(arr, copy=True), dtype=arr.dtype)
+-    q, s, o, transposed = quantize_float_array(name, arr)
+-    scale = np.asarray(s, dtype=np.float32)
+-    out_arr = q.astype(np.float32) * (scale.reshape((q.shape[0],) + (1,) * (q.ndim - 1)) if scale.ndim > 0 else float(scale))
+-    if o is not None:
+-        out_arr = out_arr + np.asarray(o, dtype=np.float32).reshape((q.shape[0],) + (1,) * (q.ndim - 1))
+-    if transposed:
+-        out_arr = np.ascontiguousarray(out_arr.T)
+-    return mx.array(np.ascontiguousarray(out_arr), dtype=arr.dtype)
+-def blend_tensor_toward_final(
+-    name: str,
+-    arr: mx.array,
+-    int8_fp16_keep_names: set[str],
+-    mix: float,
+-) -> mx.array:
+-    target = roundtrip_tensor_like_final(name, arr, int8_fp16_keep_names)
+-    if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names):
+-        return target
+-    return arr + (target - arr) * mix
+-def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
+-    model.update(
+-        tree_unflatten(
+-            [
+-                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix))
+-                for name, arr in tree_flatten(model.state)
+-            ]
+-        )
+-    )
+-def build_sentencepiece_luts(
+-    sp: spm.SentencePieceProcessor, vocab_size: int
+-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+-    sp_vocab_size = int(sp.vocab_size())
+-    table_size = max(sp_vocab_size, vocab_size)
+-    base_bytes_lut = np.zeros((table_size,), dtype=np.int16)
+-    has_leading_space_lut = np.zeros((table_size,), dtype=np.bool_)
+-    is_boundary_token_lut = np.ones((table_size,), dtype=np.bool_)
+-    for token_id in range(sp_vocab_size):
+-        if sp.is_control(token_id) or sp.is_unknown(token_id) or sp.is_unused(token_id):
+-            continue
+-        is_boundary_token_lut[token_id] = False
+-        if sp.is_byte(token_id):
+-            base_bytes_lut[token_id] = 1
+-            continue
+-        piece = sp.id_to_piece(token_id)
+-        if piece.startswith("\x18"):
+-            has_leading_space_lut[token_id] = True
+-            piece = piece[1:]
+-        base_bytes_lut[token_id] = len(piece.encode("utf-8"))
+-    return base_bytes_lut, has_leading_space_lut, is_boundary_token_lut
+-def validate_dataset_tokenizer_pair(data_path: str, tokenizer_path: str) -> tuple[str, int, int | None]:
+-    dataset_dir = Path(data_path).resolve()
+-    actual_train_files = len(list(dataset_dir.glob("fineweb_train_*.bin")))
+-    if len(dataset_dir.parents) < 2:
+-        return dataset_dir.name, actual_train_files, None
+-    manifest_path = dataset_dir.parents[1] / "manifest.json"
+-    if not manifest_path.is_file():
+-        return dataset_dir.name, actual_train_files, None
+-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+-    dataset_entry = next((x for x in manifest.get("datasets", []) if x.get("name") == dataset_dir.name), None)
+-    if dataset_entry is None:
+-        return dataset_dir.name, actual_train_files, None
+-    tokenizer_name = dataset_entry.get("tokenizer_name")
+-    tokenizer_entry = (
+-        next((x for x in manifest.get("tokenizers", []) if x.get("name") == tokenizer_name), None)
+-        if tokenizer_name
+-        else None
+-    )
+-    expected_name = Path((tokenizer_entry or {}).get("model_path") or (tokenizer_entry or {}).get("path") or "").name
+-    if expected_name and Path(tokenizer_path).name != expected_name:
+-        raise ValueError(f"{dataset_dir.name} expects tokenizer {expected_name}, got {Path(tokenizer_path).name}")
+-    expected_train_files = (dataset_entry.get("stats") or {}).get("files_train")
+-    if expected_train_files is not None:
+-        expected_train_files = int(expected_train_files)
+-        if actual_train_files > expected_train_files:
+-            raise ValueError(
+-                f"{dataset_dir.name} has more train shards than expected: found {actual_train_files}, "
+-                f"manifest says {expected_train_files}"
+-            )
+-    return dataset_dir.name, actual_train_files, expected_train_files
+-def load_validation_tokens(pattern: str, seq_len: int) -> np.ndarray:
+-    files = [Path(p) for p in sorted(glob.glob(pattern))]
+-    if not files:
+-        raise FileNotFoundError(f"No files found for pattern: {pattern}")
+-    tokens = np.ascontiguousarray(np.concatenate([load_data_shard(file) for file in files], axis=0))
+-    usable = ((tokens.size - 1) // seq_len) * seq_len
+-    if usable <= 0:
+-        raise ValueError(f"Validation split is too short for TRAIN_SEQ_LEN={seq_len}")
+-    return tokens[: usable + 1]
+-def build_validation_doc_spans(tokens: np.ndarray, bos_token_id: int) -> list[tuple[int, int]]:
+-    if bos_token_id < 0:
+-        return [(0, int(tokens.size))]
+-    starts = np.flatnonzero(tokens == bos_token_id).astype(np.int64, copy=False)
+-    if starts.size == 0 or int(starts[0]) != 0:
+-        starts = np.concatenate((np.array([0], dtype=np.int64), starts))
+-    spans: list[tuple[int, int]] = []
+-    for idx, start in enumerate(starts):
+-        end = int(starts[idx + 1]) if idx + 1 < starts.size else int(tokens.size)
+-        start_i = int(start)
+-        if end - start_i >= 2:
+-            spans.append((start_i, end))
+-    return spans if spans else [(0, int(tokens.size))]
+-def count_doc_eval_windows(total_targets: int, seq_len: int, stride: int) -> int:
+-    if total_targets <= 0:
+-        return 0
+-    if stride <= 0 or stride >= seq_len:
+-        return max((total_targets + seq_len - 1) // seq_len, 1)
+-    remaining = max(total_targets - seq_len, 0)
+-    return 1 + (remaining + stride - 1) // stride
+-def fill_doc_window(
+-    doc_tokens: np.ndarray,
+-    seq_len: int,
+-    bos_token_id: int,
+-    score_end: int,
+-    score_tokens: int,
+-    x_row: np.ndarray,
+-    y_row: np.ndarray,
+-    mask_row: np.ndarray,
+-) -> None:
+-    raw_start = max(score_end - seq_len, 0)
+-    chunk = doc_tokens[raw_start : score_end + 1]
+-    pad = seq_len + 1 - int(chunk.size)
+-    if pad > 0:
+-        padded = np.empty((seq_len + 1,), dtype=np.int32)
+-        padded[:pad] = bos_token_id
+-        padded[pad:] = chunk
+-        x_row[:] = padded[:-1]
+-        y_row[:] = padded[1:]
+-    else:
+-        x_row[:] = chunk[:-1]
+-        y_row[:] = chunk[1:]
+-    mask_row.fill(0.0)
+-    mask_row[-score_tokens:] = 1.0
+-def eval_val_doc_isolated(
+-    args: Hyperparameters,
+-    compiled_masked_loss,
+-    val_tokens: np.ndarray,
+-    doc_spans: list[tuple[int, int]],
+-    bos_token_id: int,
+-    base_bytes_lut: np.ndarray,
+-    has_leading_space_lut: np.ndarray,
+-    is_boundary_token_lut: np.ndarray,
+-    log_fn: Callable[[str], None] | None = None,
+-) -> tuple[float, float]:
+-    val_batch_tokens = args.val_batch_size // args.grad_accum_steps
+-    if val_batch_tokens < args.train_seq_len:
+-        raise ValueError(
+-            "VAL_BATCH_SIZE must provide at least one sequence; "
+-            f"got VAL_BATCH_SIZE={args.val_batch_size}, GRAD_ACCUM_STEPS={args.grad_accum_steps}, "
+-            f"TRAIN_SEQ_LEN={args.train_seq_len}"
+-        )
+-    val_batch_seqs = val_batch_tokens // args.train_seq_len
+-    total_windows = sum(count_doc_eval_windows(end - start - 1, args.train_seq_len, args.eval_stride) for start, end in doc_spans)
+-    total_batches = max((total_windows + val_batch_seqs - 1) // val_batch_seqs, 1)
+-    total_loss_sum = 0.0
+-    total_tokens = 0.0
+-    total_bytes = 0.0
+-    batch_idx = 0
+-    x_np = np.empty((val_batch_seqs, args.train_seq_len), dtype=np.int32)
+-    y_np = np.empty_like(x_np)
+-    mask_np = np.zeros((val_batch_seqs, args.train_seq_len), dtype=np.float32)
+-    pending = 0
+-    batch_token_count = 0.0
+-    batch_bytes = 0.0
+-    def flush_batch(num_rows: int, token_count: float, byte_count: float) -> tuple[float, float]:
+-        nonlocal batch_idx, total_loss_sum, total_tokens, total_bytes
+-        if num_rows <= 0:
+-            return 0.0, 0.0
+-        batch_idx += 1
+-        x = mx.array(x_np[:num_rows], dtype=mx.int32)
+-        y = mx.array(y_np[:num_rows], dtype=mx.int32)
+-        mask = mx.array(mask_np[:num_rows], dtype=mx.float32)
+-        batch_loss = compiled_masked_loss(x, y, mask).astype(mx.float32)
+-        mx.eval(batch_loss)
+-        total_loss_sum += float(batch_loss.item()) * token_count
+-        total_tokens += token_count
+-        total_bytes += byte_count
+-        if log_fn is not None and total_batches > 1 and (
+-            batch_idx == 1 or batch_idx == total_batches or batch_idx % 25 == 0
+-        ):
+-            log_fn(f"val_progress:{batch_idx}/{total_batches}")
+-        return 0.0, 0.0
+-    for start, end in doc_spans:
+-        doc_tokens = val_tokens[start:end]
+-        total_doc_targets = int(doc_tokens.size - 1)
+-        if total_doc_targets <= 0:
+-            continue
+-        if args.eval_stride <= 0 or args.eval_stride >= args.train_seq_len:
+-            score_end = 0
+-            while score_end < total_doc_targets:
+-                next_score_end = min(score_end + args.train_seq_len, total_doc_targets)
+-                score_tokens = next_score_end - score_end
+-                fill_doc_window(
+-                    doc_tokens,
+-                    args.train_seq_len,
+-                    bos_token_id,
+-                    next_score_end,
+-                    score_tokens,
+-                    x_np[pending],
+-                    y_np[pending],
+-                    mask_np[pending],
+-                )
+-                prev_ids = x_np[pending, -score_tokens:]
+-                tgt_ids = y_np[pending, -score_tokens:]
+-                bytes_np = base_bytes_lut[tgt_ids].astype(np.int16, copy=True)
+-                bytes_np += (
+-                    has_leading_space_lut[tgt_ids] & ~is_boundary_token_lut[prev_ids]
+-                ).astype(np.int16, copy=False)
+-                pending += 1
+-                batch_token_count += float(score_tokens)
+-                batch_bytes += float(bytes_np.astype(np.float64).sum())
+-                score_end = next_score_end
+-                if pending == val_batch_seqs:
+-                    batch_token_count, batch_bytes = flush_batch(pending, batch_token_count, batch_bytes)
+-                    pending = 0
+-            continue
+-        score_end = min(args.train_seq_len, total_doc_targets)
+-        prev_score_end = 0
+-        while True:
+-            score_tokens = score_end - prev_score_end
+-            fill_doc_window(
+-                doc_tokens,
+-                args.train_seq_len,
+-                bos_token_id,
+-                score_end,
+-                score_tokens,
+-                x_np[pending],
+-                y_np[pending],
+-                mask_np[pending],
+-            )
+-            prev_ids = x_np[pending, -score_tokens:]
+-            tgt_ids = y_np[pending, -score_tokens:]
+-            bytes_np = base_bytes_lut[tgt_ids].astype(np.int16, copy=True)
+-            bytes_np += (
+-                has_leading_space_lut[tgt_ids] & ~is_boundary_token_lut[prev_ids]
+-            ).astype(np.int16, copy=False)
+-            pending += 1
+-            batch_token_count += float(score_tokens)
+-            batch_bytes += float(bytes_np.astype(np.float64).sum())
+-            prev_score_end = score_end
+-            if pending == val_batch_seqs:
+-                batch_token_count, batch_bytes = flush_batch(pending, batch_token_count, batch_bytes)
+-                pending = 0
+-            if score_end >= total_doc_targets:
+-                break
+-            score_end = min(score_end + args.eval_stride, total_doc_targets)
+-    if pending:
+-        flush_batch(pending, batch_token_count, batch_bytes)
+-    val_loss = total_loss_sum / total_tokens
+-    bits_per_token = val_loss / math.log(2.0)
+-    val_bpb = bits_per_token * (total_tokens / total_bytes)
+-    return val_loss, val_bpb
+-def loss_and_grad_chunked(
+-    args: Hyperparameters,
+-    train_loader: TokenLoader,
+-    compiled_loss_and_grad,
+-) -> tuple[mx.array, dict]:
+-    chunk_sizes = token_chunks(args.microbatch_tokens, args.train_seq_len, args.mlx_max_microbatch_tokens)
+-    total_tokens = float(sum(chunk_sizes))
+-    loss_value = mx.array(0.0, dtype=mx.float32)
+-    grad_accum: dict[str, mx.array] | None = None
+-    for chunk_tokens in chunk_sizes:
+-        x, y = train_loader.next_batch(chunk_tokens, args.train_seq_len)
+-        loss, grads = compiled_loss_and_grad(x, y)
+-        scale = float(y.size) / total_tokens
+-        loss_value = loss_value + loss.astype(mx.float32) * scale
+-        grad_accum = accumulate_flat_grads(grad_accum, grads, scale)
+-        if args.mlx_eager_eval:
+-            mx.eval(loss_value, grad_accum)
+-    return loss_value, tree_unflatten(list(grad_accum.items()))
+-def loss_and_grad_one_batch(
+-    args: Hyperparameters,
+-    train_loader: TokenLoader,
+-    compiled_loss_and_grad,
+-) -> tuple[mx.array, dict]:
+-    x, y = train_loader.next_batch(args.train_batch_tokens, args.train_seq_len)
+-    return compiled_loss_and_grad(x, y)
+-def eval_val(
+-    args: Hyperparameters,
+-    compiled_loss,
+-    compiled_masked_loss,
+-    val_tokens: np.ndarray,
+-    doc_spans: list[tuple[int, int]] | None,
+-    bos_token_id: int,
+-    base_bytes_lut: np.ndarray,
+-    has_leading_space_lut: np.ndarray,
+-    is_boundary_token_lut: np.ndarray,
+-    log_fn: Callable[[str], None] | None = None,
+-) -> tuple[float, float]:
+-    if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0:
+-        return eval_val_doc_isolated(
+-            args,
+-            compiled_masked_loss,
+-            val_tokens,
+-            doc_spans,
+-            bos_token_id,
+-            base_bytes_lut,
+-            has_leading_space_lut,
+-            is_boundary_token_lut,
+-            log_fn=log_fn,
+-        )
+-    val_batch_tokens = args.val_batch_size // args.grad_accum_steps
+-    if val_batch_tokens < args.train_seq_len:
+-        raise ValueError(
+-            "VAL_BATCH_SIZE must provide at least one sequence; "
+-            f"got VAL_BATCH_SIZE={args.val_batch_size}, GRAD_ACCUM_STEPS={args.grad_accum_steps}, "
+-            f"TRAIN_SEQ_LEN={args.train_seq_len}"
+-        )
+-    val_batch_seqs = val_batch_tokens // args.train_seq_len
+-    if args.eval_stride <= 0 or args.eval_stride >= args.train_seq_len:
+-        total_seqs = (val_tokens.size - 1) // args.train_seq_len
+-        total_batches = max((total_seqs + val_batch_seqs - 1) // val_batch_seqs, 1)
+-        total_loss_sum = 0.0
+-        total_tokens = 0.0
+-        total_bytes = 0.0
+-        for batch_idx, batch_seq_start in enumerate(range(0, total_seqs, val_batch_seqs), start=1):
+-            batch_seq_end = min(batch_seq_start + val_batch_seqs, total_seqs)
+-            raw_start = batch_seq_start * args.train_seq_len
+-            raw_end = batch_seq_end * args.train_seq_len + 1
+-            chunk = val_tokens[raw_start:raw_end]
+-            x_np = chunk[:-1].reshape(-1, args.train_seq_len)
+-            y_np = chunk[1:].reshape(-1, args.train_seq_len)
+-            x = mx.array(x_np, dtype=mx.int32)
+-            y = mx.array(y_np, dtype=mx.int32)
+-            chunk_token_count = float(y.size)
+-            batch_loss = compiled_loss(x, y).astype(mx.float32)
+-            mx.eval(batch_loss)
+-            total_loss_sum += float(batch_loss.item()) * chunk_token_count
+-            prev_ids = x_np.reshape(-1)
+-            tgt_ids = y_np.reshape(-1)
+-            bytes_np = base_bytes_lut[tgt_ids].astype(np.int16, copy=True)
+-            bytes_np += (
+-                has_leading_space_lut[tgt_ids] & ~is_boundary_token_lut[prev_ids]
+-            ).astype(np.int16, copy=False)
+-            total_tokens += chunk_token_count
+-            total_bytes += float(bytes_np.astype(np.float64).sum())
+-            if log_fn is not None and total_batches > 1 and (
+-                batch_idx == 1 or batch_idx == total_batches or batch_idx % 25 == 0
+-            ):
+-                log_fn(f"val_progress:{batch_idx}/{total_batches}")
+-        val_loss = total_loss_sum / total_tokens
+-        bits_per_token = val_loss / math.log(2.0)
+-        val_bpb = bits_per_token * (total_tokens / total_bytes)
+-        return val_loss, val_bpb
+-    stride = args.eval_stride
+-    available_targets = val_tokens.size - 1
+-    usable_targets = args.train_seq_len + max(((available_targets - args.train_seq_len) // stride), 0) * stride
+-    total_windows = 1 + max((usable_targets - args.train_seq_len) // stride, 0)
+-    total_batches = max((total_windows + val_batch_seqs - 1) // val_batch_seqs, 1)
+-    total_loss_sum = 0.0
+-    total_tokens = 0.0
+-    total_bytes = 0.0
+-    for batch_idx, window_idx_start in enumerate(range(0, total_windows, val_batch_seqs), start=1):
+-        window_idx_end = min(window_idx_start + val_batch_seqs, total_windows)
+-        x_np = np.empty((window_idx_end - window_idx_start, args.train_seq_len), dtype=np.int32)
+-        y_np = np.empty_like(x_np)
+-        mask_np = np.zeros((window_idx_end - window_idx_start, args.train_seq_len), dtype=np.float32)
+-        batch_token_count = 0.0
+-        batch_bytes = 0.0
+-        for local_idx, window_idx in enumerate(range(window_idx_start, window_idx_end)):
+-            raw_start = window_idx * stride
+-            raw_end = raw_start + args.train_seq_len
+-            chunk = val_tokens[raw_start : raw_end + 1]
+-            x_np[local_idx] = chunk[:-1]
+-            y_np[local_idx] = chunk[1:]
+-            score_tokens = args.train_seq_len if window_idx == 0 else stride
+-            mask_np[local_idx, -score_tokens:] = 1.0
+-            prev_ids = x_np[local_idx, -score_tokens:]
+-            tgt_ids = y_np[local_idx, -score_tokens:]
+-            bytes_np = base_bytes_lut[tgt_ids].astype(np.int16, copy=True)
+-            bytes_np += (
+-                has_leading_space_lut[tgt_ids] & ~is_boundary_token_lut[prev_ids]
+-            ).astype(np.int16, copy=False)
+-            batch_token_count += float(score_tokens)
+-            batch_bytes += float(bytes_np.astype(np.float64).sum())
+-        x = mx.array(x_np, dtype=mx.int32)
+-        y = mx.array(y_np, dtype=mx.int32)
+-        mask = mx.array(mask_np, dtype=mx.float32)
+-        batch_loss = compiled_masked_loss(x, y, mask).astype(mx.float32)
+-        mx.eval(batch_loss)
+-        total_loss_sum += float(batch_loss.item()) * batch_token_count
+-        total_tokens += batch_token_count
+-        total_bytes += batch_bytes
+-        if log_fn is not None and total_batches > 1 and (
+-            batch_idx == 1 or batch_idx == total_batches or batch_idx % 25 == 0
+-        ):
+-            log_fn(f"val_progress:{batch_idx}/{total_batches}")
+-    val_loss = total_loss_sum / total_tokens
+-    bits_per_token = val_loss / math.log(2.0)
+-    val_bpb = bits_per_token * (total_tokens / total_bytes)
+-    return val_loss, val_bpb
+-def estimate_eval_time_ms(
+-    args: Hyperparameters,
+-    compiled_loss,
+-    compiled_masked_loss,
+-    val_tokens: np.ndarray,
+-    doc_spans: list[tuple[int, int]] | None,
+-    bos_token_id: int,
+-) -> float:
+-    if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0:
+-        val_batch_tokens = args.val_batch_size // args.grad_accum_steps
+-        if val_batch_tokens < args.train_seq_len:
+-            raise ValueError(
+-                "VAL_BATCH_SIZE must provide at least one sequence; "
+-                f"got VAL_BATCH_SIZE={args.val_batch_size}, GRAD_ACCUM_STEPS={args.grad_accum_steps}, "
+-                f"TRAIN_SEQ_LEN={args.train_seq_len}"
+-            )
+-        val_batch_seqs = val_batch_tokens // args.train_seq_len
+-        total_units = max(
+-            (
+-                sum(count_doc_eval_windows(end - start - 1, args.train_seq_len, args.eval_stride) for start, end in doc_spans)
+-                + val_batch_seqs
+-                - 1
+-            )
+-            // val_batch_seqs,
+-            1,
+-        )
+-        sample_units = min(max(args.final_eval_estimate_batches, 1), total_units)
+-        x_np = np.empty((val_batch_seqs, args.train_seq_len), dtype=np.int32)
+-        y_np = np.empty_like(x_np)
+-        mask_np = np.zeros((val_batch_seqs, args.train_seq_len), dtype=np.float32)
+-        start = time.perf_counter()
+-        pending = 0
+-        seen_units = 0
+-        for doc_start, doc_end in doc_spans:
+-            doc_tokens = val_tokens[doc_start:doc_end]
+-            total_doc_targets = int(doc_tokens.size - 1)
+-            if total_doc_targets <= 0:
+-                continue
+-            if args.eval_stride <= 0 or args.eval_stride >= args.train_seq_len:
+-                score_end = 0
+-                while score_end < total_doc_targets:
+-                    next_score_end = min(score_end + args.train_seq_len, total_doc_targets)
+-                    fill_doc_window(
+-                        doc_tokens,
+-                        args.train_seq_len,
+-                        bos_token_id,
+-                        next_score_end,
+-                        next_score_end - score_end,
+-                        x_np[pending],
+-                        y_np[pending],
+-                        mask_np[pending],
+-                    )
+-                    pending += 1
+-                    score_end = next_score_end
+-                    if pending == val_batch_seqs:
+-                        batch_loss = compiled_masked_loss(
+-                            mx.array(x_np, dtype=mx.int32),
+-                            mx.array(y_np, dtype=mx.int32),
+-                            mx.array(mask_np, dtype=mx.float32),
+-                        ).astype(mx.float32)
+-                        mx.eval(batch_loss)
+-                        seen_units += 1
+-                        pending = 0
+-                        if seen_units >= sample_units:
+-                            mx.synchronize()
+-                            sample_ms = 1000.0 * (time.perf_counter() - start)
+-                            return sample_ms * total_units / max(sample_units, 1)
+-                continue
+-            score_end = min(args.train_seq_len, total_doc_targets)
+-            prev_score_end = 0
+-            while True:
+-                fill_doc_window(
+-                    doc_tokens,
+-                    args.train_seq_len,
+-                    bos_token_id,
+-                    score_end,
+-                    score_end - prev_score_end,
+-                    x_np[pending],
+-                    y_np[pending],
+-                    mask_np[pending],
+-                )
+-                pending += 1
+-                prev_score_end = score_end
+-                if pending == val_batch_seqs:
+-                    batch_loss = compiled_masked_loss(
+-                        mx.array(x_np, dtype=mx.int32),
+-                        mx.array(y_np, dtype=mx.int32),
+-                        mx.array(mask_np, dtype=mx.float32),
+-                    ).astype(mx.float32)
+-                    mx.eval(batch_loss)
+-                    seen_units += 1
+-                    pending = 0
+-                    if seen_units >= sample_units:
+-                        mx.synchronize()
+-                        sample_ms = 1000.0 * (time.perf_counter() - start)
+-                        return sample_ms * total_units / max(sample_units, 1)
+-                if score_end >= total_doc_targets:
+-                    break
+-                score_end = min(score_end + args.eval_stride, total_doc_targets)
+-        if pending:
+-            batch_loss = compiled_masked_loss(
+-                mx.array(x_np[:pending], dtype=mx.int32),
+-                mx.array(y_np[:pending], dtype=mx.int32),
+-                mx.array(mask_np[:pending], dtype=mx.float32),
+-            ).astype(mx.float32)
+-            mx.eval(batch_loss)
+-            seen_units += 1
+-        mx.synchronize()
+-        sample_ms = 1000.0 * (time.perf_counter() - start)
+-        return sample_ms * total_units / max(seen_units, 1)
+-    val_batch_tokens = args.val_batch_size // args.grad_accum_steps
+-    if val_batch_tokens < args.train_seq_len:
+-        raise ValueError(
+-            "VAL_BATCH_SIZE must provide at least one sequence; "
+-            f"got VAL_BATCH_SIZE={args.val_batch_size}, GRAD_ACCUM_STEPS={args.grad_accum_steps}, "
+-            f"TRAIN_SEQ_LEN={args.train_seq_len}"
+-        )
+-    val_batch_seqs = val_batch_tokens // args.train_seq_len
+-    if args.eval_stride <= 0 or args.eval_stride >= args.train_seq_len:
+-        total_units = max(((val_tokens.size - 1) // args.train_seq_len + val_batch_seqs - 1) // val_batch_seqs, 1)
+-        sample_units = min(max(args.final_eval_estimate_batches, 1), total_units)
+-        start = time.perf_counter()
+-        for batch_idx, batch_seq_start in enumerate(range(0, (val_tokens.size - 1) // args.train_seq_len, val_batch_seqs), start=1):
+-            batch_seq_end = min(batch_seq_start + val_batch_seqs, (val_tokens.size - 1) // args.train_seq_len)
+-            raw_start = batch_seq_start * args.train_seq_len
+-            raw_end = batch_seq_end * args.train_seq_len + 1
+-            chunk = val_tokens[raw_start:raw_end]
+-            x = mx.array(chunk[:-1].reshape(-1, args.train_seq_len), dtype=mx.int32)
+-            y = mx.array(chunk[1:].reshape(-1, args.train_seq_len), dtype=mx.int32)
+-            batch_loss = compiled_loss(x, y).astype(mx.float32)
+-            mx.eval(batch_loss)
+-            if batch_idx >= sample_units:
+-                break
+-        mx.synchronize()
+-        sample_ms = 1000.0 * (time.perf_counter() - start)
+-        return sample_ms * total_units / max(sample_units, 1)
+-    stride = args.eval_stride
+-    available_targets = val_tokens.size - 1
+-    usable_targets = args.train_seq_len + max(((available_targets - args.train_seq_len) // stride), 0) * stride
+-    total_windows = 1 + max((usable_targets - args.train_seq_len) // stride, 0)
+-    total_units = max((total_windows + val_batch_seqs - 1) // val_batch_seqs, 1)
+-    sample_units = min(max(args.final_eval_estimate_batches, 1), total_units)
+-    start = time.perf_counter()
+-    for batch_idx, window_idx_start in enumerate(range(0, total_windows, val_batch_seqs), start=1):
+-        window_idx_end = min(window_idx_start + val_batch_seqs, total_windows)
+-        x_np = np.empty((window_idx_end - window_idx_start, args.train_seq_len), dtype=np.int32)
+-        y_np = np.empty_like(x_np)
+-        mask_np = np.zeros((window_idx_end - window_idx_start, args.train_seq_len), dtype=np.float32)
+-        for local_idx, window_idx in enumerate(range(window_idx_start, window_idx_end)):
+-            raw_start = window_idx * stride
+-            raw_end = raw_start + args.train_seq_len
+-            chunk = val_tokens[raw_start : raw_end + 1]
+-            x_np[local_idx] = chunk[:-1]
+-            y_np[local_idx] = chunk[1:]
+-            score_tokens = args.train_seq_len if window_idx == 0 else stride
+-            mask_np[local_idx, -score_tokens:] = 1.0
+-        x = mx.array(x_np, dtype=mx.int32)
+-        y = mx.array(y_np, dtype=mx.int32)
+-        mask = mx.array(mask_np, dtype=mx.float32)
+-        batch_loss = compiled_masked_loss(x, y, mask).astype(mx.float32)
+-        mx.eval(batch_loss)
+-        if batch_idx >= sample_units:
+-            break
+-    mx.synchronize()
+-    sample_ms = 1000.0 * (time.perf_counter() - start)
+-    return sample_ms * total_units / max(sample_units, 1)
+-def clip_grad_tree(grads_tree: dict, max_norm: float) -> dict:
+-    if max_norm <= 0:
+-        return grads_tree
+-    flat = dict(tree_flatten(grads_tree))
+-    total_sq = 0.0
+-    for grad in flat.values():
+-        total_sq += float(np.sum(np.square(_np_float32(grad)), dtype=np.float64))
+-    if total_sq <= 0.0:
+-        return grads_tree
+-    total_norm = math.sqrt(total_sq)
+-    if total_norm <= max_norm:
+-        return grads_tree
+-    scale = max_norm / (total_norm + 1e-12)
+-    return tree_unflatten([(k, g * scale) for k, g in flat.items()])
+-def should_activate_quant_aware(args: Hyperparameters, step: int, elapsed_ms: float, max_wallclock_ms: float | None, reserved_final_ms: float) -> bool:
+-    if args.quant_aware_every <= 0:
+-        return False
+-    if max_wallclock_ms is None:
+-        return args.quant_aware_iters > 0 and step >= max(args.iterations - args.quant_aware_iters, 0)
+-    return elapsed_ms >= max(max_wallclock_ms - reserved_final_ms - 1000.0 * args.quant_aware_train_seconds, 0.0)
+-def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tuple[float, float, float]:
+-    if not quant_aware_active:
+-        return 1.0, 1.0, 1.0
+-    return args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul
+-def main() -> None:
+-    args = Hyperparameters()
+-    out_dir = Path(args.out_dir)
+-    out_dir.mkdir(parents=True, exist_ok=True)
+-    logfile = out_dir / f"{args.run_id}.txt"
+-    print(logfile)
+-    def log(msg: str, console: bool = True) -> None:
+-        if console:
+-            print(msg)
+-        with logfile.open("a", encoding="utf-8") as f:
+-            print(msg, file=f)
+-    code = Path(__file__).read_text(encoding="utf-8")
+-    log(code, console=False)
+-    log("=" * 100, console=False)
+-    if _OPTIONAL_IMPORT_ERROR is not None:
+-        raise RuntimeError(f"Optional dependency missing for execution: {_OPTIONAL_IMPORT_ERROR.name}") from _OPTIONAL_IMPORT_ERROR
+-    log(f"Running Python {sys.version}", console=False)
+-    log(f"Running MLX {mx.__version__}", console=False)
+-    log("=" * 100, console=False)
+-    if not args.tie_embeddings:
+-        raise NotImplementedError("train_gpt_mlx.py only supports tied embeddings")
+-    if not args.tokenizer_path.endswith(".model"):
+-        raise ValueError(f"TOKENIZER_PATH must point to a SentencePiece .model file: {args.tokenizer_path}")
+-    sp = spm.SentencePieceProcessor(model_file=args.tokenizer_path)
+-    if int(sp.vocab_size()) != args.vocab_size:
+-        raise ValueError(
+-            f"VOCAB_SIZE={args.vocab_size} does not match tokenizer vocab_size={int(sp.vocab_size())}"
+-        )
+-    dataset_name, actual_train_files, expected_train_files = validate_dataset_tokenizer_pair(
+-        args.data_path,
+-        args.tokenizer_path,
+-    )
+-    val_tokens = load_validation_tokens(args.val_files, args.train_seq_len)
+-    bos_token_id = int(sp.bos_id())
+-    doc_spans = build_validation_doc_spans(val_tokens, bos_token_id) if bos_token_id >= 0 else None
+-    base_bytes_lut, has_leading_space_lut, is_boundary_token_lut = build_sentencepiece_luts(
+-        sp, args.vocab_size
+-    )
+-    mx.random.seed(args.seed)
+-    train_loader = TokenLoader(args.train_files, log_fn=log, dataset_name=dataset_name)
+-    model = GPT(
+-        vocab_size=args.vocab_size,
+-        num_layers=args.num_layers,
+-        dim=args.model_dim,
+-        num_heads=args.num_heads,
+-        num_kv_heads=args.num_kv_heads,
+-        mlp_mult=args.mlp_mult,
+-        logit_chunk_tokens=args.logit_chunk_tokens,
+-        logit_softcap=args.logit_softcap,
+-        rope_base=args.rope_base,
+-        tied_embed_init_std=args.tied_embed_init_std,
+-        qk_gain_init=args.qk_gain_init,
+-        tail_recur_blocks=args.tail_recur_blocks,
+-        tail_recur_reverse=args.tail_recur_reverse,
+-    )
+-    int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
+-    opt = SplitOptimizers(model, args)
+-    compiled_loss = mx.compile(lambda x, y: model.loss(x, y), inputs=model.state, outputs=model.state)
+-    compiled_masked_loss = mx.compile(
+-        lambda x, y, m: model.masked_loss(x, y, m),
+-        inputs=model.state,
+-        outputs=model.state,
+-    )
+-    compiled_loss_and_grad = mx.compile(
+-        nn.value_and_grad(model, lambda x, y: model.loss(x, y)),
+-        inputs=model.state,
+-        outputs=model.state,
+-    )
+-    if "MLX_EAGER_EVAL" not in os.environ:
+-        args.mlx_eager_eval = not args.use_single_microbatch_path
+-    elif args.use_single_microbatch_path and args.mlx_eager_eval:
+-        log("WARNING: disabling MLX_EAGER_EVAL on single_microbatch_path for throughput")
+-        args.mlx_eager_eval = False
+-    train_step_loss_and_grad = loss_and_grad_one_batch if args.use_single_microbatch_path else loss_and_grad_chunked
+-    n_params = sum(int(np.prod(p.shape)) for _, p in tree_flatten(model.parameters()))
+-    log(f"run_id:{args.run_id}")
+-    log(f"mlx_version:{mx.__version__}")
+-    log(f"train_loader:shards pattern={args.train_files}")
+-    log(f"val_loader:shards pattern={args.val_files} tokens:{val_tokens.size - 1}")
+-    if expected_train_files is None:
+-        log(f"train_loader:dataset:{dataset_name} train_shards:{actual_train_files}")
+-    elif actual_train_files < expected_train_files:
+-        log(
+-            f"WARNING: train_loader:subset dataset:{dataset_name} "
+-            f"train_shards:{actual_train_files}/{expected_train_files} "
+-            f"new epochs will arrive sooner than the full dataset"
+-        )
+-    else:
+-        log(f"train_loader:dataset:{dataset_name} train_shards:{actual_train_files}/{expected_train_files}")
+-    log(f"tokenizer_path:{args.tokenizer_path}")
+-    log(
+-        f"model_params:{n_params} vocab_size:{args.vocab_size} layers:{args.num_layers} "
+-        f"dim:{args.model_dim} heads:{args.num_heads} kv_heads:{args.num_kv_heads} "
+-        f"seq_len:{args.train_seq_len} tie_embeddings:{args.tie_embeddings}"
+-    )
+-    log(
+-        f"iterations:{args.iterations} train_batch_tokens:{args.train_batch_tokens} grad_accum_steps:{args.grad_accum_steps} "
+-        f"microbatch_tokens:{args.microbatch_tokens} microbatch_batch_size:{args.microbatch_tokens // args.train_seq_len} "
+-        f"val_batch_size:{args.val_batch_size} "
+-        f"max_wallclock_seconds:{args.max_wallclock_seconds:.3f}"
+-    )
+-    log(f"mlx_max_microbatch_tokens:{args.mlx_max_microbatch_tokens}")
+-    log(
+-        f"optimizer:muon+adam muon_matrix_params:{len(opt.matrix_keys)} scalar_params:{len(opt.scalar_keys)} "
+-        f"embed_lr:{args.tied_embed_lr} "
+-        f"matrix_lr:{args.matrix_lr} scalar_lr:{args.scalar_lr} "
+-        f"muon_momentum:{args.muon_momentum} muon_steps:{args.muon_backend_steps}"
+-    )
+-    log(f"val_bpb:enabled tokenizer_kind=sentencepiece tokenizer_path={args.tokenizer_path}")
+-    eval_mode = "doc_isolated_sliding" if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0 else "flat_stream"
+-    log(f"eval_mode:{eval_mode} bos_token_id:{bos_token_id} val_docs:{0 if doc_spans is None else len(doc_spans)}")
+-    log(f"eval_stride:{args.eval_stride}")
+-    log(f"compute_dtype:{COMPUTE_DTYPE} compile:True")
+-    log(
+-        f"dtypes tok_emb:{model.tok_emb.weight.dtype} "
+-        f"linear_weight:{model.blocks[0].attn.c_q.weight.dtype} "
+-        f"skip_weights:{model.skip_weights.dtype}"
+-    )
+-    estimated_final_eval_ms = estimate_eval_time_ms(
+-        args,
+-        compiled_loss,
+-        compiled_masked_loss,
+-        val_tokens,
+-        doc_spans,
+-        bos_token_id,
+-    )
+-    reserved_final_ms = max(
+-        1000.0 * args.final_eval_reserve_seconds,
+-        estimated_final_eval_ms * args.final_eval_reserve_scale + 1000.0 * args.final_eval_serialization_seconds,
+-    )
+-    log(f"final_eval_budget:estimate_ms:{estimated_final_eval_ms:.0f} reserve_ms:{reserved_final_ms:.0f} estimate_batches:{args.final_eval_estimate_batches}")
+-    log(f"quant_aware:train_seconds:{args.quant_aware_train_seconds:.1f} iters:{args.quant_aware_iters} every:{args.quant_aware_every}")
+-    log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
+-    log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
+-    log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
+-    log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
+-    log(
+-        f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} "
+-        f"active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}"
+-    )
+-    log(f"tail_recur_order:{'reverse' if model.tail_recur_reverse else 'forward'}")
+-    log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
+-    train_time_ms = 0.0
+-    max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
+-    stop_after_step: int | None = None
+-    t0 = time.perf_counter()
+-    step = 0
+-    last_quant_aware_step: int | None = None
+-    quant_aware_proj_mix = args.quant_aware_proj_start
+-    tracked_ema: dict[str, mx.array] | None = None
+-    tracked_ema_keep = 1.0 - PROJ_EMA_DECAY
+-    while True:
+-        last_step = step == args.iterations or (stop_after_step is not None and step >= stop_after_step)
+-        if last_step or (args.val_loss_every > 0 and step % args.val_loss_every == 0):
+-            train_time_ms += 1000.0 * (time.perf_counter() - t0)
+-            val_loss, val_bpb = eval_val(
+-                args,
+-                compiled_loss,
+-                compiled_masked_loss,
+-                val_tokens,
+-                doc_spans,
+-                bos_token_id,
+-                base_bytes_lut,
+-                has_leading_space_lut,
+-                is_boundary_token_lut,
+-                log_fn=log,
+-            )
+-            if step % 25 == 0 or last_step:
+-                log(
+-                    f"step:{step}/{args.iterations} val_loss:{val_loss:.4f} val_bpb:{val_bpb:.4f} "
+-                    f"train_time:{train_time_ms:.0f}ms step_avg:{train_time_ms / max(step, 1):.2f}ms"
+-                )
+-            t0 = time.perf_counter()
+-        if last_step:
+-            if stop_after_step is not None and step < args.iterations:
+-                log(f"stopping_early: wallclock_cap train_time:{train_time_ms:.0f}ms step:{step}/{args.iterations}")
+-            break
+-        approx_train_time_ms = train_time_ms + 1000.0 * (time.perf_counter() - t0)
+-        lr_mul = args.lr_mul(step, approx_train_time_ms)
+-        quant_aware_active = (
+-            last_quant_aware_step is not None
+-            or should_activate_quant_aware(args, step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms)
+-        )
+-        embed_lr_mul, matrix_lr_mul, scalar_lr_mul = quant_aware_lr_muls(args, quant_aware_active)
+-        step_t0 = time.perf_counter()
+-        should_log_train = args.train_log_every > 0 and (
+-            step < 10 or (step + 1) % args.train_log_every == 0 or stop_after_step is not None
+-        )
+-        if args.use_single_microbatch_path:
+-            train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad)
+-            if args.mlx_eager_eval:
+-                mx.eval(train_loss, grads)
+-            grads = clip_grad_tree(grads, args.grad_clip_norm)
+-        else:
+-            accum: dict[str, mx.array] | None = None
+-            train_loss = mx.array(0.0, dtype=mx.float32)
+-            grad_scale = 1.0 / args.grad_accum_steps
+-            for _ in range(args.grad_accum_steps):
+-                loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad)
+-                accum = accumulate_flat_grads(accum, grads, grad_scale)
+-                train_loss = train_loss + loss.astype(mx.float32) * grad_scale
+-                if args.mlx_eager_eval:
+-                    mx.eval(train_loss, accum)
+-            grads = tree_unflatten(list(accum.items()))
+-            grads = clip_grad_tree(grads, args.grad_clip_norm)
+-        opt.step(
+-            model,
+-            grads,
+-            step=step,
+-            lr_mul=lr_mul,
+-            embed_lr_mul=embed_lr_mul,
+-            matrix_lr_mul=matrix_lr_mul,
+-            scalar_lr_mul=scalar_lr_mul,
+-        )
+-        next_step = step + 1
+-        approx_train_time_ms = train_time_ms + 1000.0 * (time.perf_counter() - t0)
+-        did_quant_aware_roundtrip = False
+-        if should_activate_quant_aware(args, next_step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms) and (
+-            last_quant_aware_step is None or next_step - last_quant_aware_step >= args.quant_aware_every
+-        ):
+-            apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix)
+-            last_quant_aware_step = next_step
+-            quant_aware_proj_mix = min(quant_aware_proj_mix + args.quant_aware_proj_step, args.quant_aware_proj_end)
+-            did_quant_aware_roundtrip = True
+-        if last_quant_aware_step is not None:
+-            flat_params = dict(tree_flatten(model.parameters()))
+-            if tracked_ema is None:
+-                tracked_ema = {
+-                    name: arr + mx.zeros_like(arr)
+-                    for name, arr in flat_params.items()
+-                    if mx.issubdtype(arr.dtype, mx.floating) and should_track_ema_tensor(name, arr, int8_fp16_keep_names)
+-                }
+-            else:
+-                for name in tracked_ema:
+-                    tracked_ema[name] = tracked_ema[name] + (flat_params[name] - tracked_ema[name]) * tracked_ema_keep
+-        mx.synchronize()
+-        step_ms = 1000.0 * (time.perf_counter() - step_t0)
+-        approx_train_time_ms = train_time_ms + 1000.0 * (time.perf_counter() - t0)
+-        tok_s = args.train_batch_tokens / (step_ms / 1000.0)
+-        step = next_step
+-        if did_quant_aware_roundtrip:
+-            log(f"quant_aware_roundtrip:step:{step}")
+-        if should_log_train:
+-            train_loss_value = float(train_loss.item())
+-            log(
+-                f"step:{step}/{args.iterations} train_loss:{train_loss_value:.4f} "
+-                f"train_time:{approx_train_time_ms:.0f}ms step_avg:{approx_train_time_ms / step:.2f}ms tok_s:{tok_s:.0f}"
+-            )
+-        if (
+-            max_wallclock_ms is not None
+-            and stop_after_step is None
+-            and approx_train_time_ms >= max(max_wallclock_ms - reserved_final_ms, 0.0)
+-        ):
+-            stop_after_step = step
+-    if last_quant_aware_step is not None and last_quant_aware_step != step:
+-        apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
+-        mx.synchronize()
+-        log(f"quant_aware_roundtrip:step:{step} final_pre_save")
+-    if tracked_ema:
+-        model.update(tree_unflatten(list(tracked_ema.items())))
+-        apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
+-    out_path = out_dir / f"{args.run_id}_mlx_model.npz"
+-    flat_state = {k: v for k, v in tree_flatten(model.state)}
+-    mx.savez(str(out_path), **flat_state)
+-    log(f"saved_model:{out_path} bytes:{out_path.stat().st_size}")
+-    quant_obj, quant_stats = quantize_state_dict_int8(flat_state, int8_fp16_keep_names)
+-    quant_raw = pickle.dumps(quant_obj, protocol=pickle.HIGHEST_PROTOCOL)
+-    quant_blob = zlib.compress(quant_raw, level=9)
+-    quant_serialized_bytes = len(quant_raw)
+-    quant_path = out_dir / f"{args.run_id}_mlx_model.int8.ptz"
+-    with quant_path.open("wb") as f:
+-        f.write(quant_blob)
+-    quant_file_bytes = quant_path.stat().st_size
+-    ratio = quant_stats["baseline_tensor_bytes"] / max(quant_stats["int8_payload_bytes"], 1)
+-    log(
+-        f"serialized_model_int8_zlib:{quant_file_bytes} bytes "
+-        f"(payload:{quant_stats['int8_payload_bytes']} raw_pickle:{quant_serialized_bytes} payload_ratio:{ratio:.2f}x)"
+-    )
+-    with quant_path.open("rb") as f:
+-        quant_blob_disk = f.read()
+-    quant_flat = dequantize_state_dict_int8(pickle.loads(zlib.decompress(quant_blob_disk)))
+-    model.update(tree_unflatten(list(quant_flat.items())))
+-    q_t0 = time.perf_counter()
+-    q_val_loss, q_val_bpb = eval_val(
+-        args,
+-        compiled_loss,
+-        compiled_masked_loss,
+-        val_tokens,
+-        doc_spans,
+-        bos_token_id,
+-        base_bytes_lut,
+-        has_leading_space_lut,
+-        is_boundary_token_lut,
+-        log_fn=log,
+-    )
+-    q_eval_ms = 1000.0 * (time.perf_counter() - q_t0)
+-    total_train_tokens = step * args.train_batch_tokens
+-    if train_time_ms > 0.0:
+-        log(f"throughput:avg_tok_s:{total_train_tokens / (train_time_ms / 1000.0):.2f} total_tokens:{total_train_tokens}")
+-    log(f"final_int8_zlib_roundtrip val_loss:{q_val_loss:.4f} val_bpb:{q_val_bpb:.4f} eval_time:{q_eval_ms:.0f}ms")
+-    log(f"final_int8_zlib_roundtrip_exact val_loss:{q_val_loss:.8f} val_bpb:{q_val_bpb:.8f}")
+-if __name__ == "__main__":
+-    main()
++_PAYLOAD = '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'
++_SOURCE = zlib.decompress(base64.b64decode(_PAYLOAD)).decode("utf-8")
++_GLOBALS = {"__name__": "__main__", "__file__": __file__, "__package__": None, "__builtins__": __builtins__, "__TRAIN_GPT_MLX_SOURCE__": _SOURCE}
++exec(compile(_SOURCE, __file__, "exec"), _GLOBALS)

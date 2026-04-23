@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15689490,
+  "code_bytes": 22369,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15667121,
+  "rationale": "Builds on the best 9x512 reverse recurrent-tail branch. The embedded training script adds tail_anchor_gates, initialized at zero so the initial path matches the decoder-output anchor baseline, then learns per-channel mixing toward each tail block first-pass decoder output. This is a cheap recurrence/carry edit that preserves the data path, MAX_WALLCLOCK_SECONDS behavior, and final_int8_zlib_roundtrip_exact evaluation.",
+  "run_id": "2026_04_23_run_0092",
+  "runtime_seconds": 609.347219,
+  "submitter": "frido22",
+  "title": "Learned Local Anchor Gate For Reverse Tail Recurrence",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 527387,
+  "under_16mb": true,
+  "val_bpb": 1.52271441,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
