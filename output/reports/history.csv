@@ -340,3 +340,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_23_run_0088,1.519631,True,False,Refine current best
 2026_04_23_run_0089,1.523276,True,False,Tail-Position Weighted Training Loss
 2026_04_23_run_0090,1.522549,True,False,Final-Block Tail Recurrence
+2026_04_23_run_0091,1.722302,True,False,Strided In-Shard Batch Traversal

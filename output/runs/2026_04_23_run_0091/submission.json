@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15762516,
+  "code_bytes": 78314,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15684202,
+  "rationale": "Builds on the current 9x512 reverse recurrent-tail baseline and changes only the training data traversal. Each training batch now draws fixed-shape sequences from a strided window within the train stream, defaulting to a 4096-token gap between rows. This keeps MLX compile shapes, final int8+zlib evaluation, quant-aware endgame, recurrent tail, and path resolution intact while reducing same-batch adjacency under the 600s Mac-mini budget.",
+  "run_id": "2026_04_23_run_0091",
+  "runtime_seconds": 623.17472,
+  "submitter": "frido22",
+  "title": "Strided In-Shard Batch Traversal",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541449,
+  "under_16mb": true,
+  "val_bpb": 1.72230186,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
