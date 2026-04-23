@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15578654,
+  "code_bytes": 4271,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15574383,
+  "rationale": "Adds one gated reuse of the last decoder block after the current reverse recurrent tail. This is a compile-stable recurrence-capacity probe that preserves the decoder-output carry anchor, quant-aware endgame, final exact int8+zlib evaluation, and existing data/tokenizer path handling while spending only tiny extra parameter bytes.",
+  "run_id": "2026_04_23_run_0090",
+  "runtime_seconds": 632.967011,
+  "submitter": "frido22",
+  "title": "Final-Block Tail Recurrence",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 543629,
+  "under_16mb": true,
+  "val_bpb": 1.5225494,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
