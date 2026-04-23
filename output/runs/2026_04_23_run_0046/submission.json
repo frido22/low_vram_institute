@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15749997,
+  "code_bytes": 77826,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15672171,
+  "rationale": "Exploiting current best.",
+  "run_id": "2026_04_23_run_0046",
+  "runtime_seconds": 627.487546,
+  "submitter": "frido22",
+  "title": "Refine current best",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 543068,
+  "under_16mb": true,
+  "val_bpb": 1.51726052,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
