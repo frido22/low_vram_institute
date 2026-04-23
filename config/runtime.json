@@ -8,7 +8,9 @@
     "enabled": true,
     "model": "gpt-5.4",
     "reasoning_effort": "xhigh",
-    "service_tier": "fast",
+    "service_tier": null,
+    "manual_service_tier": "fast",
+    "daemon_service_tier": null,
     "timeout_seconds": 1800
   },
   "parameter_golf": {

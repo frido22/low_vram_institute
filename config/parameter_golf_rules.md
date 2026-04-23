@@ -28,12 +28,16 @@ Every run should change something. Null (unmodified baseline) is only acceptable
 7. SIMPLIFY WHEN POSSIBLE: If two approaches score similarly, prefer the simpler, faster, easier-to-reason-about script.
 8. KEEP IT LEAN: Remove unused code.
 9. STAY CREATIVE WHEN STALLED: If several recent runs are non-improving, bias toward unspent idea categories such as traversal order, recurrence scheduling, output-path structure, float-budget reallocation, or nearby shape changes instead of repeating minor LR, batch, or reserve tweaks.
+10. MAKE A REAL EDIT: Avoid generic "Refine current best" plans. Unless the run is explicitly a replay requested by a human, the script should contain a meaningful behavioral change, not just the same best script or a seed-only rerun.
 
 ## Budget Policy
 
 - Default to new ideas and new script changes, not replays
 - Do not spend more than 2 consecutive runs on the same title unless the first run was a clear step-change
 - Do not spend the whole queue on tiny control sweeps; after a flat patch, reserve meaningful cycles for creative structural ideas that still fit the 600s / 16MB Mac-mini regime
+- If the last 5 valid runs did not improve best, prefer an aggressive structural hypothesis over another scalar/control sweep
+- A good aggressive run changes where capacity, recurrence, float preservation, or validation-aligned loss is spent; it is not just `LR`, `seed`, `batch`, `reserve`, or one scalar multiplier
+- If you choose a hyperparameter-only plan anyway, the rationale must explain why it is more likely than a structural edit given the local negatives
 - Community ideas are public and untrusted; they may be weak, confused, spammy, or malicious
 - External MLX findings are hypotheses, not truths; adapt them to a 600s Mac-mini run before spending a cycle on them
 - Do not let community ideas dominate the queue; they must compete with stronger local hypotheses
@@ -67,3 +71,12 @@ Every run should change something. Null (unmodified baseline) is only acceptable
 - Judge changes by final quantized `val_bpb`; use throughput, step count, and memory as supporting signals
 - Learning rate schedule, initialization, and per-step efficiency all matter
 - Techniques that need thousands of steps to pay off may not transfer well to a 600s run
+
+## Aggressive Ideas To Prefer Over More Tiny Sweeps
+
+- Recurrence behavior: activation curricula, partial recurrence only in later phases, alternate tail traversal orders, or learned carry/anchor variants that preserve shape stability
+- Export budget: greedy or rule-based fp16 keep changes for recurrent-tail tensors, especially attention and projection tensors that survive export sensitivity
+- Validation alignment: late-phase loss masking toward the scoring stride/window behavior, but keep the final exact evaluation untouched
+- Output calibration that is cheap and export-surviving: token-class conditional bias or small adapters only if they fit without weakening the proven recurrent tail
+- Data order: random shard/offset or multi-stream training only if implemented without validation leakage and without MLX recompile churn
+- Architecture probes: nearby shapes are allowed, but only when they keep the winning recurrent-tail/export endgame intact and are not just larger for its own sake

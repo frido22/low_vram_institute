@@ -538,7 +538,15 @@ def _build_prompt(run_errors: list[str] | None = None) -> str:
     )
 
 
-def plan(run_errors: list[str] | None = None) -> dict:
+def _codex_service_tier(codex_cfg: dict[str, Any], daemon_planner: bool) -> str | None:
+    if daemon_planner and "daemon_service_tier" in codex_cfg:
+        return codex_cfg.get("daemon_service_tier")
+    if not daemon_planner and "manual_service_tier" in codex_cfg:
+        return codex_cfg.get("manual_service_tier")
+    return codex_cfg.get("service_tier")
+
+
+def plan(run_errors: list[str] | None = None, daemon_planner: bool = False) -> dict:
     runtime = _load_runtime()
     codex_cfg = runtime.get("codex", {})
     track = runtime.get("parameter_golf", {}).get("local_track", "mac_mini_official_like")
@@ -573,7 +581,7 @@ def plan(run_errors: list[str] | None = None) -> dict:
                 prompt,
                 model=codex_cfg.get("model"),
                 reasoning_effort=codex_cfg.get("reasoning_effort"),
-                service_tier=codex_cfg.get("service_tier"),
+                service_tier=_codex_service_tier(codex_cfg, daemon_planner),
                 timeout_seconds=timeout_seconds,
             )
         except CodexError as exc:
@@ -597,7 +605,7 @@ def plan_next() -> None:
     with _planner_lock():
         if _load_next_plan(best_run_id):
             return
-        p = plan()
+        p = plan(daemon_planner=os.environ.get("LOW_VRAM_DAEMON_PLANNER") == "1")
         _save_next_plan(p, best_run_id)
         _emit(f"next plan ready: {p.get('title', '?')}")
 
@@ -860,9 +868,12 @@ def _start_next_planner() -> None:
     best_run_id = _best_run_id()
     if not best_run_id or _load_next_plan(best_run_id) or _planner_active():
         return
+    env = os.environ.copy()
+    env["LOW_VRAM_DAEMON_PLANNER"] = "1"
     subprocess.Popen(  # noqa: S603
         [sys.executable, str(ROOT / "run.py"), "plan-next"],
         cwd=ROOT,
+        env=env,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
@@ -900,7 +911,7 @@ def run_once(start_async_planner: bool = False) -> str:
         p: dict[str, Any] | None = pending["plan"] if pending else queued
         for attempt in range(3):
             if attempt > 0 or p is None:
-                p = plan(run_errors=run_errors or None)
+                p = plan(run_errors=run_errors or None, daemon_planner=start_async_planner)
             _save_pending_plan(run_id, p)
             suffix = ""
             if attempt == 0 and pending:
