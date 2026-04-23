@@ -68,10 +68,6 @@ class Hyperparameters:
     rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
     qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 2.0))
     tail_recur_blocks: int = int(os.environ.get("TAIL_RECUR_BLOCKS", 2))
-    tail_recur_order: str = os.environ.get("TAIL_RECUR_ORDER", "reverse").strip().lower()
-    tail_recur_depth_shape: float = float(os.environ.get("TAIL_RECUR_DEPTH_SHAPE", 0.75))
-    tail_recur_ramp_start_frac: float = float(os.environ.get("TAIL_RECUR_RAMP_START_FRAC", 0.20))
-    tail_recur_ramp_end_frac: float = float(os.environ.get("TAIL_RECUR_RAMP_END_FRAC", 0.75))
     beta1: float = float(os.environ.get("BETA1", 0.9))
     beta2: float = float(os.environ.get("BETA2", 0.95))
     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
@@ -283,8 +279,7 @@ class Block(nn.Module):
 class GPT(nn.Module):
     def __init__(self, vocab_size: int, num_layers: int, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int,
                  logit_chunk_tokens: int, logit_softcap: float, rope_base: float, tied_embed_init_std: float,
-                 qk_gain_init: float, tail_recur_blocks: int, tail_recur_order: str = "reverse",
-                 tail_recur_depth_shape: float = 1.0):
+                 qk_gain_init: float, tail_recur_blocks: int):
         super().__init__()
         if logit_softcap <= 0.0:
             raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
@@ -304,19 +299,8 @@ class GPT(nn.Module):
             for _ in range(num_layers)
         ]
         self.tail_recur_start = num_layers - tail_recur_span
-        self.tail_recur_depth_shape = max(float(tail_recur_depth_shape), 1e-6)
-        self.tail_recur_layer_thresholds = tuple(
-            (i / float(tail_recur_span)) ** self.tail_recur_depth_shape for i in range(tail_recur_span)
-        ) if tail_recur_span > 0 else ()
-        self.tail_recur_order = tail_recur_order
-        recur_depths = list(range(tail_recur_span))
-        recur_order = recur_depths[::-1]
-        if self.tail_recur_order == "odds_then_evens":
-            recur_order = [d for d in recur_order if d % 2 == 1] + [d for d in recur_order if d % 2 == 0]
-        self.tail_recur_depth_order = tuple(recur_order)
         self.final_norm = RMSNormNoWeight()
         self.tail_recur_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None; self.tail_carry_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None
-        self.tail_recur_strength = mx.array(1.0, dtype=mx.float32)
         for b in self.blocks:
             b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight); b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
         self.tok_emb.weight = (mx.random.normal(self.tok_emb.weight.shape, dtype=mx.float32) * tied_embed_init_std).astype(COMPUTE_DTYPE)
@@ -340,16 +324,9 @@ class GPT(nn.Module):
             x = self.blocks[self.num_encoder_layers + i](x, x0)
         if self.tail_recur_gates is not None:
             tail_anchor = x
-            recur_strength = mx.maximum(self.tail_recur_strength, 0.0).astype(x.dtype)
-            for recur_idx in self.tail_recur_depth_order:
-                block_idx = self.tail_recur_start + recur_idx
-                threshold = self.tail_recur_layer_thresholds[recur_idx]
-                depth_scale = (recur_strength - threshold) / (1.0 - threshold)
-                depth_scale = mx.minimum(mx.maximum(depth_scale, 0.0), 1.0)
-                carry_gate = mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype) * depth_scale
-                recur_gate = mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype) * depth_scale
-                recur_x = x + carry_gate[None, None, :] * (tail_anchor - x)
-                x = recur_x + recur_gate[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
+            for block_idx in range(len(self.blocks) - 1, self.tail_recur_start - 1, -1):
+                recur_idx = block_idx - self.tail_recur_start
+                recur_x = x + mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
         return self.final_norm(x)
     def loss(self, input_ids: mx.array, target_ids: mx.array) -> mx.array:
         x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
@@ -1214,37 +1191,6 @@ def should_activate_quant_aware(args: Hyperparameters, step: int, elapsed_ms: fl
     if max_wallclock_ms is None:
         return args.quant_aware_iters > 0 and step >= max(args.iterations - args.quant_aware_iters, 0)
     return elapsed_ms >= max(max_wallclock_ms - reserved_final_ms - 1000.0 * args.quant_aware_train_seconds, 0.0)
-def tail_recur_schedule_strength(
-    args: Hyperparameters,
-    step: int,
-    elapsed_ms: float,
-    max_wallclock_ms: float | None,
-    reserved_final_ms: float,
-) -> float:
-    if args.tail_recur_blocks <= 0:
-        return 0.0
-    start_frac = min(max(args.tail_recur_ramp_start_frac, 0.0), 1.0)
-    end_frac = min(max(args.tail_recur_ramp_end_frac, 0.0), 1.0)
-    if end_frac <= start_frac:
-        return 1.0
-    if max_wallclock_ms is not None and max_wallclock_ms > 0.0:
-        train_window_ms = max(max_wallclock_ms - reserved_final_ms, 1.0)
-        start_ms = train_window_ms * start_frac
-        end_ms = train_window_ms * end_frac
-        if elapsed_ms <= start_ms:
-            return 0.0
-        if elapsed_ms >= end_ms:
-            return 1.0
-        return (elapsed_ms - start_ms) / (end_ms - start_ms)
-    if args.iterations <= 0:
-        return 1.0
-    start_step = max(int(args.iterations * start_frac), 0)
-    end_step = max(int(args.iterations * end_frac), start_step + 1)
-    if step <= start_step:
-        return 0.0
-    if step >= end_step:
-        return 1.0
-    return (step - start_step) / (end_step - start_step)
 def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tuple[float, float, float]:
     if not quant_aware_active:
         return 1.0, 1.0, 1.0
@@ -1302,8 +1248,6 @@ def main() -> None:
         tied_embed_init_std=args.tied_embed_init_std,
         qk_gain_init=args.qk_gain_init,
         tail_recur_blocks=args.tail_recur_blocks,
-        tail_recur_order=args.tail_recur_order,
-        tail_recur_depth_shape=args.tail_recur_depth_shape,
     )
     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
     opt = SplitOptimizers(model, args)
@@ -1390,11 +1334,8 @@ def main() -> None:
         f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} "
         f"active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}"
     )
-    log(f"tail_recur_schedule:start_frac:{args.tail_recur_ramp_start_frac} end_frac:{args.tail_recur_ramp_end_frac}")
-    log(f"tail_recur_depth_shape:{args.tail_recur_depth_shape:.3f}")
     log(f"decoder_skip_alignment:start:{model.decoder_skip_start} count:{model.skip_weights.shape[0]} trim:{max((0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]) - 1, 0)}")
-    log(f"tail_recur_order:{model.tail_recur_order}")
-    log("tail_recur_carry:decoder_output_anchor")
+    log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
@@ -1432,15 +1373,6 @@ def main() -> None:
                 log(f"stopping_early: wallclock_cap train_time:{train_time_ms:.0f}ms step:{step}/{args.iterations}")
             break
         approx_train_time_ms = train_time_ms + 1000.0 * (time.perf_counter() - t0)
-        if args.tail_recur_blocks > 0:
-            tail_recur_strength = tail_recur_schedule_strength(
-                args,
-                step,
-                approx_train_time_ms,
-                max_wallclock_ms,
-                reserved_final_ms,
-            )
-            model.update(tree_unflatten([("tail_recur_strength", mx.array(tail_recur_strength, dtype=mx.float32))]))
         lr_mul = args.lr_mul(step, approx_train_time_ms)
         quant_aware_active = (
             last_quant_aware_step is not None
@@ -1521,10 +1453,6 @@ def main() -> None:
         apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
         mx.synchronize()
         log(f"quant_aware_roundtrip:step:{step} final_pre_save")
-    if args.tail_recur_blocks > 0:
-        model.update(tree_unflatten([("tail_recur_strength", mx.array(1.0, dtype=mx.float32))]))
-        if tracked_ema is not None and "tail_recur_strength" in tracked_ema:
-            tracked_ema.pop("tail_recur_strength", None)
     if tracked_ema:
         model.update(tree_unflatten(list(tracked_ema.items())))
         apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
