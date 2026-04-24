@@ -55,6 +55,8 @@ Every run should change something. Null (unmodified baseline) is only acceptable
 - Never change data/tokenizer path resolution
 - Never import network libraries (socket, http, urllib, requests) or subprocess
 - Keep `train_gpt_mlx.py` under 1500 lines (upstream hard stop for this script)
+- Treat the 1500-line limit as a design constraint, not a final cleanup step; favor compact diffs against the current best script
+- If a change needs new helpers, delete or fold older helpers instead of growing the file further
 - Remove unused code
 - Optimize for the final quantized roundtrip score, not training loss and not intermediate validation lines
 - The quantized artifact size is reported as `quantized_artifact_bytes` — watch it, stay under 16MB

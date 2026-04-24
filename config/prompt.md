@@ -9,6 +9,8 @@ Original is restored after each run.
 You may change any part of the script.
 Optimize only for `final_int8_zlib_roundtrip_exact val_bpb`, not training loss or intermediate validation lines.
 Remove unused code.
+Keep the script under 1500 lines. Prefer surgical edits to `state/best_script.py`, not sprawling rewrites.
+If you add code, remove or simplify elsewhere so the total script stays compact.
 
 {rules}
 
