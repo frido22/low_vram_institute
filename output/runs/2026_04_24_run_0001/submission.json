@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15748377,
+  "code_bytes": 78379,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15669998,
+  "rationale": "Build on the current 9x512 reverse recurrent-tail best, but change the carry path rather than replaying scalar sweeps. Each repeated tail block now mixes the proven decoder-output anchor with that block's own first-pass tail state through a learned local carry gate, preserving block-specific information while keeping shapes, compile behavior, exact final eval, and quant-aware endgame unchanged. The added control tensor stays tiny, export-friendly, and directly targets the winning recurrent-tail path instead of adding a separate head.",
+  "run_id": "2026_04_24_run_0001",
+  "runtime_seconds": 611.372258,
+  "submitter": "frido22",
+  "title": "Reverse Tail Recurrence With Local Carry Anchors",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 528141,
+  "under_16mb": true,
+  "val_bpb": 1.52282602,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
