@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15940658,
+  "code_bytes": 79334,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15861324,
+  "rationale": "Build on the reverse recurrent-tail baseline by compiling two training paths and using a cheaper no-recurrence path early, then enabling the proven reverse recurrent tail only in the late wallclock-critical phase. This spends more of the 600s budget on updates before switching into the export-aligned endgame, and it also fixes the chunked masked-loss accumulation bug without touching final exact int8 evaluation.",
+  "run_id": "2026_04_24_run_0006",
+  "runtime_seconds": 616.830167,
+  "submitter": "frido22",
+  "title": "Tail Recurrence Warmup Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 535146,
+  "under_16mb": true,
+  "val_bpb": 1.528005,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
