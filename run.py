@@ -883,13 +883,32 @@ def _start_next_planner() -> None:
 def _next_run_id() -> str:
     prefix = datetime.now(timezone.utc).strftime("%Y_%m_%d_run_")
     max_suffix = 0
+
+    def consider_run_id(run_id: str | None) -> None:
+        nonlocal max_suffix
+        if not isinstance(run_id, str) or not run_id.startswith(prefix):
+            return
+        suffix = run_id.removeprefix(prefix)
+        if suffix.isdigit():
+            max_suffix = max(max_suffix, int(suffix))
+
     if RUNS_DIR.exists():
         for path in RUNS_DIR.iterdir():
-            if not path.is_dir() or not path.name.startswith(prefix):
-                continue
-            suffix = path.name.removeprefix(prefix)
-            if suffix.isdigit():
-                max_suffix = max(max_suffix, int(suffix))
+            if path.is_dir():
+                consider_run_id(path.name)
+
+    for row in ledger_rows():
+        consider_run_id(str(row.get("run_id", "")))
+
+    log_dir = LOGS_DIR / "parameter_golf"
+    if log_dir.exists():
+        for path in log_dir.glob(f"{prefix}*.txt"):
+            consider_run_id(path.stem)
+
+    pending = _read_plan_file(_pending_plan_path())
+    if pending:
+        consider_run_id(pending.get("run_id"))
+
     return prefix + f"{max_suffix + 1:04d}"
 
 

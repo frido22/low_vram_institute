@@ -117,7 +117,11 @@ def run(run_id: str, plan: dict, pg_config: dict, logs_dir: Path) -> dict:
     runtime_seconds = max((finished - started).total_seconds(), 0.0)
     run_log = run_log_path.read_text() if run_log_path.exists() else (completed.stdout + completed.stderr)
 
-    final = _parse_final_metrics(run_log)
+    try:
+        final = _parse_final_metrics(run_log)
+    except RuntimeError as exc:
+        detail = _summarize_failure(completed.returncode, run_log)
+        raise RuntimeError(f"{exc} {detail}".strip()) from exc
     train_time_ms = _last_train_time_ms(run_log)
     max_wallclock_seconds = float(env.get("MAX_WALLCLOCK_SECONDS", pg_config.get("max_wallclock_seconds", 600)))
     quant_path = log_dir / f"{run_id}_mlx_model.int8.ptz"
@@ -205,3 +209,11 @@ def _last_train_time_ms(text: str) -> int | None:
     if not matches:
         return None
     return int(matches[-1].group("train_time_ms"))
+
+
+def _summarize_failure(returncode: int, text: str, *, tail_lines: int = 25) -> str:
+    lines = [line.rstrip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return f"(process exited with code {returncode}; log was empty)"
+    tail = "\n".join(lines[-tail_lines:])
+    return f"(process exited with code {returncode}; log tail follows)\n{tail}"
