@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15294268,
+  "code_bytes": 78309,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15215959,
+  "rationale": "Builds on the 0031 reverse recurrent-tail baseline with a compact structural change: each repeated tail block now stores its original decoder activation and learns a per-block blend between that local anchor and the final decoder anchor before the carry gate fires. This tests a new recurrence-allocation idea, not another scalar sweep, while staying compile-stable, byte-light, and under the 1500-line cap.",
+  "run_id": "2026_04_24_run_0024",
+  "runtime_seconds": 609.997257,
+  "submitter": "frido22",
+  "title": "Reverse Tail Local-Global Anchor Blend",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 528051,
+  "under_16mb": true,
+  "val_bpb": 1.52428882,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
