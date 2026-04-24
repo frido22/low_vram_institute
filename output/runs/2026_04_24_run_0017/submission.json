@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15750608,
+  "code_bytes": 77864,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15672744,
+  "rationale": "Builds directly on the best reverse recurrent-tail family instead of another scalar sweep. The change is a compact structural variant: keep the decoder-output anchor carry, but refresh the tail anchor after each reverse recurrent block so later recurrent passes interpolate between the original decoder tail state and the newly refined tail state. This targets the strongest local signal from the close anchor-refresh/mix misses while staying compile-stable, byte-neutral, and under the 1500-line cap. I also compressed one helper to bring the script back under the hard limit.",
+  "run_id": "2026_04_24_run_0017",
+  "runtime_seconds": 623.38758,
+  "submitter": "frido22",
+  "title": "Reverse Tail Anchor Refresh Blend",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541552,
+  "under_16mb": true,
+  "val_bpb": 1.51899663,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

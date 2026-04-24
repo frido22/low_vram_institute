@@ -326,7 +326,8 @@ class GPT(nn.Module):
             tail_anchor = x
             for block_idx in range(len(self.blocks) - 1, self.tail_recur_start - 1, -1):
                 recur_idx = block_idx - self.tail_recur_start
-                recur_x = x + mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
+                carry = mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :]
+                recur_x = x + carry * (tail_anchor - x); x = recur_x + mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x); tail_anchor = 0.5 * (tail_anchor + x)
         return self.final_norm(x)
     def loss(self, input_ids: mx.array, target_ids: mx.array) -> mx.array:
         x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
@@ -481,9 +482,7 @@ def build_int8_fp16_keep_names(num_layers: int, tail_recur_blocks: int) -> set[s
     for block_idx in range(max(num_layers - tail_recur_blocks, 0), num_layers):
         prefix = f"blocks.{block_idx}."
         keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:2])
-    if num_layers > 0:
-        prefix = f"blocks.{num_layers - 1}."
-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
+    if num_layers > 0: keep.update(f"blocks.{num_layers - 1}." + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
     return keep
 def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
     return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL

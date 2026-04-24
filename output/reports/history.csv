@@ -369,3 +369,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_24_run_0013,1.521961,True,False,Boundary-Conditioned Logit Bias
 2026_04_24_run_0014,1.566021,True,False,Tail-Position Logit Bias On Recurrent Baseline
 2026_04_24_run_0016,1.519279,True,False,Refreshed Tail Anchor KV/V Reallocation
+2026_04_24_run_0017,1.518997,True,False,Reverse Tail Anchor Refresh Blend
