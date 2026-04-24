@@ -362,3 +362,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_24_run_0006,1.528005,True,False,Tail Recurrence Warmup Curriculum
 2026_04_24_run_0007,1.520091,True,False,Recurrent-Tail Value FP16 Rescue
 2026_04_24_run_0008,1.538515,True,False,Late-Position Tail Recurrence Focus
+2026_04_24_run_0009,1.522678,True,False,Budgeted Tail-Sensitive FP16 Rescue

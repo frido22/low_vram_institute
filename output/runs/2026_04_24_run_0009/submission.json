@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15899441,
+  "code_bytes": 79387,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15820054,
+  "rationale": "Builds on the current recurrent-tail baseline instead of changing the training dynamics. The new idea is export-path specific: after training, score late-block matrices by quantization damage per added byte and greedily keep a few under a strict byte budget. That directly targets `final_int8_zlib_roundtrip_exact val_bpb`, preserves the proven reverse recurrent tail, and spends remaining artifact budget on tensors most likely to survive as useful fp16 exceptions. I also compressed some code paths to stay under the 1500-line limit.",
+  "run_id": "2026_04_24_run_0009",
+  "runtime_seconds": 623.560857,
+  "submitter": "frido22",
+  "title": "Budgeted Tail-Sensitive FP16 Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541749,
+  "under_16mb": true,
+  "val_bpb": 1.52267771,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
