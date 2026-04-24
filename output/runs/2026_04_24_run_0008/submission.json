@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15744984,
+  "code_bytes": 78443,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15666541,
+  "rationale": "Builds on the current reverse recurrent-tail baseline but reallocates recurrence strength toward later sequence positions, which are overrepresented by the exact sliding-window validation. This is a compile-stable structural edit, not another scalar sweep, and it preserves the proven quant-aware endgame and export path while biasing tail carry/reuse where the final metric is most sensitive.",
+  "run_id": "2026_04_24_run_0008",
+  "runtime_seconds": 589.779217,
+  "submitter": "frido22",
+  "title": "Late-Position Tail Recurrence Focus",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 507738,
+  "under_16mb": true,
+  "val_bpb": 1.53851498,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
