@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15754045,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 15674622,
+  "rationale": "Builds directly on the 0031 reverse-tail baseline. Local results say anchor refresh variants regressed, while tail value fp16 rescue was the closest non-baseline miss. This edit reallocates recurrent-tail float keep budget away from q/k and onto the value/projection path that actually survives into the int8 roundtrip, then narrows late EMA tracking to those same export-sensitive tail tensors instead of smearing all kept floats.",
+  "run_id": "2026_04_24_run_0026",
+  "runtime_seconds": 625.477863,
+  "submitter": "frido22",
+  "title": "Recurrent Tail Value-Path Float Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 542643,
+  "under_16mb": true,
+  "val_bpb": 1.51371656,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
