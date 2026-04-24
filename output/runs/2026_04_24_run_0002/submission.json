@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15729821,
+  "code_bytes": 79749,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15650072,
+  "rationale": "Builds directly on the current 9x512 reverse recurrent-tail best, but spends only the late wallclock on a blended suffix-only objective aligned to the validation stride. This is a structural training change, not another scalar sweep: it preserves the proven architecture and quant-aware endgame while shifting late updates toward the tokens that dominate final exact val_bpb.",
+  "run_id": "2026_04_24_run_0002",
+  "runtime_seconds": 631.922921,
+  "submitter": "frido22",
+  "title": "Late Tail-Loss Blend On Reverse Recurrent Baseline",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 549617,
+  "under_16mb": true,
+  "val_bpb": 1.54898258,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
