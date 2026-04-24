@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15755669,
+  "code_bytes": 78216,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15677453,
+  "rationale": "Build on the best reverse recurrent-tail baseline with a minimal structural transplant: keep the proven decoder-output anchor, but let each recurrent tail block learn a small rolling-anchor interpolation via new `tail_anchor_mix` control tensors. This targets the underexplored recurrence-scheduling/carry path without changing eval, data flow, wallclock behavior, or export, and keeps the new tensors in the float-preserved control set.",
+  "run_id": "2026_04_24_run_0004",
+  "runtime_seconds": 624.264048,
+  "submitter": "frido22",
+  "title": "Reverse Tail Anchor Mix",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 542232,
+  "under_16mb": true,
+  "val_bpb": 1.51686713,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
