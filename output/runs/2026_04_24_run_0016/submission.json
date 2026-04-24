@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15597836,
+  "code_bytes": 77906,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15519930,
+  "rationale": "Builds on the 0031 recurrent-tail baseline with a compact structural change instead of another scalar sweep. The reverse recurrent tail now refreshes its decoder anchor after each recurrence step using the existing carry gate, so later repeated blocks see a partially updated anchor rather than a fixed decoder snapshot. In parallel, the fp16 export budget shifts from recurrent-tail Q/K emphasis toward K/V on all repeated tail blocks plus Q on the final block, aiming to protect the value path and recurrent state handoff under final int8+zlib scoring while staying lean and under the line cap.",
+  "run_id": "2026_04_24_run_0016",
+  "runtime_seconds": 623.777867,
+  "submitter": "frido22",
+  "title": "Refreshed Tail Anchor KV/V Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 542007,
+  "under_16mb": true,
+  "val_bpb": 1.51927877,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
