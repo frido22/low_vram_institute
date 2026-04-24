@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15755900,
+  "code_bytes": 78546,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15677354,
+  "rationale": "Builds on the recurrent-tail baseline with a cheap, compile-stable output-path change: add a learned 2-way boundary-conditioned vocab bias keyed by whether the previous token is a tokenizer boundary. This directly targets final byte-weighted eval behavior with minimal size cost, preserves the existing quant-aware/export path, and also hardens the optimizer split to ignore non-floating state tensors introduced by the lookup table.",
+  "run_id": "2026_04_24_run_0013",
+  "runtime_seconds": 612.867709,
+  "submitter": "frido22",
+  "title": "Boundary-Conditioned Logit Bias",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 530950,
+  "under_16mb": true,
+  "val_bpb": 1.5219614,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
