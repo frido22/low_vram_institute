@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15300870,
+  "code_bytes": 78310,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15222560,
+  "rationale": "Build on the current reverse-tail anchor baseline but spend the recurrent-tail FP16 budget on the value/output path instead of q/k. The reused tail is scored after exact int8+zlib roundtrip, so preserving attn.c_v.weight plus attn.proj.weight in recurrent blocks should help the export-sensitive recurrent path more directly, while keeping a final-block q rescue for stability at similar byte cost.",
+  "run_id": "2026_04_24_run_0023",
+  "runtime_seconds": 619.610442,
+  "submitter": "frido22",
+  "title": "Recurrent Tail V/Proj FP16 Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 528000,
+  "under_16mb": true,
+  "val_bpb": 1.51859134,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

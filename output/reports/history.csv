@@ -375,3 +375,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_24_run_0020,1.516532,True,False,Tail Value FP16 Reallocation
 2026_04_24_run_0021,1.649123,True,False,Tail Recurrence Warmup Curriculum
 2026_04_24_run_0022,1.518612,True,False,Recurrent Attention FP16 Reallocation
+2026_04_24_run_0023,1.518591,True,False,Recurrent Tail V/Proj FP16 Rescue
