@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15894706,
+  "code_bytes": 77827,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15816879,
+  "rationale": "Builds on the current reverse recurrent-tail winner and spends extra export budget where local evidence is strongest: recurrent-tail tensors. The change broadens fp16 keep coverage from q/k-only to q/k/v for every recurrent tail block, targeting post-quantization value-path distortion in the exact int8+zlib score while leaving training dynamics and wallclock behavior essentially unchanged.",
+  "run_id": "2026_04_24_run_0007",
+  "runtime_seconds": 623.185122,
+  "submitter": "frido22",
+  "title": "Recurrent-Tail Value FP16 Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541497,
+  "under_16mb": true,
+  "val_bpb": 1.52009088,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
