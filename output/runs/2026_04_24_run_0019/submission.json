@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15751149,
+  "code_bytes": 78109,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15673040,
+  "rationale": "Builds directly on the best reverse recurrent-tail baseline by adding a learned per-block anchor refresh inside the reverse tail loop. The carry anchor is no longer frozen for the whole recurrent pass; each repeated tail block can retarget it toward the updated hidden state, which may preserve the close local signal from anchor-refresh variants without a large rewrite or extra export complexity. The change is compile-stable, compact, and adds only a tiny control tensor that should survive the current quant-aware endgame.",
+  "run_id": "2026_04_24_run_0019",
+  "runtime_seconds": 625.721371,
+  "submitter": "frido22",
+  "title": "Per-Block Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 542970,
+  "under_16mb": true,
+  "val_bpb": 1.51871321,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
