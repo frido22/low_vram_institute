@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15751389,
+  "code_bytes": 71428,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15679961,
+  "rationale": "Builds directly on the 9x512 reverse-tail recurrent baseline, but stops spending early 600s-run updates on the hardest recurrent path. The recurrent tail is now linearly warmed in over the first 22% of training via a compile-stable scalar in model state, then forced back to 1.0 before save/final eval so the scored int8+zlib path is unchanged at export time. This is a real structural edit aimed at recurrence scheduling, one of the still-open local categories, while keeping the file lean and preserving all required final metrics/log lines.",
+  "run_id": "2026_04_24_run_0021",
+  "runtime_seconds": 623.351847,
+  "submitter": "frido22",
+  "title": "Tail Recurrence Warmup Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541624,
+  "under_16mb": true,
+  "val_bpb": 1.64912289,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

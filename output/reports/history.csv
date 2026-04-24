@@ -373,3 +373,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_24_run_0018,1.521325,True,False,Reverse Tail Anchor Scalar Refresh
 2026_04_24_run_0019,1.518713,True,False,Per-Block Tail Anchor Refresh
 2026_04_24_run_0020,1.516532,True,False,Tail Value FP16 Reallocation
+2026_04_24_run_0021,1.649123,True,False,Tail Recurrence Warmup Curriculum
