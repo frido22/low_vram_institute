@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15761498,
+  "code_bytes": 78773,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15682725,
+  "rationale": "Build on the current 9x512 reverse recurrent-tail baseline and spend a small number of always-float bytes on a validation-aligned output-path change instead of another tiny optimizer sweep. This adds a learned bias table only for the final 64 positions in each training sequence, matching the repeated scored tail positions used by the exact sliding validation metric, while leaving the proven recurrent tail, quant-aware endgame, and export path intact.",
+  "run_id": "2026_04_24_run_0014",
+  "runtime_seconds": 590.547917,
+  "submitter": "frido22",
+  "title": "Tail-Position Logit Bias On Recurrent Baseline",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 507841,
+  "under_16mb": true,
+  "val_bpb": 1.56602134,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

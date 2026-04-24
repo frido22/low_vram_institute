@@ -68,6 +68,7 @@ class Hyperparameters:
     rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
     qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 2.0))
     tail_recur_blocks: int = int(os.environ.get("TAIL_RECUR_BLOCKS", 2))
+    tail_position_bias_span: int = int(os.environ.get("TAIL_POSITION_BIAS_SPAN", 64))
     beta1: float = float(os.environ.get("BETA1", 0.9))
     beta2: float = float(os.environ.get("BETA2", 0.95))
     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
@@ -279,13 +280,14 @@ class Block(nn.Module):
 class GPT(nn.Module):
     def __init__(self, vocab_size: int, num_layers: int, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int,
                  logit_chunk_tokens: int, logit_softcap: float, rope_base: float, tied_embed_init_std: float,
-                 qk_gain_init: float, tail_recur_blocks: int):
+                 qk_gain_init: float, tail_recur_blocks: int, train_seq_len: int, tail_position_bias_span: int):
         super().__init__()
         if logit_softcap <= 0.0:
             raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
         self.logit_chunk_tokens = logit_chunk_tokens; self.logit_softcap = logit_softcap
+        self.train_seq_len = train_seq_len; self.tail_position_bias_span = min(max(tail_position_bias_span, 0), train_seq_len)
         self.tok_emb = nn.Embedding(vocab_size, dim)
-        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32); self.logit_gain = mx.array(1.0, dtype=mx.float32); self.bigram_rank = int(os.environ.get("BIGRAM_RANK", 64))
+        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32); self.logit_gain = mx.array(1.0, dtype=mx.float32); self.bigram_rank = int(os.environ.get("BIGRAM_RANK", 64)); self.tail_position_bias = mx.zeros((self.tail_position_bias_span, vocab_size), dtype=mx.float32) if self.tail_position_bias_span > 0 else None
         if self.bigram_rank > 0:
             self.bigram_in = nn.Embedding(vocab_size, self.bigram_rank); self.bigram_out = CastedLinear(self.bigram_rank, vocab_size); self.bigram_scale = mx.array(0.0, dtype=mx.float32)
         self.num_encoder_layers = num_layers // 2
@@ -305,10 +307,13 @@ class GPT(nn.Module):
             b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight); b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
         self.tok_emb.weight = (mx.random.normal(self.tok_emb.weight.shape, dtype=mx.float32) * tied_embed_init_std).astype(COMPUTE_DTYPE)
     def softcap(self, logits: mx.array) -> mx.array: return self.logit_softcap * mx.tanh(logits / self.logit_softcap)
-    def project_logits(self, x: mx.array, prev_ids: mx.array | None = None) -> mx.array:
+    def project_logits(self, x: mx.array, prev_ids: mx.array | None = None, position_in_seq: mx.array | None = None) -> mx.array:
         logits = self.logit_gain.astype(x.dtype) * (x @ self.tok_emb.weight.astype(x.dtype).T)
         if self.bigram_rank > 0 and prev_ids is not None:
             logits = logits + self.bigram_scale.astype(x.dtype) * self.bigram_out(self.bigram_in(prev_ids.reshape(-1)).astype(x.dtype))
+        if self.tail_position_bias is not None and position_in_seq is not None:
+            tail_pos = position_in_seq.astype(mx.int32) - (self.train_seq_len - self.tail_position_bias_span); tail_bias = self.tail_position_bias[mx.maximum(tail_pos, 0)]
+            logits = logits + (tail_bias * (tail_pos >= 0).astype(tail_bias.dtype)[:, None]).astype(x.dtype)
         return self.softcap(logits + self.logit_bias.astype(x.dtype))
     def __call__(self, input_ids: mx.array) -> mx.array:
         x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))
@@ -329,23 +334,23 @@ class GPT(nn.Module):
                 recur_x = x + mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
         return self.final_norm(x)
     def loss(self, input_ids: mx.array, target_ids: mx.array) -> mx.array:
-        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1); position_in_seq = mx.broadcast_to(mx.arange(input_ids.shape[1], dtype=mx.int32)[None, :], input_ids.shape).reshape(-1)
         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
-            logits = self.project_logits(x, prev_ids)
+            logits = self.project_logits(x, prev_ids, position_in_seq)
             return nn.losses.cross_entropy(logits.astype(mx.float32), y, reduction="mean")
         loss_sum = mx.array(0.0, dtype=mx.float32)
         n = int(x.shape[0])
         for s in range(0, n, self.logit_chunk_tokens):
             e = min(s + self.logit_chunk_tokens, n)
-            logits = self.project_logits(x[s:e], prev_ids[s:e])
+            logits = self.project_logits(x[s:e], prev_ids[s:e], position_in_seq[s:e])
             loss_sum = loss_sum + nn.losses.cross_entropy(logits.astype(mx.float32), y[s:e], reduction="sum")
         return loss_sum / float(n)
     def masked_loss(self, input_ids: mx.array, target_ids: mx.array, loss_mask: mx.array) -> mx.array:
-        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+        x = self(input_ids).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1); position_in_seq = mx.broadcast_to(mx.arange(input_ids.shape[1], dtype=mx.int32)[None, :], input_ids.shape).reshape(-1)
         mask = loss_mask.reshape(-1).astype(mx.float32)
         denom = mx.maximum(mx.sum(mask), mx.array(1.0, dtype=mx.float32))
         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
-            logits = self.project_logits(x, prev_ids)
+            logits = self.project_logits(x, prev_ids, position_in_seq)
             logits_f = logits.astype(mx.float32)
             token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[:, None], axis=-1).reshape(-1)
             return mx.sum(token_loss.astype(mx.float32) * mask) / denom
@@ -353,7 +358,7 @@ class GPT(nn.Module):
         n = int(x.shape[0])
         for s in range(0, n, self.logit_chunk_tokens):
             e = min(s + self.logit_chunk_tokens, n)
-            logits = self.project_logits(x[s:e], prev_ids[s:e])
+            logits = self.project_logits(x[s:e], prev_ids[s:e], position_in_seq[s:e])
             logits_f = logits.astype(mx.float32)
             token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[s:e, None], axis=-1).reshape(-1)
             loss_sum = mx.sum(token_loss.astype(mx.float32) * mask[s:e])
@@ -456,15 +461,6 @@ INT8_FP16_KEEP_NAMES = tuple(
     for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
     if name
 )
-EMA_TRACK_SUFFIXES = tuple(
-    suffix
-    for suffix in os.environ.get(
-        "EMA_TRACK_SUFFIXES",
-        "attn.proj.weight,mlp.proj.weight,attn.c_v.weight,mlp.fc.weight",
-    ).split(",")
-    if suffix
-)
-EMA_TAIL_BLOCKS = int(os.environ.get("EMA_TAIL_BLOCKS", 3))
 BLOCK_FP16_MATRIX_SUFFIXES = (
     "attn.c_q.weight",
     "attn.c_k.weight",
@@ -496,36 +492,8 @@ def build_int8_fp16_keep_names(num_layers: int, tail_recur_blocks: int) -> set[s
     return keep
 def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
     return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL
-def get_block_index(name: str) -> int | None:
-    if not name.startswith("blocks."):
-        return None
-    parts = name.split(".", 2)
-    if len(parts) < 3:
-        return None
-    try:
-        return int(parts[1])
-    except ValueError:
-        return None
-def build_tail_ema_track_names(
-    flat_state: dict[str, mx.array],
-    int8_fp16_keep_names: set[str],
-    num_layers: int,
-    tail_recur_blocks: int,
-) -> set[str]:
-    block_floor = max(num_layers - max(EMA_TAIL_BLOCKS, tail_recur_blocks), 0)
-    tracked: set[str] = set()
-    for name, arr in flat_state.items():
-        if not mx.issubdtype(arr.dtype, mx.floating):
-            continue
-        block_idx = get_block_index(name)
-        if block_idx is None or block_idx < block_floor:
-            continue
-        if not any(name.endswith(suffix) for suffix in EMA_TRACK_SUFFIXES):
-            continue
-        if should_keep_float_tensor(name, arr, int8_fp16_keep_names):
-            continue
-        tracked.add(name)
-    return tracked
+def should_track_ema_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
+    return name.endswith(BLOCK_FP16_PROJ_SUFFIXES) or should_keep_float_tensor(name, arr, int8_fp16_keep_names)
 def keep_float_array(name: str, arr: mx.array, passthrough_orig_dtypes: dict[str, str]) -> np.ndarray:
     if any(pattern in name for pattern in INT8_KEEP_FLOAT_FP32_NAME_PATTERNS):
         return np.ascontiguousarray(_np_float32(arr))
@@ -797,11 +765,7 @@ def eval_val_doc_isolated(
 ) -> tuple[float, float]:
     val_batch_tokens = args.val_batch_size // args.grad_accum_steps
     if val_batch_tokens < args.train_seq_len:
-        raise ValueError(
-            "VAL_BATCH_SIZE must provide at least one sequence; "
-            f"got VAL_BATCH_SIZE={args.val_batch_size}, GRAD_ACCUM_STEPS={args.grad_accum_steps}, "
-            f"TRAIN_SEQ_LEN={args.train_seq_len}"
-        )
+        raise ValueError(f"VAL_BATCH_SIZE must provide at least one sequence; got VAL_BATCH_SIZE={args.val_batch_size}, GRAD_ACCUM_STEPS={args.grad_accum_steps}, TRAIN_SEQ_LEN={args.train_seq_len}")
     val_batch_seqs = val_batch_tokens // args.train_seq_len
     total_windows = sum(count_doc_eval_windows(end - start - 1, args.train_seq_len, args.eval_stride) for start, end in doc_spans)
     total_batches = max((total_windows + val_batch_seqs - 1) // val_batch_seqs, 1)
@@ -1257,9 +1221,7 @@ def main() -> None:
         raise ValueError(f"TOKENIZER_PATH must point to a SentencePiece .model file: {args.tokenizer_path}")
     sp = spm.SentencePieceProcessor(model_file=args.tokenizer_path)
     if int(sp.vocab_size()) != args.vocab_size:
-        raise ValueError(
-            f"VOCAB_SIZE={args.vocab_size} does not match tokenizer vocab_size={int(sp.vocab_size())}"
-        )
+        raise ValueError(f"VOCAB_SIZE={args.vocab_size} does not match tokenizer vocab_size={int(sp.vocab_size())}")
     dataset_name, actual_train_files, expected_train_files = validate_dataset_tokenizer_pair(
         args.data_path,
         args.tokenizer_path,
@@ -1285,14 +1247,10 @@ def main() -> None:
         tied_embed_init_std=args.tied_embed_init_std,
         qk_gain_init=args.qk_gain_init,
         tail_recur_blocks=args.tail_recur_blocks,
+        train_seq_len=args.train_seq_len,
+        tail_position_bias_span=args.tail_position_bias_span,
     )
     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
-    ema_track_names = build_tail_ema_track_names(
-        {k: v for k, v in tree_flatten(model.state)},
-        int8_fp16_keep_names,
-        args.num_layers,
-        args.tail_recur_blocks,
-    )
     opt = SplitOptimizers(model, args)
     compiled_loss = mx.compile(lambda x, y: model.loss(x, y), inputs=model.state, outputs=model.state)
     compiled_masked_loss = mx.compile(
@@ -1327,24 +1285,10 @@ def main() -> None:
     else:
         log(f"train_loader:dataset:{dataset_name} train_shards:{actual_train_files}/{expected_train_files}")
     log(f"tokenizer_path:{args.tokenizer_path}")
-    log(
-        f"model_params:{n_params} vocab_size:{args.vocab_size} layers:{args.num_layers} "
-        f"dim:{args.model_dim} heads:{args.num_heads} kv_heads:{args.num_kv_heads} "
-        f"seq_len:{args.train_seq_len} tie_embeddings:{args.tie_embeddings}"
-    )
-    log(
-        f"iterations:{args.iterations} train_batch_tokens:{args.train_batch_tokens} grad_accum_steps:{args.grad_accum_steps} "
-        f"microbatch_tokens:{args.microbatch_tokens} microbatch_batch_size:{args.microbatch_tokens // args.train_seq_len} "
-        f"val_batch_size:{args.val_batch_size} "
-        f"max_wallclock_seconds:{args.max_wallclock_seconds:.3f}"
-    )
+    log(f"model_params:{n_params} vocab_size:{args.vocab_size} layers:{args.num_layers} dim:{args.model_dim} heads:{args.num_heads} kv_heads:{args.num_kv_heads} seq_len:{args.train_seq_len} tie_embeddings:{args.tie_embeddings}")
+    log(f"iterations:{args.iterations} train_batch_tokens:{args.train_batch_tokens} grad_accum_steps:{args.grad_accum_steps} microbatch_tokens:{args.microbatch_tokens} microbatch_batch_size:{args.microbatch_tokens // args.train_seq_len} val_batch_size:{args.val_batch_size} max_wallclock_seconds:{args.max_wallclock_seconds:.3f}")
     log(f"mlx_max_microbatch_tokens:{args.mlx_max_microbatch_tokens}")
-    log(
-        f"optimizer:muon+adam muon_matrix_params:{len(opt.matrix_keys)} scalar_params:{len(opt.scalar_keys)} "
-        f"embed_lr:{args.tied_embed_lr} "
-        f"matrix_lr:{args.matrix_lr} scalar_lr:{args.scalar_lr} "
-        f"muon_momentum:{args.muon_momentum} muon_steps:{args.muon_backend_steps}"
-    )
+    log(f"optimizer:muon+adam muon_matrix_params:{len(opt.matrix_keys)} scalar_params:{len(opt.scalar_keys)} embed_lr:{args.tied_embed_lr} matrix_lr:{args.matrix_lr} scalar_lr:{args.scalar_lr} muon_momentum:{args.muon_momentum} muon_steps:{args.muon_backend_steps}")
     log(f"val_bpb:enabled tokenizer_kind=sentencepiece tokenizer_path={args.tokenizer_path}")
     eval_mode = "doc_isolated_sliding" if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0 else "flat_stream"
     log(f"eval_mode:{eval_mode} bos_token_id:{bos_token_id} val_docs:{0 if doc_spans is None else len(doc_spans)}")
@@ -1371,22 +1315,13 @@ def main() -> None:
     log(f"quant_aware:train_seconds:{args.quant_aware_train_seconds:.1f} iters:{args.quant_aware_iters} every:{args.quant_aware_every}")
     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
+    log(f"tail_position_bias:span:{args.tail_position_bias_span}")
     log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
     log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
-    log(
-        f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} "
-        f"active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}"
-    )
+    log(f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}")
     log(f"decoder_skip_alignment:start:{model.decoder_skip_start} count:{model.skip_weights.shape[0]} trim:{max((0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]) - 1, 0)}")
     log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
-    log(
-        "tail_ema:decay:{:.2f} tail_blocks:{} tracked_suffixes:{} tracked_tensors:{}".format(
-            PROJ_EMA_DECAY,
-            max(EMA_TAIL_BLOCKS, args.tail_recur_blocks),
-            ",".join(EMA_TRACK_SUFFIXES) if EMA_TRACK_SUFFIXES else "none",
-            len(ema_track_names),
-        )
-    )
+    log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
     stop_after_step: int | None = None
@@ -1413,10 +1348,7 @@ def main() -> None:
                 log_fn=log,
             )
             if step % 25 == 0 or last_step:
-                log(
-                    f"step:{step}/{args.iterations} val_loss:{val_loss:.4f} val_bpb:{val_bpb:.4f} "
-                    f"train_time:{train_time_ms:.0f}ms step_avg:{train_time_ms / max(step, 1):.2f}ms"
-                )
+                log(f"step:{step}/{args.iterations} val_loss:{val_loss:.4f} val_bpb:{val_bpb:.4f} train_time:{train_time_ms:.0f}ms step_avg:{train_time_ms / max(step, 1):.2f}ms")
             t0 = time.perf_counter()
         if last_step:
             if stop_after_step is not None and step < args.iterations:
@@ -1475,7 +1407,7 @@ def main() -> None:
                 tracked_ema = {
                     name: arr + mx.zeros_like(arr)
                     for name, arr in flat_params.items()
-                    if name in ema_track_names
+                    if mx.issubdtype(arr.dtype, mx.floating) and should_track_ema_tensor(name, arr, int8_fp16_keep_names)
                 }
             else:
                 for name in tracked_ema:
@@ -1489,10 +1421,7 @@ def main() -> None:
             log(f"quant_aware_roundtrip:step:{step}")
         if should_log_train:
             train_loss_value = float(train_loss.item())
-            log(
-                f"step:{step}/{args.iterations} train_loss:{train_loss_value:.4f} "
-                f"train_time:{approx_train_time_ms:.0f}ms step_avg:{approx_train_time_ms / step:.2f}ms tok_s:{tok_s:.0f}"
-            )
+            log(f"step:{step}/{args.iterations} train_loss:{train_loss_value:.4f} train_time:{approx_train_time_ms:.0f}ms step_avg:{approx_train_time_ms / step:.2f}ms tok_s:{tok_s:.0f}")
         if (
             max_wallclock_ms is not None
             and stop_after_step is None

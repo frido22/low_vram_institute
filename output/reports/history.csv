@@ -367,3 +367,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_24_run_0011,1.518534,True,False,Per-Block Tail Anchor Recurrence
 2026_04_24_run_0012,1.529829,True,False,Late Tail-Aligned Loss Mask
 2026_04_24_run_0013,1.521961,True,False,Boundary-Conditioned Logit Bias
+2026_04_24_run_0014,1.566021,True,False,Tail-Position Logit Bias On Recurrent Baseline
