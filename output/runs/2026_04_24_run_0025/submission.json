@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15751976,
+  "code_bytes": 79541,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15672435,
+  "rationale": "Builds on the current 9x512 recurrent-tail baseline without changing export or eval. The new change only alters late-phase training: once quant-aware mode activates, the training loss upweights the last tokens in each sequence, matching the official sliding-stride scorer where most evaluated targets come from tail positions. This is a compact validation-aligned objective shift, not another small LR sweep, and it stays compile-stable and byte-neutral.",
+  "run_id": "2026_04_24_run_0025",
+  "runtime_seconds": 625.029827,
+  "submitter": "frido22",
+  "title": "Late Quant-Aware Tail-Aligned Loss",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 542616,
+  "under_16mb": true,
+  "val_bpb": 1.51986474,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

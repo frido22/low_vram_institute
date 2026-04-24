@@ -377,3 +377,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_24_run_0022,1.518612,True,False,Recurrent Attention FP16 Reallocation
 2026_04_24_run_0023,1.518591,True,False,Recurrent Tail V/Proj FP16 Rescue
 2026_04_24_run_0024,1.524289,True,False,Reverse Tail Local-Global Anchor Blend
+2026_04_24_run_0025,1.519865,True,False,Late Quant-Aware Tail-Aligned Loss
