@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15754116,
+  "code_bytes": 78228,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15675888,
+  "rationale": "Builds on the reverse recurrent-tail baseline instead of resetting it. The change gives each recurrent tail block a learned interpolation between the final decoder-output anchor and that block's own first-pass activation, so the second pass can reuse block-local information without adding a new large head or changing shapes. This is a structural recurrence edit, not another small control sweep, and it stays compile-stable and byte-cheap for the 600s Mac-mini regime.",
+  "run_id": "2026_04_24_run_0011",
+  "runtime_seconds": 626.486724,
+  "submitter": "frido22",
+  "title": "Per-Block Tail Anchor Recurrence",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 544624,
+  "under_16mb": true,
+  "val_bpb": 1.51853439,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
