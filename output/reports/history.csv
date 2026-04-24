@@ -358,3 +358,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_24_run_0002,1.548983,True,False,Late Tail-Loss Blend On Reverse Recurrent Baseline
 2026_04_24_run_0003,1.533823,True,False,Late Tail-Recur Gate Warmup On Reverse Recurrent Baseline
 2026_04_24_run_0004,1.516867,True,False,Reverse Tail Anchor Mix
+2026_04_24_run_0005,1.524454,True,False,Dual-Anchor Mix For Reverse Tail Recurrence

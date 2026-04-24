@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15750951,
+  "code_bytes": 78367,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15672584,
+  "rationale": "Build on the current reverse recurrent-tail best instead of another scalar sweep. This adds one new control tensor per recurrent tail block to blend between the proven decoder-output anchor and a pre-tail input anchor, so the recurrent pass can learn whether each tail block should pull from the fully decoded state or from the cleaner pre-tail state. It is compile-stable, tiny in byte cost, export-friendly because the new gates stay in the float-kept control path, and directly targets the recurrent-tail/quantization interaction that remains the strongest local motif.",
+  "run_id": "2026_04_24_run_0005",
+  "runtime_seconds": 610.514763,
+  "submitter": "frido22",
+  "title": "Dual-Anchor Mix For Reverse Tail Recurrence",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 526922,
+  "under_16mb": true,
+  "val_bpb": 1.5244539,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
