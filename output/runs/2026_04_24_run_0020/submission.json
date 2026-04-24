@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 14827687,
+  "code_bytes": 77887,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 14749800,
+  "rationale": "Reallocated scarce fp16 export budget around the winning recurrent tail: keep only one trailing proj block in fp16, switch recurrent-tail keepers from Q+K toward Q+V, and narrow export EMA tracking to qkv/proj/embed tensors instead of every kept float tensor. This targets the local near-miss signal that recurrent-tail value preservation matters more than broad float rescue under the final int8+zlib roundtrip metric.",
+  "run_id": "2026_04_24_run_0020",
+  "runtime_seconds": 623.557146,
+  "submitter": "frido22",
+  "title": "Tail Value FP16 Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541803,
+  "under_16mb": true,
+  "val_bpb": 1.51653219,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
