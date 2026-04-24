@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15272909,
+  "code_bytes": 77791,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15195118,
+  "rationale": "Builds on the 0031 recurrent-tail baseline but reallocates the fp16 export budget toward the matrices traversed twice in reverse-tail recurrence. The recurrent tail now keeps q/k/v/attn.proj in fp16, while non-recurrent tail proj retention is trimmed and only the final mlp.proj stays fp16. This is a compact export-path change aimed directly at final int8+zlib roundtrip bpb, not training loss.",
+  "run_id": "2026_04_24_run_0022",
+  "runtime_seconds": 623.477589,
+  "submitter": "frido22",
+  "title": "Recurrent Attention FP16 Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541717,
+  "under_16mb": true,
+  "val_bpb": 1.51861216,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
