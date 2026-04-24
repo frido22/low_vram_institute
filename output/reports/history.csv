@@ -356,3 +356,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_23_run_0104,1.518515,True,False,Tail-Recur Depth Curriculum Before Quant-Aware Endgame
 2026_04_24_run_0001,1.522826,True,False,Reverse Tail Recurrence With Local Carry Anchors
 2026_04_24_run_0002,1.548983,True,False,Late Tail-Loss Blend On Reverse Recurrent Baseline
+2026_04_24_run_0003,1.533823,True,False,Late Tail-Recur Gate Warmup On Reverse Recurrent Baseline
