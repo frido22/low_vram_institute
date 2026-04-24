@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15747220,
+  "code_bytes": 78100,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15669120,
+  "rationale": "Adds a tiny learned scalar refresh on the reverse recurrent tail anchor. This is a compact structural variant on top of the best 9x512 recurrent-tail family, targeting the strongest local signal area (reverse-tail anchor variants) without changing evaluation, export flow, or broad hyperparameters.",
+  "run_id": "2026_04_24_run_0018",
+  "runtime_seconds": 607.699177,
+  "submitter": "frido22",
+  "title": "Reverse Tail Anchor Scalar Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 525603,
+  "under_16mb": true,
+  "val_bpb": 1.52132488,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
