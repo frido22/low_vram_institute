@@ -7,9 +7,9 @@
   "codex": {
     "enabled": true,
     "model": "gpt-5.4",
-    "reasoning_effort": "xhigh",
+    "reasoning_effort": "medium",
     "service_tier": null,
-    "manual_service_tier": "fast",
+    "manual_service_tier": null,
     "daemon_service_tier": null,
     "timeout_seconds": 1800
   },
