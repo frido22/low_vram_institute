@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15759660,
+  "code_bytes": 82814,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15676846,
+  "rationale": "Build on the current reverse-tail recurrent baseline by adding a late suffix-masked training curriculum that gradually shifts loss toward the validation-scored tail window while preserving early full-context training, compile-stable shapes, exact final eval, and the existing quant-aware/export path.",
+  "run_id": "2026_04_25_run_0017",
+  "runtime_seconds": 623.718319,
+  "submitter": "frido22",
+  "title": "Late Tail-Aligned Reverse-Tail Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541604,
+  "under_16mb": true,
+  "val_bpb": 1.51643139,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
