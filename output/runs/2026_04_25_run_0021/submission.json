@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15757257,
+  "code_bytes": 80242,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15677015,
+  "rationale": "Build on the current best reverse-tail recurrence curriculum instead of another small scalar sweep. This keeps the strong decoder-output anchor path intact, but adds a learned per-tail-block anchor refresh gate so the anchor can update only when useful. It is a compact, compile-stable structural edit that starts from the prior behavior at initialization, preserves the existing exact int8+zlib evaluation path, and spends only a small number of extra control parameters on the recurrent tail where local results remain strongest.",
+  "run_id": "2026_04_25_run_0021",
+  "runtime_seconds": 624.176326,
+  "submitter": "frido22",
+  "title": "Gated Tail-Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 542351,
+  "under_16mb": true,
+  "val_bpb": 1.51664266,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
