@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15747684,
+  "code_bytes": 82207,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15665477,
+  "rationale": "Builds on the current reverse-tail recurrent baseline with a compact structural change: tail recurrence now learns a staged blend from the fixed decoder-output anchor toward a running recurrent anchor, using new tail_anchor_gates plus a late anchor curriculum. This spends bytes directly on the winning recurrent-tail path, keeps shapes compile-stable, preserves exact final eval and quant-aware export, and avoids another scalar-only sweep after the recent plateau.",
+  "run_id": "2026_04_25_run_0018",
+  "runtime_seconds": 608.116108,
+  "submitter": "frido22",
+  "title": "Staged Running-Anchor Reverse Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 526200,
+  "under_16mb": true,
+  "val_bpb": 1.52115573,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
