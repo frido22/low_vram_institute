@@ -383,3 +383,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_25_run_0001,1.517498,True,False,Reverse Tail Anchor Self-Refresh
 2026_04_25_run_0002,1.515139,True,False,Recurrent Tail KV Float Reallocation
 2026_04_25_run_0003,1.515645,True,False,Dual Recurrent-Tail Value Float Reallocation
+2026_04_25_run_0004,1.511060,True,True,Staged Reverse-Tail Recurrence Curriculum

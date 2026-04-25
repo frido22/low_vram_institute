@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15754840,
+  "code_bytes": 79908,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15674932,
+  "rationale": "Build on the current recurrent-tail/value-path float-reallocation baseline with a compact structural change instead of another scalar sweep. This edit keeps the same architecture and export path, but changes how the two reverse-tail recurrent blocks come online: the deepest recurrent block stays fully active, while earlier recurrent blocks ramp in later via a staged curriculum. The hypothesis is that under a 600s Mac-mini budget, concentrating early training on the strongest recurrent exit path improves short-run optimization and final int8+zlib behavior, then restores full recurrent depth later without adding compile churn or artifact bytes. The change is compact, compile-stable, and stays under the line cap.",
+  "run_id": "2026_04_25_run_0004",
+  "runtime_seconds": 624.492459,
+  "submitter": "frido22",
+  "title": "Staged Reverse-Tail Recurrence Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 542283,
+  "under_16mb": true,
+  "val_bpb": 1.51106031,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
