@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15754790,
+  "code_bytes": 80227,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15674563,
+  "rationale": "Builds directly on the current best staged reverse-tail recurrence curriculum, but adds a tiny learned anchor-refresh path inside the recurrent tail. Local history says anchor-refresh variants and recurrent-tail structural edits are still live, while scalar-only sweeps have plateaued. This keeps shapes and runtime stable, adds very few bytes, and specifically targets a likely weak point in the current best script: a fixed decoder-output anchor that may be too rigid once later recurrent passes start improving the tail state.",
+  "run_id": "2026_04_25_run_0005",
+  "runtime_seconds": 624.21551,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor Refresh Gate",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 542427,
+  "under_16mb": true,
+  "val_bpb": 1.51502199,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
