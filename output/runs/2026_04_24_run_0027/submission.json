@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15756186,
+  "code_bytes": 79826,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15676360,
+  "rationale": "Builds directly on the current best recurrent-tail/export path instead of restarting. I added a compact learned `tail_anchor_mix` control that refreshes the reverse-tail anchor after each recurrent block, so the carry path can keep the strong decoder-output anchor early while adapting toward the updated tail state later. This targets the still-promising reverse-tail anchor family, keeps shapes and compile behavior stable, preserves the final exact int8+zlib evaluation path, and only spends a tiny extra float budget by keeping the new control tensor in fp16 during export.",
+  "run_id": "2026_04_24_run_0027",
+  "runtime_seconds": 624.126786,
+  "submitter": "frido22",
+  "title": "Reverse Tail Progressive Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 542262,
+  "under_16mb": true,
+  "val_bpb": 1.51791718,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
