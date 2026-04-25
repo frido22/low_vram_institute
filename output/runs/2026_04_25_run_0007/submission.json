@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15755905,
+  "code_bytes": 80394,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15675511,
+  "rationale": "Builds directly on the winning staged reverse-tail curriculum, but caps the shallower recurrent replay so it never reaches full strength at train or eval time. This keeps the change compile-stable and focused on the final int8 roundtrip metric instead of spending another run on a small scalar sweep.",
+  "run_id": "2026_04_25_run_0007",
+  "runtime_seconds": 623.691091,
+  "submitter": "frido22",
+  "title": "Capped Reverse-Tail Recurrence Profile",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541727,
+  "under_16mb": true,
+  "val_bpb": 1.51164281,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
