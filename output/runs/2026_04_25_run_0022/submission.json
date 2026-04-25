@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15756461,
+  "code_bytes": 81926,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15674535,
+  "rationale": "Build on the current staged reverse-tail recurrence baseline, but spend the late training budget on the scoring window instead of changing the recurrent path again. This adds a mild, normalized tail-weighted loss curriculum that ramps in only late, preserves full-sequence learning early, keeps shapes compile-stable, and directly targets the eval stride without touching final evaluation or export logic.",
+  "run_id": "2026_04_25_run_0022",
+  "runtime_seconds": 623.409539,
+  "submitter": "frido22",
+  "title": "Gentle Late Tail-Loss Alignment",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541415,
+  "under_16mb": true,
+  "val_bpb": 1.51957246,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
