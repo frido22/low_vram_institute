@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15758003,
+  "code_bytes": 80362,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15677641,
+  "rationale": "Builds on the staged reverse-tail recurrence baseline by replacing the old gap/span staging with a compact capped-depth profile: shallower recurrent tail blocks stay weaker through most of training, then smoothly unlock to full recurrence near the end. This keeps shapes compile-stable, removes the now-unused stage-gap/span controls, and targets the recent signal that staged curricula help while capped profiles were close.",
+  "run_id": "2026_04_25_run_0016",
+  "runtime_seconds": 623.929917,
+  "submitter": "frido22",
+  "title": "Late Full-Unlock Reverse-Tail Profile",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541838,
+  "under_16mb": true,
+  "val_bpb": 1.51625116,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
