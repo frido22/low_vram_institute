@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15599665,
+  "code_bytes": 80048,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15519617,
+  "rationale": "Builds on the current recurrent-tail baseline but spends the fp16 export budget differently: recurrent tail blocks now preserve K/V instead of Q/K, and the exit block keeps Q/V. The local signal says recurrent-tail float rescue is still live, while anchor and curriculum variants have flattened. This is a compact export-path change aimed directly at final int8+zlib roundtrip fidelity rather than training-loss behavior, and it stays well under the 1500-line limit.",
+  "run_id": "2026_04_25_run_0013",
+  "runtime_seconds": 624.043667,
+  "submitter": "frido22",
+  "title": "Recurrent Tail KV/V Export Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541542,
+  "under_16mb": true,
+  "val_bpb": 1.51329833,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
