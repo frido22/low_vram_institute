@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15755306,
+  "code_bytes": 79566,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15675740,
+  "rationale": "Builds on the current recurrent-tail/value-path baseline with a compact structural edit: after each reverse tail recurrence pass, refresh the anchor toward the newly updated state using the existing carry gate. This keeps shapes and export behavior unchanged, compounds the strong reverse-tail family, and tests a nearby anchor-refresh variant without spending bytes on new tensors or another weak scalar sweep.",
+  "run_id": "2026_04_25_run_0001",
+  "runtime_seconds": 624.159591,
+  "submitter": "frido22",
+  "title": "Reverse Tail Anchor Self-Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 542225,
+  "under_16mb": true,
+  "val_bpb": 1.51749827,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
