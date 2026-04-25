@@ -71,9 +71,10 @@ class Hyperparameters:
     tail_recur_ramp_start: float = float(os.environ.get("TAIL_RECUR_RAMP_START", 0.55))
     tail_recur_ramp_end: float = float(os.environ.get("TAIL_RECUR_RAMP_END", 0.9))
     tail_recur_min_gain: float = float(os.environ.get("TAIL_RECUR_MIN_GAIN", 0.35))
-    tail_recur_profile_drop: float = float(os.environ.get("TAIL_RECUR_PROFILE_DROP", 0.24))
-    tail_recur_final_full_start: float = float(os.environ.get("TAIL_RECUR_FINAL_FULL_START", 0.9))
-    tail_recur_curve_power: float = float(os.environ.get("TAIL_RECUR_CURVE_POWER", 1.6))
+    tail_recur_stage_gap: float = float(os.environ.get("TAIL_RECUR_STAGE_GAP", 0.16))
+    tail_recur_stage_span: float = float(os.environ.get("TAIL_RECUR_STAGE_SPAN", 0.12))
+    tail_recur_stage_hold: float = float(os.environ.get("TAIL_RECUR_STAGE_HOLD", 0.03))
+    tail_anchor_mix: float = float(os.environ.get("TAIL_ANCHOR_MIX", 0.3))
     beta1: float = float(os.environ.get("BETA1", 0.9))
     beta2: float = float(os.environ.get("BETA2", 0.95))
     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
@@ -285,7 +286,7 @@ class Block(nn.Module):
 class GPT(nn.Module):
     def __init__(self, vocab_size: int, num_layers: int, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int,
                  logit_chunk_tokens: int, logit_softcap: float, rope_base: float, tied_embed_init_std: float,
-                 qk_gain_init: float, tail_recur_blocks: int):
+                 qk_gain_init: float, tail_recur_blocks: int, tail_anchor_mix: float):
         super().__init__()
         if logit_softcap <= 0.0:
             raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
@@ -306,6 +307,7 @@ class GPT(nn.Module):
         ]
         self.tail_recur_start = num_layers - tail_recur_span
         self.final_norm = RMSNormNoWeight()
+        self.tail_anchor_mix = mx.array(tail_anchor_mix, dtype=mx.float32)
         self.tail_recur_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None; self.tail_carry_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None
         for b in self.blocks:
             b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight); b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
@@ -330,10 +332,15 @@ class GPT(nn.Module):
             x = self.blocks[self.num_encoder_layers + i](x, x0)
         if self.tail_recur_gates is not None:
             tail_anchor = x
+            running_anchor = x
             for block_idx in range(len(self.blocks) - 1, self.tail_recur_start - 1, -1):
                 recur_idx = block_idx - self.tail_recur_start
                 recur_gain = 1.0 if tail_recur_gains is None else tail_recur_gains[recur_idx].astype(x.dtype)
-                recur_x = x + recur_gain * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + recur_gain * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
+                recur_anchor = running_anchor + recur_gain * self.tail_anchor_mix.astype(x.dtype) * (tail_anchor - running_anchor)
+                recur_x = x + recur_gain * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (recur_anchor - x)
+                block_out = self.blocks[block_idx](recur_x, x0)
+                x = recur_x + recur_gain * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (block_out - recur_x)
+                running_anchor = recur_x
         return self.final_norm(x)
     def loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
         x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
@@ -1179,18 +1186,18 @@ def tail_recur_schedule(args: Hyperparameters, step: int, active_blocks: int) ->
     else:
         progress = step / max(args.iterations, 1)
         progress = min(max((progress - args.tail_recur_ramp_start) / (args.tail_recur_ramp_end - args.tail_recur_ramp_start), 0.0), 1.0)
-    eased = 1.0 - (1.0 - progress) ** max(args.tail_recur_curve_power, 1e-3)
-    full_progress = 1.0 if args.tail_recur_final_full_start <= args.tail_recur_ramp_start else min(
-        max((step / max(args.iterations, 1) - args.tail_recur_final_full_start) / max(1.0 - args.tail_recur_final_full_start, 1e-6), 0.0),
-        1.0,
-    )
-    gains = np.empty((active_blocks,), dtype=np.float32)
-    for idx in range(active_blocks):
-        depth_frac = idx / max(active_blocks - 1, 1)
-        local = min(max(eased + depth_frac * (1.0 - eased), 0.0), 1.0)
-        cap = 1.0 - args.tail_recur_profile_drop * (1.0 - depth_frac)
-        staged = args.tail_recur_min_gain + (cap - args.tail_recur_min_gain) * local
-        gains[idx] = staged + (1.0 - staged) * full_progress
+    if active_blocks == 1:
+        return mx.ones((1,), dtype=mx.float32)
+    gains = np.ones((active_blocks,), dtype=np.float32)
+    for idx in range(active_blocks - 1):
+        stage_start = idx * args.tail_recur_stage_gap
+        stage_span = max(args.tail_recur_stage_span, 1e-6)
+        if progress <= stage_start:
+            stage_progress = 0.0
+        else:
+            stage_progress = min(max((progress - stage_start - args.tail_recur_stage_hold) / stage_span, 0.0), 1.0)
+        gains[idx] = args.tail_recur_min_gain + (1.0 - args.tail_recur_min_gain) * stage_progress
+    gains[-1] = 1.0
     return mx.array(gains, dtype=mx.float32)
 def main() -> None:
     args = Hyperparameters()
@@ -1227,7 +1234,7 @@ def main() -> None:
     base_bytes_lut, has_leading_space_lut, is_boundary_token_lut = build_sentencepiece_luts(sp, args.vocab_size)
     mx.random.seed(args.seed)
     train_loader = TokenLoader(args.train_files, log_fn=log, dataset_name=dataset_name)
-    model = GPT(vocab_size=args.vocab_size, num_layers=args.num_layers, dim=args.model_dim, num_heads=args.num_heads, num_kv_heads=args.num_kv_heads, mlp_mult=args.mlp_mult, logit_chunk_tokens=args.logit_chunk_tokens, logit_softcap=args.logit_softcap, rope_base=args.rope_base, tied_embed_init_std=args.tied_embed_init_std, qk_gain_init=args.qk_gain_init, tail_recur_blocks=args.tail_recur_blocks)
+    model = GPT(vocab_size=args.vocab_size, num_layers=args.num_layers, dim=args.model_dim, num_heads=args.num_heads, num_kv_heads=args.num_kv_heads, mlp_mult=args.mlp_mult, logit_chunk_tokens=args.logit_chunk_tokens, logit_softcap=args.logit_softcap, rope_base=args.rope_base, tied_embed_init_std=args.tied_embed_init_std, qk_gain_init=args.qk_gain_init, tail_recur_blocks=args.tail_recur_blocks, tail_anchor_mix=args.tail_anchor_mix)
     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
     opt = SplitOptimizers(model, args)
     tail_recur_eval_gains = mx.ones((args.tail_recur_blocks,), dtype=mx.float32)
@@ -1280,7 +1287,8 @@ def main() -> None:
     log(f"decoder_skip_alignment:start:{model.decoder_skip_start} count:{model.skip_weights.shape[0]} trim:{max((0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]) - 1, 0)}")
     log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
     log(f"tail_recur_curriculum:min_gain:{args.tail_recur_min_gain} ramp_start:{args.tail_recur_ramp_start} ramp_end:{args.tail_recur_ramp_end}")
-    log(f"tail_recur_profile:drop:{args.tail_recur_profile_drop} final_full_start:{args.tail_recur_final_full_start} curve_power:{args.tail_recur_curve_power}")
+    log(f"tail_recur_staging:gap:{args.tail_recur_stage_gap} hold:{args.tail_recur_stage_hold} span:{args.tail_recur_stage_span}")
+    log(f"tail_anchor_mix:{args.tail_anchor_mix}")
     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None

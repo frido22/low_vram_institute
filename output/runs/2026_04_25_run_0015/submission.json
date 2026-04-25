@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15748918,
+  "code_bytes": 80667,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15668251,
+  "rationale": "Build on the current reverse-tail recurrent family, but replace the old profile-drop sweep with a stricter staged curriculum plus a light running-anchor mix inside the recurrent tail. The local plateau suggests tiny scalar sweeps are exhausted; this keeps the proven 9x512 reverse-tail/export path intact while changing where recurrence becomes active and how the tail anchor is consumed, which is a more meaningful structural probe for the 600s Mac-mini budget.",
+  "run_id": "2026_04_25_run_0015",
+  "runtime_seconds": 608.277793,
+  "submitter": "frido22",
+  "title": "Staged Running-Anchor Reverse Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 526360,
+  "under_16mb": true,
+  "val_bpb": 1.52185956,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
