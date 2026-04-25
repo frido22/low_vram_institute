@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15747154,
+  "code_bytes": 81151,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15666003,
+  "rationale": "Build on the staged reverse-tail recurrence winner by keeping reverse recurrent updates intact while delaying and softening the anchor carry path. The recent anchor-refresh variants lost, so this run tests a narrower curriculum transplant: recurrent block updates can ramp as before, but carry mixing starts later, uses a lower floor, and stages more slowly. That should preserve the strong recurrent-tail family early, then spend late training adapting the anchor bridge only when the tail blocks are already useful, with no extra runtime shape churn and no export-path changes.",
+  "run_id": "2026_04_25_run_0008",
+  "runtime_seconds": 607.019289,
+  "submitter": "frido22",
+  "title": "Decoupled Tail Carry Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 525070,
+  "under_16mb": true,
+  "val_bpb": 1.52285296,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
