@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15748272,
+  "code_bytes": 80331,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15667941,
+  "rationale": "Builds directly on the best staged reverse-tail recurrence baseline, but changes the carry anchor only for the earlier recurrent tail block(s). The model now records forward tail outputs and blends from the proven final decoder anchor toward each block's own forward tail state with a quadratic schedule tied to recurrence gain. This keeps early training close to the winning global-anchor behavior, avoids the more unstable running-anchor variants that already missed locally, and spends the run on a compact reverse-tail structural edit instead of another flat hyperparameter sweep.",
+  "run_id": "2026_04_25_run_0020",
+  "runtime_seconds": 610.861017,
+  "submitter": "frido22",
+  "title": "Quadratic Tail-Local Carry Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 528032,
+  "under_16mb": true,
+  "val_bpb": 1.54156667,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
