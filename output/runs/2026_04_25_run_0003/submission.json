@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 14977014,
+  "code_bytes": 79271,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 14897743,
+  "rationale": "Build on the current best recurrent-tail export path by moving fp16 keep budget away from the second tail proj block and into c_v for every recurrent tail block. This keeps the reverse-tail recurrence value path higher precision where it is reused, while trimming a less targeted fp16 allocation to stay lean under the size cap.",
+  "run_id": "2026_04_25_run_0003",
+  "runtime_seconds": 623.750508,
+  "submitter": "frido22",
+  "title": "Dual Recurrent-Tail Value Float Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541853,
+  "under_16mb": true,
+  "val_bpb": 1.5156449,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
