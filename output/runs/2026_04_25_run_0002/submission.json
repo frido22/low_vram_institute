@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15598895,
+  "code_bytes": 79457,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15519438,
+  "rationale": "Builds on the current best recurrent-tail/export setup but reallocates the fp16 keep budget away from one of the tail query paths and toward tail value paths, while preserving a final-block query rescue. That is a compact structural/export-budget edit aimed directly at the exact int8+zlib roundtrip score, without changing training loop shape stability, wallclock behavior, or validation flow.",
+  "run_id": "2026_04_25_run_0002",
+  "runtime_seconds": 623.455902,
+  "submitter": "frido22",
+  "title": "Recurrent Tail KV Float Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541604,
+  "under_16mb": true,
+  "val_bpb": 1.51513898,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

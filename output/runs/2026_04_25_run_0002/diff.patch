@@ -1,0 +1,23 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -469,6 +469,7 @@
+     "mlp.proj.weight",
+ )
+ BLOCK_FP16_PROJ_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
++BLOCK_FP16_TAIL_RECUR_SUFFIXES = ("attn.c_k.weight", "attn.c_v.weight")
+ def _np_float32(arr: mx.array) -> np.ndarray:
+     return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
+ def int8_clip_q(name: str) -> float:
+@@ -484,10 +485,10 @@
+         keep.update(prefix + suffix for suffix in BLOCK_FP16_PROJ_SUFFIXES)
+     for block_idx in range(max(num_layers - tail_recur_blocks, 0), num_layers):
+         prefix = f"blocks.{block_idx}."
+-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:2])
++        keep.update(prefix + suffix for suffix in BLOCK_FP16_TAIL_RECUR_SUFFIXES)
+     if num_layers > 0:
+         prefix = f"blocks.{num_layers - 1}."
+-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
++        keep.add(prefix + "attn.c_q.weight")
+     return keep
+ def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
+     return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL

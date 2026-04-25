@@ -381,3 +381,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_24_run_0026,1.513717,False,True,Recurrent Tail Value-Path Float Reallocation
 2026_04_24_run_0027,1.517917,True,False,Reverse Tail Progressive Anchor Refresh
 2026_04_25_run_0001,1.517498,True,False,Reverse Tail Anchor Self-Refresh
+2026_04_25_run_0002,1.515139,True,False,Recurrent Tail KV Float Reallocation
