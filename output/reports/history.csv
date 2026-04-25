@@ -393,3 +393,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_25_run_0011,1.513875,True,False,Late Tail-Aligned Loss Curriculum
 2026_04_25_run_0012,1.513872,True,False,Staged Reverse-Tail Anchor Refresh Curriculum
 2026_04_25_run_0013,1.513298,True,False,Recurrent Tail KV/V Export Reallocation
+2026_04_25_run_0014,1.515329,True,False,Recurrent-Tail V Rescue Reallocation

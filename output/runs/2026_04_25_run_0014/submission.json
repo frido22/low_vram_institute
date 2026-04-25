@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 14980459,
+  "code_bytes": 80148,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 14900311,
+  "rationale": "Reallocated fp16 export budget around the winning reverse-tail recurrent path: reduced generic tail projection rescue from two blocks to one and rescued `attn.c_v.weight` across both recurrent tail blocks. This keeps the staged recurrence curriculum intact while shifting bytes toward value-path tensors that are more likely to survive final int8+zlib roundtrip sensitivity on the active tail.",
+  "run_id": "2026_04_25_run_0014",
+  "runtime_seconds": 624.232854,
+  "submitter": "frido22",
+  "title": "Recurrent-Tail V Rescue Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541995,
+  "under_16mb": true,
+  "val_bpb": 1.51532937,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
