@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15752579,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 15673156,
+  "rationale": "Builds on the current staged reverse-tail curriculum with a compact second schedule: late in training and at eval, the recurrent tail gradually refreshes its anchor toward the running recurrent state instead of using a fully frozen decoder-output anchor. This is a real structural change in the winning recurrent-tail family, not another scalar sweep, and it keeps compile-stable shapes while targeting the still-promising reverse-tail anchor variants.",
+  "run_id": "2026_04_25_run_0009",
+  "runtime_seconds": 625.00164,
+  "submitter": "frido22",
+  "title": "Late Anchor-Mix Reverse Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 542357,
+  "under_16mb": true,
+  "val_bpb": 1.51558853,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

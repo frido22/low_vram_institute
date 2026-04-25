@@ -388,3 +388,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_25_run_0006,1.523816,True,False,Reverse-Tail Anchor Refresh Gate
 2026_04_25_run_0007,1.511643,True,False,Capped Reverse-Tail Recurrence Profile
 2026_04_25_run_0008,1.522853,True,False,Decoupled Tail Carry Curriculum
+2026_04_25_run_0009,1.515589,False,False,Late Anchor-Mix Reverse Tail
