@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15754549,
+  "code_bytes": 80083,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15674466,
+  "rationale": "Builds on the current staged reverse-tail recurrence baseline with a compact structural change: keep recurrent block activation on the existing curriculum, but square the carry gain for all but the deepest recurrent pass. The hypothesis is that delaying anchor pull while preserving reverse-tail refinement reduces early anchor over-coupling and leaves a cleaner late-phase state for the exact int8+zlib export path.",
+  "run_id": "2026_04_25_run_0019",
+  "runtime_seconds": 623.352566,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Carry Lag",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541019,
+  "under_16mb": true,
+  "val_bpb": 1.51725283,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
