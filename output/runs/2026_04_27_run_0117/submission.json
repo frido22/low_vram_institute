@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13291292,
+  "code_bytes": 82539,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 13208753,
+  "rationale": "Builds on the current recurrent-tail baseline with a compact structural change: late in training, it progressively upweights loss on the sequence tail so updates better match the stride/window-heavy final exact int8+zlib evaluation, without changing evaluation, data loading, wallclock control, or export behavior.",
+  "run_id": "2026_04_27_run_0117",
+  "runtime_seconds": 703.904183,
+  "submitter": "frido22",
+  "title": "Late Tail-Aligned Loss Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 616128,
+  "under_16mb": true,
+  "val_bpb": 1.95159281,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}

@@ -754,3 +754,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_27_run_0113,1.956124,True,False,Block-Local Reverse-Tail Anchors
 2026_04_27_run_0115,1.951937,True,False,Reallocate FP16 Export Budget Toward Recurrent V-Path
 2026_04_27_run_0116,1.952139,True,False,Progressive Reverse-Tail Anchor Refresh
+2026_04_27_run_0117,1.951593,True,False,Late Tail-Aligned Loss Curriculum
