@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 14002308,
+  "code_bytes": 81060,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 13921248,
+  "rationale": "Builds on the recurrent-tail baseline without broad shape churn. This adds a compact late-phase training objective that overweights the last eval-stride tokens per sequence, aligning training a bit more closely to the final doc-isolated sliding-window score path while leaving exact final evaluation and quant-aware export intact. I also folded duplicated loss logic into a shared token-loss path to keep the script lean under the line cap.",
+  "run_id": "2026_04_27_run_0105",
+  "runtime_seconds": 667.904407,
+  "submitter": "frido22",
+  "title": "Late Tail-Aligned Loss Blend",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 580673,
+  "under_16mb": true,
+  "val_bpb": 1.78528615,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
