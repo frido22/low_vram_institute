@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13199777,
+  "code_bytes": 80672,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 13119105,
+  "rationale": "Build on the current recurrent-tail baseline by aligning the recurrence curriculum to the actual 600s train budget instead of nominal iteration count, then locking into full recurrence once quant-aware training starts. This is a compact structural change aimed directly at the final int8 roundtrip objective: spend more of the real wallclock run training closer to the evaluation graph without adding parameters or export complexity.",
+  "run_id": "2026_04_27_run_0120",
+  "runtime_seconds": 828.34351,
+  "submitter": "frido22",
+  "title": "Wallclock-Aligned Reverse-Tail Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 739599,
+  "under_16mb": true,
+  "val_bpb": 1.95661259,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
