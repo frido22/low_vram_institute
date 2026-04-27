@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12800287,
+  "code_bytes": 80500,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12719787,
+  "rationale": "Local results still favor the compact reverse-tail recurrent family and recurrent-tail float rescue, while recent carry/anchor curricula and broader structural edits have gone badly. This keeps the current training path intact but reallocates int8 fp16 keep budget away from recurrent Q/K matrices toward recurrent V-path weights plus final-block Q/V, which is more directly on the export-sensitive tail path and should preserve the late recurrent exit with slightly better byte efficiency.",
+  "run_id": "2026_04_27_run_0115",
+  "runtime_seconds": 648.021714,
+  "submitter": "frido22",
+  "title": "Reallocate FP16 Export Budget Toward Recurrent V-Path",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 560103,
+  "under_16mb": true,
+  "val_bpb": 1.95193727,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
