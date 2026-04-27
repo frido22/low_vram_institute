@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12505833,
+  "code_bytes": 81152,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12424681,
+  "rationale": "Builds on the current reverse-tail recurrent baseline but stops spending anchor-pull capacity early. The recurrent block residual path still ramps as before, while the carry-to-anchor path now has its own later curriculum with zero initial gain by default. This is a compact structural edit in an unspent local direction: keep the winning recurrent tail, preserve compile-stable shapes, and reduce early anchor interference that recent anchor-refresh variants likely overused. Syntax checked; file remains under 1500 lines.",
+  "run_id": "2026_04_27_run_0110",
+  "runtime_seconds": 844.024966,
+  "submitter": "frido22",
+  "title": "Delayed Tail-Carry Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 755561,
+  "under_16mb": true,
+  "val_bpb": 1.81745734,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
