@@ -329,10 +329,14 @@ class GPT(nn.Module):
             x = self.blocks[self.num_encoder_layers + i](x, x0)
         if self.tail_recur_gates is not None:
             tail_anchor = x
+            tail_span = len(self.blocks) - self.tail_recur_start
+            tail_refresh_denom = max(tail_span - 1, 1)
             for block_idx in range(len(self.blocks) - 1, self.tail_recur_start - 1, -1):
                 recur_idx = block_idx - self.tail_recur_start
                 recur_gain = 1.0 if tail_recur_gains is None else tail_recur_gains[recur_idx].astype(x.dtype)
-                recur_x = x + recur_gain * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + recur_gain * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
+                refresh = 0.0 if tail_span <= 1 else float(tail_refresh_denom - recur_idx) / tail_refresh_denom
+                carry_target = tail_anchor + (x - tail_anchor) * (refresh * recur_gain)
+                recur_x = x + recur_gain * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (carry_target - x); x = recur_x + recur_gain * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
         return self.final_norm(x)
     def loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
         x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
@@ -1274,7 +1278,7 @@ def main() -> None:
         f"active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}"
     )
     log(f"decoder_skip_alignment:start:{model.decoder_skip_start} count:{model.skip_weights.shape[0]} trim:{max((0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]) - 1, 0)}")
-    log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
+    log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor_refresh")
     log(f"tail_recur_curriculum:min_gain:{args.tail_recur_min_gain} ramp_start:{args.tail_recur_ramp_start} ramp_end:{args.tail_recur_ramp_end}")
     log(f"tail_recur_staging:gap:{args.tail_recur_stage_gap} span:{args.tail_recur_stage_span}")
     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))

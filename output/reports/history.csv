@@ -747,3 +747,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_27_run_0105,1.785286,True,False,Late Tail-Aligned Loss Blend
 2026_04_27_run_0106,1.835132,True,False,Carry-Lead Reverse-Tail Curriculum
 2026_04_27_run_0107,1.834311,True,False,Tail Value / Attn-Proj FP16 Reallocation
+2026_04_27_run_0109,1.826650,True,False,Reverse-Tail Anchor Refresh Carry
