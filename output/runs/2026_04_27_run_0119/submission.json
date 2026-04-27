@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13245565,
+  "code_bytes": 80094,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 13165471,
+  "rationale": "Build on the staged reverse-tail curriculum instead of another flat scalar sweep. The change ties late recurrence activation to the existing quant-aware export mix, so the recurrent tail is trained closer to the full-recurrence, roundtrip-scored regime during the final export-sensitive phase without changing shapes, eval, or size budget.",
+  "run_id": "2026_04_27_run_0119",
+  "runtime_seconds": 787.6348,
+  "submitter": "frido22",
+  "title": "Quant-Aware Tail Recurrence Alignment",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 699170,
+  "under_16mb": true,
+  "val_bpb": 1.9580915,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}

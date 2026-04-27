@@ -1170,26 +1170,13 @@ def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tupl
     if not quant_aware_active:
         return 1.0, 1.0, 1.0
     return args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul
-def tail_recur_schedule(
-    args: Hyperparameters,
-    step: int,
-    active_blocks: int,
-    elapsed_ms: float = 0.0,
-    max_wallclock_ms: float | None = None,
-    reserved_final_ms: float = 0.0,
-    quant_aware_active: bool = False,
-) -> mx.array:
+def tail_recur_schedule(args: Hyperparameters, step: int, active_blocks: int, final_mix: float = 0.0) -> mx.array:
     if active_blocks <= 0:
         return mx.zeros((0,), dtype=mx.float32)
-    if quant_aware_active:
-        progress = 1.0
-    elif max_wallclock_ms is not None and max_wallclock_ms > reserved_final_ms:
-        progress = min(max(elapsed_ms / max(max_wallclock_ms - reserved_final_ms, 1.0), 0.0), 1.0)
-    elif args.tail_recur_ramp_end <= args.tail_recur_ramp_start:
+    if args.tail_recur_ramp_end <= args.tail_recur_ramp_start:
         progress = 1.0 if step > 0 else 0.0
     else:
         progress = step / max(args.iterations, 1)
-    if args.tail_recur_ramp_end > args.tail_recur_ramp_start:
         progress = min(max((progress - args.tail_recur_ramp_start) / (args.tail_recur_ramp_end - args.tail_recur_ramp_start), 0.0), 1.0)
     if active_blocks == 1:
         return mx.ones((1,), dtype=mx.float32)
@@ -1200,6 +1187,8 @@ def tail_recur_schedule(
         stage_progress = min(max((progress - stage_start) / stage_span, 0.0), 1.0)
         gains[idx] = args.tail_recur_min_gain + (1.0 - args.tail_recur_min_gain) * stage_progress
     gains[-1] = 1.0
+    if final_mix > 0.0:
+        gains += (1.0 - gains) * min(max(final_mix, 0.0), 1.0)
     return mx.array(gains, dtype=mx.float32)
 def main() -> None:
     args = Hyperparameters()
@@ -1290,7 +1279,6 @@ def main() -> None:
     log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
     log(f"tail_recur_curriculum:min_gain:{args.tail_recur_min_gain} ramp_start:{args.tail_recur_ramp_start} ramp_end:{args.tail_recur_ramp_end}")
     log(f"tail_recur_staging:gap:{args.tail_recur_stage_gap} span:{args.tail_recur_stage_span}")
-    log("tail_recur_schedule_basis:wallclock_then_quant_aware_lockin")
     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
@@ -1340,13 +1328,7 @@ def main() -> None:
             step < 10 or (step + 1) % args.train_log_every == 0 or stop_after_step is not None
         )
         tail_recur_gains = tail_recur_schedule(
-            args,
-            step,
-            args.tail_recur_blocks,
-            elapsed_ms=approx_train_time_ms,
-            max_wallclock_ms=max_wallclock_ms,
-            reserved_final_ms=reserved_final_ms,
-            quant_aware_active=quant_aware_active,
+            args, step, args.tail_recur_blocks, quant_aware_proj_mix if quant_aware_active else 0.0
         )
         if args.use_single_microbatch_path:
             train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
