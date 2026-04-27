@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13299239,
+  "code_bytes": 80129,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 13219110,
+  "rationale": "Recent global-anchor and carry-refresh variants failed hard, but the reverse-tail curriculum itself is still the strongest local motif. This edit keeps the same recurrent-tail family and compile-stable step structure, while changing only what the carry path targets: each recurrent tail block now pulls toward its own first-pass decoder activation instead of a single final decoder anchor. The hypothesis is that block-local anchors preserve the winning reverse-tail reuse while reducing over-smearing in the late recurrent path and surviving int8 roundtrip better than the decoder-output anchor.",
+  "run_id": "2026_04_27_run_0113",
+  "runtime_seconds": 635.730123,
+  "submitter": "frido22",
+  "title": "Block-Local Reverse-Tail Anchors",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 547327,
+  "under_16mb": true,
+  "val_bpb": 1.95612409,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
