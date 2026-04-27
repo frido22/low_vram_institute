@@ -758,3 +758,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_27_run_0118,1.953959,True,False,Recurrent V-Path FP16 Reallocation
 2026_04_27_run_0119,1.958092,True,False,Quant-Aware Tail Recurrence Alignment
 2026_04_27_run_0120,1.956613,True,False,Wallclock-Aligned Reverse-Tail Curriculum
+2026_04_27_run_0121,1.961618,False,False,Tail-Focused EMA for Recurrent Export Path

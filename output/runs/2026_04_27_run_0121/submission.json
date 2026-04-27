@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13215251,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 13135828,
+  "rationale": "Recent broad curriculum and export reallocations regressed, so the intended change was to keep the winning reverse-tail recurrent family intact while narrowing late EMA tracking to quant-sensitive tail tensors, recurrent control tensors, skip weights, and late V/proj path tensors. That targets the exact int8 roundtrip endgame without another large structural rewrite.",
+  "run_id": "2026_04_27_run_0121",
+  "runtime_seconds": 820.433771,
+  "submitter": "frido22",
+  "title": "Tail-Focused EMA for Recurrent Export Path",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 731221,
+  "under_16mb": true,
+  "val_bpb": 1.96161815,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
