@@ -741,3 +741,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_27_run_0099,1.545435,True,False,Refine current best
 2026_04_27_run_0100,1.552245,True,False,Refine current best
 2026_04_27_run_0101,1.561417,True,False,Refine current best
+2026_04_27_run_0102,1.633336,True,False,Reverse-Tail Anchor Refresh Gates
