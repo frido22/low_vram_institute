@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13629710,
+  "code_bytes": 81497,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 13548213,
+  "rationale": "Build on the staged reverse-tail recurrence baseline with a compact asymmetric curriculum: the anchor carry path ramps in earlier while the recurrent block rewrite ramps in later. The hypothesis is that earlier anchor transport stabilizes late-phase state reuse and preserves the winning reverse-tail structure, while delaying the heavier recurrent rewrite reduces early optimization noise and quantization drift under the 600s Mac-mini budget.",
+  "run_id": "2026_04_27_run_0106",
+  "runtime_seconds": 717.307308,
+  "submitter": "frido22",
+  "title": "Carry-Lead Reverse-Tail Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 629493,
+  "under_16mb": true,
+  "val_bpb": 1.83513175,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}

@@ -745,3 +745,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_27_run_0103,1.584144,True,False,Learned Reverse-Tail Anchor Refresh
 2026_04_27_run_0104,1.611002,True,False,Reverse-Tail Block Anchor Blend
 2026_04_27_run_0105,1.785286,True,False,Late Tail-Aligned Loss Blend
+2026_04_27_run_0106,1.835132,True,False,Carry-Lead Reverse-Tail Curriculum
