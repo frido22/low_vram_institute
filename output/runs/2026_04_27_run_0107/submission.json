@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12991470,
+  "code_bytes": 79835,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12911635,
+  "rationale": "Builds on the staged reverse-tail recurrence baseline with a compact export-budget shift: keep QKV for both recurrent tail blocks, keep attention projection for the last two blocks, and keep MLP projection only on the final block. The hypothesis is that recurrent tail value-path fidelity matters more than the second-to-last MLP exit under exact int8+zlib roundtrip, while staying comfortably under the 16 MB cap and avoiding broader training-loop churn.",
+  "run_id": "2026_04_27_run_0107",
+  "runtime_seconds": 760.09594,
+  "submitter": "frido22",
+  "title": "Tail Value / Attn-Proj FP16 Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 671422,
+  "under_16mb": true,
+  "val_bpb": 1.83431079,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}

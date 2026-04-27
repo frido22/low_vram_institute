@@ -329,14 +329,10 @@ class GPT(nn.Module):
             x = self.blocks[self.num_encoder_layers + i](x, x0)
         if self.tail_recur_gates is not None:
             tail_anchor = x
-            tail_span = max(len(self.blocks) - self.tail_recur_start - 1, 1)
             for block_idx in range(len(self.blocks) - 1, self.tail_recur_start - 1, -1):
                 recur_idx = block_idx - self.tail_recur_start
                 recur_gain = 1.0 if tail_recur_gains is None else tail_recur_gains[recur_idx].astype(x.dtype)
-                recur_x = x + recur_gain * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x)
-                x = recur_x + recur_gain * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
-                anchor_mix = recur_gain * (0.2 + 0.5 * (recur_idx / tail_span))
-                tail_anchor = tail_anchor + anchor_mix * (x - tail_anchor)
+                recur_x = x + recur_gain * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + recur_gain * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
         return self.final_norm(x)
     def loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
         x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
@@ -487,13 +483,12 @@ def build_int8_fp16_keep_names(num_layers: int, tail_recur_blocks: int) -> set[s
         keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES)
     for block_idx in range(max(num_layers - INT8_FP16_TAIL_PROJ_BLOCKS, 0), num_layers):
         prefix = f"blocks.{block_idx}."
-        keep.update(prefix + suffix for suffix in BLOCK_FP16_PROJ_SUFFIXES)
+        keep.add(prefix + BLOCK_FP16_PROJ_SUFFIXES[0])
+        if block_idx == num_layers - 1:
+            keep.add(prefix + BLOCK_FP16_PROJ_SUFFIXES[1])
     for block_idx in range(max(num_layers - tail_recur_blocks, 0), num_layers):
         prefix = f"blocks.{block_idx}."
-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:2])
-    if num_layers > 0:
-        prefix = f"blocks.{num_layers - 1}."
-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
+        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:3])
     return keep
 def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
     return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL
