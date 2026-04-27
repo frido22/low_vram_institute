@@ -749,3 +749,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_27_run_0107,1.834311,True,False,Tail Value / Attn-Proj FP16 Reallocation
 2026_04_27_run_0109,1.826650,True,False,Reverse-Tail Anchor Refresh Carry
 2026_04_27_run_0110,1.817457,True,False,Delayed Tail-Carry Curriculum
+2026_04_27_run_0111,1.826910,True,False,Targeted Tail Export Curriculum

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13466212,
+  "code_bytes": 80829,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 13385383,
+  "rationale": "Recent anchor-refresh and carry curriculum edits regressed hard, while recurrent-tail plus export-aware training remains the strongest local motif. This run keeps the current 9x512 reverse-tail family intact but narrows late quant-aware roundtrip pressure to the tensors most likely to matter for final int8+zlib behavior: embedding, tail QKV, and late projection weights. It also aligns the EMA tracker with that same export-critical subset instead of broadly perturbing the whole model during the endgame. The hypothesis is that selective export alignment preserves throughput and the winning recurrent-tail dynamics better than full-state roundtrip regularization, while still training directly toward the exact final metric.",
+  "run_id": "2026_04_27_run_0111",
+  "runtime_seconds": 838.514334,
+  "submitter": "frido22",
+  "title": "Targeted Tail Export Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 746055,
+  "under_16mb": true,
+  "val_bpb": 1.82690987,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
