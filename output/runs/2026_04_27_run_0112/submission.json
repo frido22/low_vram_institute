@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13506131,
+  "code_bytes": 80354,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 13425777,
+  "rationale": "Recent anchor and loss-path edits regressed badly, so this stays in the proven recurrent-tail family but spends the next run on a larger structural probe instead of another scalar sweep. The edit expands the reverse recurrent tail from 2 to 3 blocks while delaying the extra recurrence with a later, softer curriculum, aiming to buy more late-stage recurrent depth without paying the full optimization cost early in the 600s budget.",
+  "run_id": "2026_04_27_run_0112",
+  "runtime_seconds": 995.255199,
+  "submitter": "frido22",
+  "title": "Three-Block Late Reverse-Tail Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 898175,
+  "under_16mb": true,
+  "val_bpb": 1.94945542,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}

@@ -67,12 +67,12 @@ class Hyperparameters:
     eval_doc_isolated: bool = bool(int(os.environ.get("EVAL_DOC_ISOLATED", "1")))
     rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
     qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 2.0))
-    tail_recur_blocks: int = int(os.environ.get("TAIL_RECUR_BLOCKS", 2))
-    tail_recur_ramp_start: float = float(os.environ.get("TAIL_RECUR_RAMP_START", 0.55))
-    tail_recur_ramp_end: float = float(os.environ.get("TAIL_RECUR_RAMP_END", 0.9))
-    tail_recur_min_gain: float = float(os.environ.get("TAIL_RECUR_MIN_GAIN", 0.35))
-    tail_recur_stage_gap: float = float(os.environ.get("TAIL_RECUR_STAGE_GAP", 0.16))
-    tail_recur_stage_span: float = float(os.environ.get("TAIL_RECUR_STAGE_SPAN", 0.12))
+    tail_recur_blocks: int = int(os.environ.get("TAIL_RECUR_BLOCKS", 3))
+    tail_recur_ramp_start: float = float(os.environ.get("TAIL_RECUR_RAMP_START", 0.6))
+    tail_recur_ramp_end: float = float(os.environ.get("TAIL_RECUR_RAMP_END", 0.94))
+    tail_recur_min_gain: float = float(os.environ.get("TAIL_RECUR_MIN_GAIN", 0.2))
+    tail_recur_stage_gap: float = float(os.environ.get("TAIL_RECUR_STAGE_GAP", 0.1))
+    tail_recur_stage_span: float = float(os.environ.get("TAIL_RECUR_STAGE_SPAN", 0.1))
     beta1: float = float(os.environ.get("BETA1", 0.9))
     beta2: float = float(os.environ.get("BETA2", 0.95))
     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
@@ -1170,13 +1170,17 @@ def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tupl
     if not quant_aware_active:
         return 1.0, 1.0, 1.0
     return args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul
-def tail_recur_schedule(args: Hyperparameters, step: int, active_blocks: int) -> mx.array:
+def train_progress(args: Hyperparameters, step: int, elapsed_ms: float, max_wallclock_ms: float | None, reserved_final_ms: float) -> float:
+    if max_wallclock_ms is not None:
+        train_budget_ms = max(max_wallclock_ms - reserved_final_ms, 1.0)
+        return min(max(elapsed_ms / train_budget_ms, 0.0), 1.0)
+    return min(step / max(args.iterations, 1), 1.0)
+def tail_recur_schedule(args: Hyperparameters, progress: float, active_blocks: int) -> mx.array:
     if active_blocks <= 0:
         return mx.zeros((0,), dtype=mx.float32)
     if args.tail_recur_ramp_end <= args.tail_recur_ramp_start:
-        progress = 1.0 if step > 0 else 0.0
+        progress = 1.0 if progress > 0.0 else 0.0
     else:
-        progress = step / max(args.iterations, 1)
         progress = min(max((progress - args.tail_recur_ramp_start) / (args.tail_recur_ramp_end - args.tail_recur_ramp_start), 0.0), 1.0)
     if active_blocks == 1:
         return mx.ones((1,), dtype=mx.float32)
@@ -1325,7 +1329,8 @@ def main() -> None:
         should_log_train = args.train_log_every > 0 and (
             step < 10 or (step + 1) % args.train_log_every == 0 or stop_after_step is not None
         )
-        tail_recur_gains = tail_recur_schedule(args, step, args.tail_recur_blocks)
+        recur_progress = train_progress(args, step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms)
+        tail_recur_gains = tail_recur_schedule(args, recur_progress, args.tail_recur_blocks)
         if args.use_single_microbatch_path:
             train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
             if args.mlx_eager_eval:
