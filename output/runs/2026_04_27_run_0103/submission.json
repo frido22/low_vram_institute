@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15091471,
+  "code_bytes": 80214,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15011257,
+  "rationale": "Build on the staged reverse-tail recurrence baseline with a compact structural change instead of another flat scalar sweep. The fixed decoder-output anchor is strong locally, but it also forces every recurrent tail pass to pull against a stale reference. This edit adds tiny learned tail_anchor_gates so each recurrent block can refresh that anchor after its update, preserving the winning reverse-tail carry path while letting later recurrent passes hand off a cleaner anchor state. The new control tensors are tiny, stay in the existing fp32 keep path, keep shapes compile-stable, and directly target the still-promising anchor-refresh idea category without bloating the script or changing evaluation/export plumbing.",
+  "run_id": "2026_04_27_run_0103",
+  "runtime_seconds": 748.940613,
+  "submitter": "frido22",
+  "title": "Learned Reverse-Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 657054,
+  "under_16mb": true,
+  "val_bpb": 1.58414373,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
