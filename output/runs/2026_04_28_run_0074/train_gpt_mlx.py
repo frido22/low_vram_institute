@@ -53,6 +53,9 @@ class Hyperparameters:
     quant_aware_proj_start: float = float(os.environ.get("QUANT_AWARE_PROJ_START", 0.55))
     quant_aware_proj_step: float = float(os.environ.get("QUANT_AWARE_PROJ_STEP", 0.2))
     quant_aware_proj_end: float = float(os.environ.get("QUANT_AWARE_PROJ_END", 0.95))
+    tail_loss_weight: float = float(os.environ.get("TAIL_LOSS_WEIGHT", 1.4))
+    tail_loss_ramp_start: float = float(os.environ.get("TAIL_LOSS_RAMP_START", 0.8))
+    tail_loss_ramp_end: float = float(os.environ.get("TAIL_LOSS_RAMP_END", 0.96))
     vocab_size: int = int(os.environ.get("VOCAB_SIZE", 1024))
     num_layers: int = int(os.environ.get("NUM_LAYERS", 9))
     model_dim: int = int(os.environ.get("MODEL_DIM", 512))
@@ -334,36 +337,40 @@ class GPT(nn.Module):
                 recur_gain = 1.0 if tail_recur_gains is None else tail_recur_gains[recur_idx].astype(x.dtype)
                 recur_x = x + recur_gain * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + recur_gain * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
         return self.final_norm(x)
+    def _token_loss(self, logits: mx.array, y: mx.array) -> mx.array:
+        logits_f = logits.astype(mx.float32)
+        return mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[:, None], axis=-1).reshape(-1)
+    def _loss_from_flat(self, x: mx.array, y: mx.array, prev_ids: mx.array, weights: mx.array | None = None) -> mx.array:
+        loss_sum = mx.array(0.0, dtype=mx.float32)
+        n = int(x.shape[0])
+        if weights is None:
+            if self.logit_chunk_tokens <= 0 or n <= self.logit_chunk_tokens:
+                return nn.losses.cross_entropy(self.project_logits(x, prev_ids).astype(mx.float32), y, reduction="mean")
+            for s in range(0, n, self.logit_chunk_tokens):
+                e = min(s + self.logit_chunk_tokens, n)
+                loss_sum = loss_sum + nn.losses.cross_entropy(self.project_logits(x[s:e], prev_ids[s:e]).astype(mx.float32), y[s:e], reduction="sum")
+            return loss_sum / float(n)
+        denom = mx.maximum(mx.sum(weights), mx.array(1.0, dtype=mx.float32))
+        if self.logit_chunk_tokens <= 0 or n <= self.logit_chunk_tokens:
+            return mx.sum(self._token_loss(self.project_logits(x, prev_ids), y) * weights) / denom
+        for s in range(0, n, self.logit_chunk_tokens):
+            e = min(s + self.logit_chunk_tokens, n)
+            loss_sum = loss_sum + mx.sum(self._token_loss(self.project_logits(x[s:e], prev_ids[s:e]), y[s:e]) * weights[s:e])
+        return loss_sum / denom
     def loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
         x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
-        if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
-            logits = self.project_logits(x, prev_ids)
-            return nn.losses.cross_entropy(logits.astype(mx.float32), y, reduction="mean")
-        loss_sum = mx.array(0.0, dtype=mx.float32)
-        n = int(x.shape[0])
-        for s in range(0, n, self.logit_chunk_tokens):
-            e = min(s + self.logit_chunk_tokens, n)
-            logits = self.project_logits(x[s:e], prev_ids[s:e])
-            loss_sum = loss_sum + nn.losses.cross_entropy(logits.astype(mx.float32), y[s:e], reduction="sum")
-        return loss_sum / float(n)
+        return self._loss_from_flat(x, y, prev_ids)
+    def tail_loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None, tail_weight: mx.array | None = None) -> mx.array:
+        x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+        seq_len = int(target_ids.shape[1]); tail_tokens = min(seq_len, max(1, TAIL_LOSS_TOKENS))
+        if tail_tokens >= seq_len:
+            weights = mx.ones(target_ids.shape, dtype=mx.float32) * tail_weight.astype(mx.float32)
+        else:
+            weights = mx.concatenate((mx.ones((int(target_ids.shape[0]), seq_len - tail_tokens), dtype=mx.float32), mx.ones((int(target_ids.shape[0]), tail_tokens), dtype=mx.float32) * tail_weight.astype(mx.float32)), axis=1)
+        return self._loss_from_flat(x, y, prev_ids, weights.reshape(-1))
     def masked_loss(self, input_ids: mx.array, target_ids: mx.array, loss_mask: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
         x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
-        mask = loss_mask.reshape(-1).astype(mx.float32)
-        denom = mx.maximum(mx.sum(mask), mx.array(1.0, dtype=mx.float32))
-        if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
-            logits = self.project_logits(x, prev_ids)
-            logits_f = logits.astype(mx.float32)
-            token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[:, None], axis=-1).reshape(-1)
-            return mx.sum(token_loss.astype(mx.float32) * mask) / denom
-        loss_sum = mx.array(0.0, dtype=mx.float32)
-        n = int(x.shape[0])
-        for s in range(0, n, self.logit_chunk_tokens):
-            e = min(s + self.logit_chunk_tokens, n)
-            logits = self.project_logits(x[s:e], prev_ids[s:e])
-            logits_f = logits.astype(mx.float32)
-            token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[s:e, None], axis=-1).reshape(-1)
-            loss_sum = mx.sum(token_loss.astype(mx.float32) * mask[s:e])
-        return loss_sum / denom
+        return self._loss_from_flat(x, y, prev_ids, loss_mask.reshape(-1).astype(mx.float32))
 class Muon:
     def __init__(self, keys: list[str], params: dict[str, mx.array], args: Hyperparameters):
         self.keys = keys
@@ -456,6 +463,7 @@ INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.
 INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
 INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
 PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
+TAIL_LOSS_TOKENS = int(os.environ.get("TAIL_LOSS_TOKENS", os.environ.get("EVAL_STRIDE", "64")))
 INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
 INT8_FP16_KEEP_NAMES = tuple(
     name
@@ -858,6 +866,7 @@ def loss_and_grad_chunked(
     train_loader: TokenLoader,
     compiled_loss_and_grad,
     tail_recur_gains: mx.array,
+    tail_loss_weight: mx.array,
 ) -> tuple[mx.array, dict]:
     chunk_sizes = token_chunks(args.microbatch_tokens, args.train_seq_len, args.mlx_max_microbatch_tokens)
     total_tokens = float(sum(chunk_sizes))
@@ -865,7 +874,7 @@ def loss_and_grad_chunked(
     grad_accum: dict[str, mx.array] | None = None
     for chunk_tokens in chunk_sizes:
         x, y = train_loader.next_batch(chunk_tokens, args.train_seq_len)
-        loss, grads = compiled_loss_and_grad(x, y, tail_recur_gains)
+        loss, grads = compiled_loss_and_grad(x, y, tail_recur_gains, tail_loss_weight)
         scale = float(y.size) / total_tokens
         loss_value = loss_value + loss.astype(mx.float32) * scale
         grad_accum = accumulate_flat_grads(grad_accum, grads, scale)
@@ -877,9 +886,10 @@ def loss_and_grad_one_batch(
     train_loader: TokenLoader,
     compiled_loss_and_grad,
     tail_recur_gains: mx.array,
+    tail_loss_weight: mx.array,
 ) -> tuple[mx.array, dict]:
     x, y = train_loader.next_batch(args.train_batch_tokens, args.train_seq_len)
-    return compiled_loss_and_grad(x, y, tail_recur_gains)
+    return compiled_loss_and_grad(x, y, tail_recur_gains, tail_loss_weight)
 def eval_val(args: Hyperparameters, compiled_loss, compiled_masked_loss, val_tokens: np.ndarray, doc_spans: list[tuple[int, int]] | None, bos_token_id: int, tail_recur_gains: mx.array, base_bytes_lut: np.ndarray, has_leading_space_lut: np.ndarray, is_boundary_token_lut: np.ndarray, log_fn: Callable[[str], None] | None = None) -> tuple[float, float]:
     if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0:
         return eval_val_doc_isolated(
@@ -1170,6 +1180,12 @@ def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tupl
     if not quant_aware_active:
         return 1.0, 1.0, 1.0
     return args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul
+def tail_loss_schedule(args: Hyperparameters, step: int, quant_aware_active: bool) -> mx.array:
+    if not quant_aware_active or args.tail_loss_weight <= 1.0:
+        return mx.array(1.0, dtype=mx.float32)
+    span = max(args.tail_loss_ramp_end - args.tail_loss_ramp_start, 1e-6)
+    progress = min(max(step / max(args.iterations, 1) - args.tail_loss_ramp_start, 0.0) / span, 1.0)
+    return mx.array(1.0 + (args.tail_loss_weight - 1.0) * progress, dtype=mx.float32)
 def tail_recur_schedule(args: Hyperparameters, step: int, active_blocks: int) -> mx.array:
     if active_blocks <= 0:
         return mx.zeros((0,), dtype=mx.float32)
@@ -1229,7 +1245,8 @@ def main() -> None:
     tail_recur_eval_gains = mx.ones((args.tail_recur_blocks,), dtype=mx.float32)
     compiled_loss = mx.compile(lambda x, y, rg: model.loss(x, y, rg), inputs=model.state, outputs=model.state)
     compiled_masked_loss = mx.compile(lambda x, y, m, rg: model.masked_loss(x, y, m, rg), inputs=model.state, outputs=model.state)
-    compiled_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y, rg: model.loss(x, y, rg)), inputs=model.state, outputs=model.state)
+    compiled_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y, rg, tw: model.loss(x, y, rg)), inputs=model.state, outputs=model.state)
+    compiled_tail_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y, rg, tw: model.tail_loss(x, y, rg, tw)), inputs=model.state, outputs=model.state)
     if "MLX_EAGER_EVAL" not in os.environ:
         args.mlx_eager_eval = not args.use_single_microbatch_path
     elif args.use_single_microbatch_path and args.mlx_eager_eval:
@@ -1267,6 +1284,7 @@ def main() -> None:
     log(f"quant_aware:train_seconds:{args.quant_aware_train_seconds:.1f} iters:{args.quant_aware_iters} every:{args.quant_aware_every}")
     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
+    log(f"tail_loss_curriculum:weight:{args.tail_loss_weight} ramp_start:{args.tail_loss_ramp_start} ramp_end:{args.tail_loss_ramp_end}")
     log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
     log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
     log(
@@ -1321,13 +1339,15 @@ def main() -> None:
             or should_activate_quant_aware(args, step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms)
         )
         embed_lr_mul, matrix_lr_mul, scalar_lr_mul = quant_aware_lr_muls(args, quant_aware_active)
+        tail_loss_weight = tail_loss_schedule(args, step, quant_aware_active)
+        compiled_train_loss_and_grad = compiled_tail_loss_and_grad if float(tail_loss_weight.item()) > 1.0001 else compiled_loss_and_grad
         step_t0 = time.perf_counter()
         should_log_train = args.train_log_every > 0 and (
             step < 10 or (step + 1) % args.train_log_every == 0 or stop_after_step is not None
         )
         tail_recur_gains = tail_recur_schedule(args, step, args.tail_recur_blocks)
         if args.use_single_microbatch_path:
-            train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
+            train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_train_loss_and_grad, tail_recur_gains, tail_loss_weight)
             if args.mlx_eager_eval:
                 mx.eval(train_loss, grads)
             grads = clip_grad_tree(grads, args.grad_clip_norm)
@@ -1336,7 +1356,7 @@ def main() -> None:
             train_loss = mx.array(0.0, dtype=mx.float32)
             grad_scale = 1.0 / args.grad_accum_steps
             for _ in range(args.grad_accum_steps):
-                loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
+                loss, grads = train_step_loss_and_grad(args, train_loader, compiled_train_loss_and_grad, tail_recur_gains, tail_loss_weight)
                 accum = accumulate_flat_grads(accum, grads, grad_scale)
                 train_loss = train_loss + loss.astype(mx.float32) * grad_scale
                 if args.mlx_eager_eval:

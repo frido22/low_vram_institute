@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12749751,
+  "code_bytes": 82199,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12667552,
+  "rationale": "Recent export-side edits regressed badly, so this stays on the 0031/0004 recurrent-tail family and spends the change on validation alignment instead. It adds a compact late-phase curriculum that upweights the last stride-sized tokens of each training window only during quant-aware time, matching the final sliding-window scoring pattern without touching exact evaluation or the export path. I also deduplicated token-loss code so the script remains compact under the line cap.",
+  "run_id": "2026_04_28_run_0074",
+  "runtime_seconds": 634.818022,
+  "submitter": "frido22",
+  "title": "Late Tail-Loss Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 547613,
+  "under_16mb": true,
+  "val_bpb": 2.05286246,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
