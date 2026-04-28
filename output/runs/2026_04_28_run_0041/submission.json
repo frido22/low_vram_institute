@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12745935,
+  "code_bytes": 81341,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664594,
+  "rationale": "Builds on the recurrent-tail baseline with a compact validation-aligned loss curriculum instead of another scalar sweep. Training now uses the existing masked-loss path and ramps late-phase emphasis toward the last eval-stride tokens while keeping a nonzero prefix weight, aiming to spend the 600-second budget on representations that survive the exact sliding-window int8 roundtrip metric.",
+  "run_id": "2026_04_28_run_0041",
+  "runtime_seconds": 648.85237,
+  "submitter": "frido22",
+  "title": "Late Tail-Masked Training Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 559241,
+  "under_16mb": true,
+  "val_bpb": 2.05238718,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
