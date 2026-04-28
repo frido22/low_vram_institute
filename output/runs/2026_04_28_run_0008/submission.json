@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12982637,
+  "code_bytes": 79935,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12902702,
+  "rationale": "Builds on the current reverse-tail recurrent baseline but changes the recurrence curriculum so only the deepest recurrent pass is active at the start, while earlier recurrent tail blocks stay off until their stage opens and then ramp from the existing minimum gain. This is a compact structural edit aimed at the best local motif: preserve the proven late reverse-tail path, reduce early training noise from shallow recurrent passes, and keep shapes, export behavior, and wallclock stability unchanged.",
+  "run_id": "2026_04_28_run_0008",
+  "runtime_seconds": 987.838498,
+  "submitter": "frido22",
+  "title": "Staged Reverse-Tail Recurrence Warm Start",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 899519,
+  "under_16mb": true,
+  "val_bpb": 1.95756043,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}

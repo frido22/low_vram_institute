@@ -1180,11 +1180,12 @@ def tail_recur_schedule(args: Hyperparameters, step: int, active_blocks: int) ->
         progress = min(max((progress - args.tail_recur_ramp_start) / (args.tail_recur_ramp_end - args.tail_recur_ramp_start), 0.0), 1.0)
     if active_blocks == 1:
         return mx.ones((1,), dtype=mx.float32)
-    gains = np.ones((active_blocks,), dtype=np.float32)
+    gains = np.zeros((active_blocks,), dtype=np.float32)
     for idx in range(active_blocks - 1):
         stage_start = idx * args.tail_recur_stage_gap
-        stage_span = max(args.tail_recur_stage_span, 1e-6)
-        stage_progress = min(max((progress - stage_start) / stage_span, 0.0), 1.0)
+        if progress <= stage_start:
+            continue
+        stage_progress = min(max((progress - stage_start) / max(args.tail_recur_stage_span, 1e-6), 0.0), 1.0)
         gains[idx] = args.tail_recur_min_gain + (1.0 - args.tail_recur_min_gain) * stage_progress
     gains[-1] = 1.0
     return mx.array(gains, dtype=mx.float32)
