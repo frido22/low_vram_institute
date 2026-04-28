@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13005464,
+  "code_bytes": 79908,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12925556,
+  "rationale": "Builds directly on the current reverse-tail recurrent baseline and spends a small amount of remaining artifact budget on a tensor family that local runs keep pointing at: recurrent-tail value projections. The change is compact, compile-stable, and optimizes the exact scored path by keeping `attn.c_v` weights in fp16 across all recurrent-tail blocks instead of only the very last one.",
+  "run_id": "2026_04_28_run_0016",
+  "runtime_seconds": 1165.115673,
+  "submitter": "frido22",
+  "title": "Recurrent-Tail V FP16 Export Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 1075187,
+  "under_16mb": true,
+  "val_bpb": 1.96290842,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
