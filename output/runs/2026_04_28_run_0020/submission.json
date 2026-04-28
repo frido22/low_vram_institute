@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12750024,
+  "code_bytes": 79915,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12670109,
+  "rationale": "Reallocated the recurrent-tail FP16 export budget away from the earlier tail K path and toward the tail V path while still keeping Q for both recurrent blocks and K on the final block. This is a compact, compile-stable change aimed directly at the strongest remaining local signal: recurrent-tail value-path float rescue under the reverse-tail curriculum, without adding new training-time structure or bloating the script.",
+  "run_id": "2026_04_28_run_0020",
+  "runtime_seconds": 1046.787855,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Value-Path Float Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 952897,
+  "under_16mb": true,
+  "val_bpb": 2.02305428,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
