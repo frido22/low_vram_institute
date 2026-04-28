@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12745550,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12666127,
+  "rationale": "Builds on the current reverse-tail recurrent baseline with a compact structural change: each recurrent tail block now learns a small staged refresh of the shared decoder-output anchor toward the carried recurrent state. This keeps the proven reverse-tail carry path, adds only a tiny control tensor budget, stays quantization-friendly by treating the new gates like other control tensors, and tests a nearby anchor-mix variant that matches the strongest remaining local signal better than another scalar hyperparameter sweep.",
+  "run_id": "2026_04_28_run_0046",
+  "runtime_seconds": 619.819462,
+  "submitter": "frido22",
+  "title": "Staged Tail Anchor Refresh Gate",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 529811,
+  "under_16mb": true,
+  "val_bpb": 2.05231054,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
