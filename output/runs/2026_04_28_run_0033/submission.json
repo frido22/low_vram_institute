@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747097,
+  "code_bytes": 80440,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666657,
+  "rationale": "The current best staged reverse-tail script is still scheduling recurrence by step/ITERATIONS, but official Mac-mini runs stop around 750 steps out of 20,000, so the earlier recurrent block effectively stays near its minimum gain for the whole run. This edit keeps the winning architecture/export path intact and makes the existing staged curriculum advance by actual train-time budget as well as step count, using the same reserved-final-eval budget the launcher already uses. The hypothesis is that this reduces the train/eval mismatch on the first recurrent tail block late in the 600s run without adding new tensors, compile churn, or artifact bytes.",
+  "run_id": "2026_04_28_run_0033",
+  "runtime_seconds": 624.48467,
+  "submitter": "frido22",
+  "title": "Wallclock-Aligned Tail Recurrence Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 535239,
+  "under_16mb": true,
+  "val_bpb": 2.05156138,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
