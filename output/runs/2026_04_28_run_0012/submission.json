@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13045096,
+  "code_bytes": 79909,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12965187,
+  "rationale": "Extends the proven recurrent-tail export budget slightly by keeping `attn.c_v.weight` in fp16 for every recurrent tail block, not just the final block. This is a compact change on top of the current best family and directly targets the final int8+zlib roundtrip path, where recurrent value-path quantization noise remains a plausible bottleneck.",
+  "run_id": "2026_04_28_run_0012",
+  "runtime_seconds": 1103.15016,
+  "submitter": "frido22",
+  "title": "Recurrent-Tail V Float Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 1014743,
+  "under_16mb": true,
+  "val_bpb": 1.96604099,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
