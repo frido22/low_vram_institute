@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12643053,
+  "code_bytes": 80344,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12562709,
+  "rationale": "Builds on the current reverse-tail recurrent baseline with a compact structural edit: after the usual reverse recurrent tail pass, reuse the last tail block one extra time, gated by the earliest curriculum gain so it only turns on once the full tail recurrence has matured. This spends extra shared depth directly on the export-sensitive output path without adding parameters, shape churn, or a larger artifact.",
+  "run_id": "2026_04_28_run_0084",
+  "runtime_seconds": 994.40411,
+  "submitter": "frido22",
+  "title": "Late Final-Block Tail Recurrence",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 897061,
+  "under_16mb": true,
+  "val_bpb": 2.07099494,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
