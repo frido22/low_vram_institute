@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746495,
+  "code_bytes": 80805,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665690,
+  "rationale": "Adds a compact structural edit to the existing reverse-tail recurrent path: each recurrent block now pulls toward a blended tail anchor and then refreshes that anchor after the block update. This keeps the recurrent target from staying frozen across the whole reverse sweep, which matches the strongest local motif more closely than another scalar-only sweep while preserving shape stability, export path, and script size.",
+  "run_id": "2026_04_28_run_0076",
+  "runtime_seconds": 650.838312,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor Refresh Blend",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 561316,
+  "under_16mb": true,
+  "val_bpb": 2.05136525,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
