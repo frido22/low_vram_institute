@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13118536,
+  "code_bytes": 80297,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 13038239,
+  "rationale": "Recent runs suggest the recurrent-tail family is still the right region, but the latest curricula were over-aggressive. This keeps the current reverse-tail recurrent structure and export path intact, while adding a tiny learned anchor-refresh gate that lets each recurrent tail block interpolate against the original decoder tail anchor and then refresh that anchor after the block update. The change is compact, compile-stable, and byte-cheap, and specifically targets the still-promising anchor-variant idea category without another scalar-only sweep.",
+  "run_id": "2026_04_27_run_0122",
+  "runtime_seconds": 892.290709,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor Refresh Gate",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 804551,
+  "under_16mb": true,
+  "val_bpb": 1.96585586,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
