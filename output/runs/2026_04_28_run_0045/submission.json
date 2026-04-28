@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12579201,
+  "code_bytes": 79981,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12499220,
+  "rationale": "Reallocates the tail FP16 export budget away from recurrent-tail Q and toward recurrent-tail K/V while preserving final-block Q. This is a compact, final-metric-targeted change on top of the current recurrent-tail baseline: it directly changes the exact int8+zlib roundtrip path, follows the strongest local near-miss category around value-path float rescue, and slightly reduces artifact pressure versus keeping Q on every recurrent block.",
+  "run_id": "2026_04_28_run_0045",
+  "runtime_seconds": 679.527769,
+  "submitter": "frido22",
+  "title": "Recurrent-Tail Value-Path FP16 Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 528002,
+  "under_16mb": true,
+  "val_bpb": 2.05191236,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
