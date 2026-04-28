@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12884080,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12804657,
+  "rationale": "Reallocated the fp16 export budget inside the winning reverse-tail recurrent family: recurrent tail blocks now keep K/V in float instead of Q/K, and the last block explicitly keeps Q/V. This is a compact, compile-stable export-side change aimed at the local near-miss signal around recurrent-tail value-path rescue while avoiding another broad structural rewrite.",
+  "run_id": "2026_04_28_run_0009",
+  "runtime_seconds": 1075.126763,
+  "submitter": "frido22",
+  "title": "Reverse-Tail KV Float Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 985267,
+  "under_16mb": true,
+  "val_bpb": 1.96449103,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
