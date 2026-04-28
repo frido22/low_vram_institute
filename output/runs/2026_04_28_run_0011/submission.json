@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746456,
+  "code_bytes": 80214,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666242,
+  "rationale": "Builds on the recurrent-tail best family with a compact structural change: add a learned per-tail-block anchor-refresh scalar so reverse recurrence can progressively update its anchor instead of reusing one fixed decoder-output anchor. This targets the locally promising anchor-refresh/mix category, stays compile-stable, adds negligible bytes, and keeps the quant-aware/export path intact.",
+  "run_id": "2026_04_28_run_0011",
+  "runtime_seconds": 567.809388,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor Refresh Gate",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 479604,
+  "under_16mb": true,
+  "val_bpb": 2.0510009,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
