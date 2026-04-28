@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12748312,
+  "code_bytes": 82445,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665867,
+  "rationale": "Adds a compact late-phase suffix-weighted training curriculum on top of the current reverse-tail recurrent baseline. It keeps the proven architecture/export path intact, but shifts late training toward the suffix positions that dominate stride-based final validation, with a small prefix floor to avoid fully discarding broader language modeling signal. The change is compile-stable, stays under the 1500-line cap, and is meaningfully different from the recent failed carry/gate variants.",
+  "run_id": "2026_04_28_run_0086",
+  "runtime_seconds": 671.435662,
+  "submitter": "frido22",
+  "title": "Late Suffix-Loss Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 581816,
+  "under_16mb": true,
+  "val_bpb": 2.05268345,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
