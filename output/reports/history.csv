@@ -821,3 +821,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0059,2.051213,True,False,Lagged Tail Recurrence Write Curriculum
 2026_04_28_run_0060,2.051936,True,False,Capped Staged Reverse-Tail Recurrence
 2026_04_28_run_0061,2.052748,False,False,Reverse-Tail Anchor Write Gate
+2026_04_28_run_0062,2.051303,True,False,Late Tail-Aligned Loss Bias Curriculum

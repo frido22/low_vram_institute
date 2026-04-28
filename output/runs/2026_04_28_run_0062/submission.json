@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747038,
+  "code_bytes": 82369,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664669,
+  "rationale": "Recent scalar sweeps and anchor/carry variants have flattened, while the strongest nearby local miss was late validation-aligned loss curriculum. This edit keeps the recurrent-tail/export path intact and adds a compact late-phase training mask that gradually upweights the final eval-stride tokens of each sequence while preserving average loss scale. It reuses the existing masked-loss code path, activates only late in training, stays compile-stable, and directly targets the exact sliding-window score instead of generic early-token loss.",
+  "run_id": "2026_04_28_run_0062",
+  "runtime_seconds": 618.646976,
+  "submitter": "frido22",
+  "title": "Late Tail-Aligned Loss Bias Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 528179,
+  "under_16mb": true,
+  "val_bpb": 2.05130304,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
