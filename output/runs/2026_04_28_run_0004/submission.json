@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13079557,
+  "code_bytes": 81646,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12997911,
+  "rationale": "Builds on the current recurrent-tail baseline with a compact validation-aligned training change instead of another scalar sweep. The script now trains through the existing masked-loss path and gradually downweights early-sequence tokens late in training while keeping the eval-stride tail fully weighted. That spends late wallclock on the suffix region the final exact scorer repeatedly measures, preserves shape stability, keeps exact final evaluation unchanged, and avoids the invalid export-path experiments from the recent runs.",
+  "run_id": "2026_04_28_run_0004",
+  "runtime_seconds": 921.642845,
+  "submitter": "frido22",
+  "title": "Late Tail-Masked Recurrence Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 833023,
+  "under_16mb": true,
+  "val_bpb": 1.96935921,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
