@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747580,
+  "code_bytes": 80244,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12667336,
+  "rationale": "Builds on the best reverse-tail recurrent family with a compact structural edit instead of another scalar sweep. I added trainable tail_anchor_gates that refresh the reverse-traversal anchor after each recurrent tail block, so the carry path can interpolate between the original decoder-output anchor and progressively improved tail states. This targets the local signal that anchor-refresh variants were close while keeping shapes, wallclock behavior, quant-aware export, and artifact size essentially unchanged.",
+  "run_id": "2026_04_28_run_0036",
+  "runtime_seconds": 632.098639,
+  "submitter": "frido22",
+  "title": "Learned Reverse-Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 542235,
+  "under_16mb": true,
+  "val_bpb": 2.05303016,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
