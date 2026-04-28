@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12579550,
+  "code_bytes": 79907,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12499643,
+  "rationale": "Builds on the current recurrent-tail baseline with a byte-neutral export-budget shift: recurrent tail blocks now keep K and V in fp16 across the tail, while only the final tail block keeps Q in fp16. The hypothesis is that recurrent value-path fidelity matters more than early tail Q fidelity for the final int8+zlib roundtrip score, and this targets the quantized metric directly without adding training-time complexity or file bloat.",
+  "run_id": "2026_04_28_run_0073",
+  "runtime_seconds": 650.26766,
+  "submitter": "frido22",
+  "title": "Tail KV/V FP16 Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 561270,
+  "under_16mb": true,
+  "val_bpb": 2.05286932,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

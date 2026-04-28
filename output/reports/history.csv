@@ -832,3 +832,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0070,2.052418,True,False,Selective Tail EMA Export Smoothing
 2026_04_28_run_0071,2.049513,True,False,Reverse-Tail Refreshed Anchor Blend
 2026_04_28_run_0072,2.052504,True,False,Late Tail-Weighted Recurrence Curriculum
+2026_04_28_run_0073,2.052869,True,False,Tail KV/V FP16 Reallocation
