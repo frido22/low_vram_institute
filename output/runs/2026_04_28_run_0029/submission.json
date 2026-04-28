@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747708,
+  "code_bytes": 81279,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666429,
+  "rationale": "Builds on the current reverse-tail recurrence baseline without another broad hyperparameter replay. The main change makes periodic quant-aware roundtrips projection-first: tail projection weights see the full blend early, while non-projection attention and other tensors are pulled toward their final int8 roundtrip more conservatively. That keeps the export-surviving endgame pressure on the recurrent tail where local results have been strongest, while reducing destabilizing late-stage perturbations to the rest of the model. I also fixed a masked chunked-loss accumulation bug so any chunked validation path remains correct instead of silently using only the last chunk.",
+  "run_id": "2026_04_28_run_0029",
+  "runtime_seconds": 626.571739,
+  "submitter": "frido22",
+  "title": "Selective Quant-Aware Tail Mixing",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537736,
+  "under_16mb": true,
+  "val_bpb": 2.05162312,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
