@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12851751,
+  "code_bytes": 80616,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12771135,
+  "rationale": "Builds on the staged reverse-tail recurrence baseline with a compact inference-side change: validation/final eval now use a recurrence gain schedule aligned to actual training progress instead of forcing all-one tail gains. This targets the 600s wallclock regime where training often stops before the recurrence curriculum fully saturates, reducing train/eval mismatch without adding parameters or export bytes.",
+  "run_id": "2026_04_28_run_0026",
+  "runtime_seconds": 1191.1801,
+  "submitter": "frido22",
+  "title": "Tail Recurrence Eval Alignment",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 1101439,
+  "under_16mb": true,
+  "val_bpb": 1.95526992,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}

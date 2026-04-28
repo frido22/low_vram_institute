@@ -785,3 +785,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0023,2.053997,True,False,Carry-First Reverse-Tail Recurrence
 2026_04_28_run_0024,2.021068,True,False,Delayed Tail Carry Curriculum
 2026_04_28_run_0025,2.021663,True,False,Gated Reverse-Tail Anchor Refresh
+2026_04_28_run_0026,1.955270,True,False,Tail Recurrence Eval Alignment
