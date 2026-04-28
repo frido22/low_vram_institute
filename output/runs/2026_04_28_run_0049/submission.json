@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746544,
+  "code_bytes": 81540,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665004,
+  "rationale": "Builds on the current reverse-tail recurrent baseline with a compact structural edit instead of another scalar sweep. The tail anchor path and the recurrent block refresh no longer share the same curriculum: carry-to-anchor turns on a bit earlier, while the extra recurrent block update is delayed. That spends late-phase capacity on stabilizing the tail state before asking the shared tail blocks to rewrite it, which matches the local signal around anchor-refresh and staged recurrence while keeping shapes, eval, quantization, and the 600s MLX path unchanged. I also removed no functionality and kept the script under the 1500-line cap.",
+  "run_id": "2026_04_28_run_0049",
+  "runtime_seconds": 1073.094497,
+  "submitter": "frido22",
+  "title": "Staggered Tail Carry And Update Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 977815,
+  "under_16mb": true,
+  "val_bpb": 2.0232988,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
