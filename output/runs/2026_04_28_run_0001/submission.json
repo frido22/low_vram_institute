@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13140362,
+  "code_bytes": 81844,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 13058518,
+  "rationale": "Builds on the staged reverse-tail recurrence baseline with a compact structural change: each recurrent tail block now blends the global decoder-output anchor with that block's own first-pass tail state via a tiny learned tail_anchor_mix control. This targets the still-promising reverse-tail anchor family without adding a new head, changing eval, or spending bytes on broader shape churn. The edit stays compile-stable, keeps the final exact int8+zlib path intact, and preserves the near-cap recurrent-tail/export regime while giving earlier recurrent tail blocks a more local refresh signal than the single shared anchor.",
+  "run_id": "2026_04_28_run_0001",
+  "runtime_seconds": 894.001053,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Local Anchor Blend",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 803871,
+  "under_16mb": true,
+  "val_bpb": 1.97167615,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
