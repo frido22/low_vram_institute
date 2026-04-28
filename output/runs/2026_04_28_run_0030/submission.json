@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12415090,
+  "code_bytes": 80330,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12334760,
+  "rationale": "Shifts recurrent-tail float preservation away from broader QK coverage toward the value path, and stops EMA from overwriting float-kept tensors so late quant-aware updates survive into final int8 roundtrip evaluation.",
+  "run_id": "2026_04_28_run_0030",
+  "runtime_seconds": 1032.056244,
+  "submitter": "frido22",
+  "title": "Reallocate Tail FP16 Budget to V Path and Limit EMA Scope",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 936892,
+  "under_16mb": true,
+  "val_bpb": 2.00233066,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
