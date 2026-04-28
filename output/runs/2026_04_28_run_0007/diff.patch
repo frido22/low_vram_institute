@@ -1,0 +1,126 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -53,6 +53,9 @@
+     quant_aware_proj_start: float = float(os.environ.get("QUANT_AWARE_PROJ_START", 0.55))
+     quant_aware_proj_step: float = float(os.environ.get("QUANT_AWARE_PROJ_STEP", 0.2))
+     quant_aware_proj_end: float = float(os.environ.get("QUANT_AWARE_PROJ_END", 0.95))
++    tail_loss_ramp_start: float = float(os.environ.get("TAIL_LOSS_RAMP_START", 0.6))
++    tail_loss_ramp_end: float = float(os.environ.get("TAIL_LOSS_RAMP_END", 0.92))
++    tail_loss_max_weight: float = float(os.environ.get("TAIL_LOSS_MAX_WEIGHT", 2.2))
+     vocab_size: int = int(os.environ.get("VOCAB_SIZE", 1024))
+     num_layers: int = int(os.environ.get("NUM_LAYERS", 9))
+     model_dim: int = int(os.environ.get("MODEL_DIM", 512))
+@@ -71,6 +74,8 @@
+     tail_recur_ramp_start: float = float(os.environ.get("TAIL_RECUR_RAMP_START", 0.55))
+     tail_recur_ramp_end: float = float(os.environ.get("TAIL_RECUR_RAMP_END", 0.9))
+     tail_recur_min_gain: float = float(os.environ.get("TAIL_RECUR_MIN_GAIN", 0.35))
++    tail_recur_stage_gap: float = float(os.environ.get("TAIL_RECUR_STAGE_GAP", 0.16))
++    tail_recur_stage_span: float = float(os.environ.get("TAIL_RECUR_STAGE_SPAN", 0.12))
+     beta1: float = float(os.environ.get("BETA1", 0.9))
+     beta2: float = float(os.environ.get("BETA2", 0.95))
+     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
+@@ -1178,10 +1183,37 @@
+         progress = min(max((progress - args.tail_recur_ramp_start) / (args.tail_recur_ramp_end - args.tail_recur_ramp_start), 0.0), 1.0)
+     if active_blocks == 1:
+         return mx.ones((1,), dtype=mx.float32)
+-    gains = np.linspace(args.tail_recur_min_gain, 1.0, active_blocks, dtype=np.float32)
+-    gains[:-1] = args.tail_recur_min_gain + (1.0 - args.tail_recur_min_gain) * progress
++    gains = np.ones((active_blocks,), dtype=np.float32)
++    for idx in range(active_blocks - 1):
++        stage_start = idx * args.tail_recur_stage_gap
++        stage_span = max(args.tail_recur_stage_span, 1e-6)
++        stage_progress = min(max((progress - stage_start) / stage_span, 0.0), 1.0)
++        gains[idx] = args.tail_recur_min_gain + (1.0 - args.tail_recur_min_gain) * stage_progress
+     gains[-1] = 1.0
+     return mx.array(gains, dtype=mx.float32)
++def tail_loss_mask(seq_count: int, seq_len: int, stride: int, extra_weight: float) -> mx.array:
++    if seq_count <= 0 or seq_len <= 0:
++        raise ValueError("tail_loss_mask requires positive shape")
++    mask = np.ones((seq_count, seq_len), dtype=np.float32)
++    if extra_weight > 0.0:
++        tail = seq_len if stride <= 0 or stride >= seq_len else stride
++        mask[:, -tail:] += extra_weight
++    return mx.array(mask, dtype=mx.float32)
++def tail_loss_weight(args: Hyperparameters, step: int) -> float:
++    if args.tail_loss_max_weight <= 1.0:
++        return 1.0
++    if args.tail_loss_ramp_end <= args.tail_loss_ramp_start:
++        progress = 1.0 if step > 0 else 0.0
++    else:
++        progress = min(
++            max(
++                (step / max(args.iterations, 1) - args.tail_loss_ramp_start)
++                / (args.tail_loss_ramp_end - args.tail_loss_ramp_start),
++                0.0,
++            ),
++            1.0,
++        )
++    return 1.0 + (args.tail_loss_max_weight - 1.0) * progress
+ def main() -> None:
+     args = Hyperparameters()
+     out_dir = Path(args.out_dir)
+@@ -1224,6 +1256,7 @@
+     compiled_loss = mx.compile(lambda x, y, rg: model.loss(x, y, rg), inputs=model.state, outputs=model.state)
+     compiled_masked_loss = mx.compile(lambda x, y, m, rg: model.masked_loss(x, y, m, rg), inputs=model.state, outputs=model.state)
+     compiled_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y, rg: model.loss(x, y, rg)), inputs=model.state, outputs=model.state)
++    compiled_masked_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y, m, rg: model.masked_loss(x, y, m, rg)), inputs=model.state, outputs=model.state)
+     if "MLX_EAGER_EVAL" not in os.environ:
+         args.mlx_eager_eval = not args.use_single_microbatch_path
+     elif args.use_single_microbatch_path and args.mlx_eager_eval:
+@@ -1261,6 +1294,7 @@
+     log(f"quant_aware:train_seconds:{args.quant_aware_train_seconds:.1f} iters:{args.quant_aware_iters} every:{args.quant_aware_every}")
+     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
+     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
++    log(f"tail_loss_curriculum:start:{args.tail_loss_ramp_start} end:{args.tail_loss_ramp_end} max_weight:{args.tail_loss_max_weight} stride:{args.eval_stride}")
+     log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
+     log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
+     log(
+@@ -1270,6 +1304,7 @@
+     log(f"decoder_skip_alignment:start:{model.decoder_skip_start} count:{model.skip_weights.shape[0]} trim:{max((0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]) - 1, 0)}")
+     log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
+     log(f"tail_recur_curriculum:min_gain:{args.tail_recur_min_gain} ramp_start:{args.tail_recur_ramp_start} ramp_end:{args.tail_recur_ramp_end}")
++    log(f"tail_recur_staging:gap:{args.tail_recur_stage_gap} span:{args.tail_recur_stage_span}")
+     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
+     train_time_ms = 0.0
+     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
+@@ -1314,13 +1349,19 @@
+             or should_activate_quant_aware(args, step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms)
+         )
+         embed_lr_mul, matrix_lr_mul, scalar_lr_mul = quant_aware_lr_muls(args, quant_aware_active)
++        tail_loss_extra = tail_loss_weight(args, step) - 1.0
+         step_t0 = time.perf_counter()
+         should_log_train = args.train_log_every > 0 and (
+             step < 10 or (step + 1) % args.train_log_every == 0 or stop_after_step is not None
+         )
+         tail_recur_gains = tail_recur_schedule(args, step, args.tail_recur_blocks)
+         if args.use_single_microbatch_path:
+-            train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
++            if tail_loss_extra > 0.0:
++                x, y = train_loader.next_batch(args.train_batch_tokens, args.train_seq_len)
++                mask = tail_loss_mask(x.shape[0], args.train_seq_len, args.eval_stride, tail_loss_extra)
++                train_loss, grads = compiled_masked_loss_and_grad(x, y, mask, tail_recur_gains)
++            else:
++                train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
+             if args.mlx_eager_eval:
+                 mx.eval(train_loss, grads)
+             grads = clip_grad_tree(grads, args.grad_clip_norm)
+@@ -1329,7 +1370,12 @@
+             train_loss = mx.array(0.0, dtype=mx.float32)
+             grad_scale = 1.0 / args.grad_accum_steps
+             for _ in range(args.grad_accum_steps):
+-                loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
++                if tail_loss_extra > 0.0:
++                    x, y = train_loader.next_batch(args.microbatch_tokens, args.train_seq_len)
++                    mask = tail_loss_mask(x.shape[0], args.train_seq_len, args.eval_stride, tail_loss_extra)
++                    loss, grads = compiled_masked_loss_and_grad(x, y, mask, tail_recur_gains)
++                else:
++                    loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
+                 accum = accumulate_flat_grads(accum, grads, grad_scale)
+                 train_loss = train_loss + loss.astype(mx.float32) * grad_scale
+                 if args.mlx_eager_eval:
+@@ -1434,4 +1480,4 @@
+     log(f"final_int8_zlib_roundtrip val_loss:{q_val_loss:.4f} val_bpb:{q_val_bpb:.4f} eval_time:{q_eval_ms:.0f}ms")
+     log(f"final_int8_zlib_roundtrip_exact val_loss:{q_val_loss:.8f} val_bpb:{q_val_bpb:.8f}")
+ if __name__ == "__main__":
+-    main()
++    main()

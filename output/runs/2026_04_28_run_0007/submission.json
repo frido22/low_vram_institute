@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12962277,
+  "code_bytes": 82267,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12880010,
+  "rationale": "Builds on the reverse-tail recurrent baseline with a compact late-phase training change: progressively upweight the last eval-aligned stride tokens in each sequence while keeping final evaluation and export unchanged. This targets the exact scoring window without spending bytes on new model capacity or destabilizing the recurrent-tail/export path.",
+  "run_id": "2026_04_28_run_0007",
+  "runtime_seconds": 1027.867793,
+  "submitter": "frido22",
+  "title": "Late Tail-Aligned Loss Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 937572,
+  "under_16mb": true,
+  "val_bpb": 1.96589504,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
