@@ -835,3 +835,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0073,2.052869,True,False,Tail KV/V FP16 Reallocation
 2026_04_28_run_0074,2.052862,True,False,Late Tail-Loss Curriculum
 2026_04_28_run_0076,2.051365,True,False,Reverse-Tail Anchor Refresh Blend
+2026_04_28_run_0077,2.054097,True,False,Dual-Anchor Reverse Tail Carry

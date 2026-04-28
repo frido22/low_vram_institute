@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747039,
+  "code_bytes": 80338,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666701,
+  "rationale": "Build on the staged reverse-tail recurrence baseline with a compact structural variant from the locally promising anchor family. Add a learned per-tail-block dual-anchor blend between the pre-tail entry state and the decoder-output anchor, and keep the new control tensor on the float-preserved export path. This spends a run on a real recurrence-path change instead of another scalar sweep or curriculum replay.",
+  "run_id": "2026_04_28_run_0077",
+  "runtime_seconds": 687.865036,
+  "submitter": "frido22",
+  "title": "Dual-Anchor Reverse Tail Carry",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 597809,
+  "under_16mb": true,
+  "val_bpb": 2.05409703,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
