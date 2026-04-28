@@ -810,3 +810,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0048,2.049696,True,False,Reverse-Tail Anchor Refresh Curriculum
 2026_04_28_run_0049,2.023299,True,False,Staggered Tail Carry And Update Curriculum
 2026_04_28_run_0050,2.052229,False,False,Learned Tail Recurrence Block Gain
+2026_04_28_run_0051,2.053025,True,False,Reverse-Tail Anchor Refresh Scalar Mix

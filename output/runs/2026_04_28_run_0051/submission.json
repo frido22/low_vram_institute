@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12745932,
+  "code_bytes": 80233,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665699,
+  "rationale": "Builds on the current reverse-tail recurrent baseline with one compact structural change: a learned per-tail-block scalar refresh that lets the recurrence interpolate between the original decoder tail anchor and fresher local tail states. This targets the locally promising anchor-refresh neighborhood without changing shapes, validation, export, or wallclock behavior, and keeps the script lean and compile-stable.",
+  "run_id": "2026_04_28_run_0051",
+  "runtime_seconds": 644.189712,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor Refresh Scalar Mix",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 555559,
+  "under_16mb": true,
+  "val_bpb": 2.05302503,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
