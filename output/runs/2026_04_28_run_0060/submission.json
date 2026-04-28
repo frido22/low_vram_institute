@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746174,
+  "code_bytes": 80792,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665382,
+  "rationale": "Build on the current best recurrent-tail family instead of another loss or export rewrite. The strongest nearby local miss was a capped reverse-tail recurrence profile, so this keeps the staged curriculum but adds a late ramped cap on non-final recurrent passes to preserve the final reverse-tail block while reducing over-recursion in the earlier recurrent block near the quantized endgame. The change is compact, compile-stable, keeps eval/export untouched, and stays under the line budget.",
+  "run_id": "2026_04_28_run_0060",
+  "runtime_seconds": 621.38979,
+  "submitter": "frido22",
+  "title": "Capped Staged Reverse-Tail Recurrence",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 532516,
+  "under_16mb": true,
+  "val_bpb": 2.05193556,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
