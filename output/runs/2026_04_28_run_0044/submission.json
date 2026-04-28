@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12748413,
+  "code_bytes": 82132,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666281,
+  "rationale": "Recent anchor-refresh and late-loss variants collapsed, so this stays on the strong reverse-tail recurrent baseline and changes only the export-alignment endgame. Quant-aware roundtrips now hit the recurrent tail and projection-heavy late blocks at full strength while damping perturbations in earlier body blocks, aiming to preserve training throughput and upstream learning while matching the tensors most exposed in the final int8+zlib score.",
+  "run_id": "2026_04_28_run_0044",
+  "runtime_seconds": 623.39341,
+  "submitter": "frido22",
+  "title": "Tail-Biased Quant-Aware Roundtrip Mixing",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 535012,
+  "under_16mb": true,
+  "val_bpb": 2.05265143,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
