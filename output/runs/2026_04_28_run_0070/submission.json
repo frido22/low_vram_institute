@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746819,
+  "code_bytes": 80509,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666310,
+  "rationale": "The current best family already concentrates useful capacity in the reverse recurrent tail, and recent broad curricula or head-side changes have mostly regressed. This edit keeps the quant-aware endgame intact but narrows EMA smoothing to export-sensitive tensors in and just before the recurrent tail, plus the tied output path. The hypothesis is that final int8 roundtrip quality is being limited more by late-tail/value-path jitter than by the rest of the network, so selective smoothing should help the exact quantized score without adding bytes or compile churn.",
+  "run_id": "2026_04_28_run_0070",
+  "runtime_seconds": 642.363416,
+  "submitter": "frido22",
+  "title": "Selective Tail EMA Export Smoothing",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 553558,
+  "under_16mb": true,
+  "val_bpb": 2.05241839,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
