@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12995163,
+  "code_bytes": 80271,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12914892,
+  "rationale": "Builds on the current reverse-tail recurrent baseline with a compact new mechanism: a learned per-recurrent-block anchor refresh gate. The tail anchor is no longer frozen for the whole reverse sweep; each recurrent block can partially refresh the anchor toward its updated state, which may improve late-block recurrence alignment and export robustness without changing shapes, eval, or the quant-aware endgame. The edit is small, compile-stable, and stays in the proven 9x512 recurrent-tail family.",
+  "run_id": "2026_04_28_run_0005",
+  "runtime_seconds": 966.802493,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 877458,
+  "under_16mb": true,
+  "val_bpb": 1.96689152,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}

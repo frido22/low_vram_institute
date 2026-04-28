@@ -764,3 +764,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0002,1.968291,True,False,Depth-Capped Reverse Tail Recurrence
 2026_04_28_run_0003,1.969480,True,False,Tail V-Path FP16 Reallocation With Tail-Focused EMA
 2026_04_28_run_0004,1.969359,True,False,Late Tail-Masked Recurrence Curriculum
+2026_04_28_run_0005,1.966892,True,False,Reverse-Tail Anchor Refresh
