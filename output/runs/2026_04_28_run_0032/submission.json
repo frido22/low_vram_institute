@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12744778,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12665355,
+  "rationale": "Builds directly on the current best reverse-tail recurrent baseline with a compact structural change instead of another scalar sweep. The recurrent tail now lightly refreshes its decoder-output anchor after each reverse revisit, so later recurrent passes chase a partially updated target rather than a frozen one. This spends no meaningful extra bytes, keeps shapes and compile behavior stable on MLX, and targets the still-promising reverse-tail anchor family without repeating the heavier curriculum and loss-alignment experiments that recently collapsed.",
+  "run_id": "2026_04_28_run_0032",
+  "runtime_seconds": 621.529742,
+  "submitter": "frido22",
+  "title": "Light Reverse-Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 531943,
+  "under_16mb": true,
+  "val_bpb": 2.05247585,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

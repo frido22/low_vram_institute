@@ -791,3 +791,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0029,2.051623,True,False,Selective Quant-Aware Tail Mixing
 2026_04_28_run_0030,2.002331,True,False,Reallocate Tail FP16 Budget to V Path and Limit EMA Scope
 2026_04_28_run_0031,2.012427,True,False,Anchor-Refresh Reverse Tail + V-Path FP16 Swap
+2026_04_28_run_0032,2.052476,False,False,Light Reverse-Tail Anchor Refresh
