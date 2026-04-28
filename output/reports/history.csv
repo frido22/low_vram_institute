@@ -793,3 +793,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0031,2.012427,True,False,Anchor-Refresh Reverse Tail + V-Path FP16 Swap
 2026_04_28_run_0032,2.052476,False,False,Light Reverse-Tail Anchor Refresh
 2026_04_28_run_0033,2.051561,True,False,Wallclock-Aligned Tail Recurrence Curriculum
+2026_04_28_run_0034,1.958356,True,False,Late Reverse-Tail Anchor Refresh Curriculum
