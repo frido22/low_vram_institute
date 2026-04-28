@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12153893,
+  "code_bytes": 79971,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12073922,
+  "rationale": "Reallocate fp16 export budget toward recurrent-tail attention value paths instead of keeping both tail MLP and attention projections across the whole tail. The best local family is recurrence-driven and earlier close misses suggested recurrent-tail float rescue was still live. This change keeps q/k/v in the recurrent tail, preserves the last block's full projection rescue, and trims older tail projection fp16 retention to stay byte-aware for the final int8+zlib roundtrip metric.",
+  "run_id": "2026_04_28_run_0056",
+  "runtime_seconds": 644.092268,
+  "submitter": "frido22",
+  "title": "Tail Value Rescue Export Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 554456,
+  "under_16mb": true,
+  "val_bpb": 2.0515918,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
