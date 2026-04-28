@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12744943,
+  "code_bytes": 80258,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664685,
+  "rationale": "Builds directly on the current reverse-tail recurrent baseline with a compact structural change: the recurrent carry target is no longer a fixed decoder-output anchor for every repeated tail block. Instead, later reverse-tail passes blend toward the progressively refreshed recurrent state in proportion to the staged recurrence gain. This stays compile-stable, keeps the export path unchanged, and targets one of the few locally promising categories: nearby reverse-tail anchor variants rather than another scalar sweep.",
+  "run_id": "2026_04_28_run_0071",
+  "runtime_seconds": 669.662736,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Refreshed Anchor Blend",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 580872,
+  "under_16mb": true,
+  "val_bpb": 2.04951302,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
