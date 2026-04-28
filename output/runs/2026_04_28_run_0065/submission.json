@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746978,
+  "code_bytes": 80237,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666741,
+  "rationale": "Build on the current reverse-tail recurrent baseline with a compact structural edit: add learned per-tail-block anchor-refresh gates that progressively move the decoder anchor toward the running recurrent state before each reverse tail replay. This keeps the winning recurrence/quant-aware/export path intact, adds only a tiny control tensor budget, starts exactly at baseline behavior from zero init, and targets the still-promising anchor-variant category without another scalar-only sweep.",
+  "run_id": "2026_04_28_run_0065",
+  "runtime_seconds": 663.288667,
+  "submitter": "frido22",
+  "title": "Learned Progressive Reverse-Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 573942,
+  "under_16mb": true,
+  "val_bpb": 2.05333519,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
