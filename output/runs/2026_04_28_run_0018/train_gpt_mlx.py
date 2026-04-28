@@ -73,6 +73,10 @@ class Hyperparameters:
     tail_recur_min_gain: float = float(os.environ.get("TAIL_RECUR_MIN_GAIN", 0.35))
     tail_recur_stage_gap: float = float(os.environ.get("TAIL_RECUR_STAGE_GAP", 0.16))
     tail_recur_stage_span: float = float(os.environ.get("TAIL_RECUR_STAGE_SPAN", 0.12))
+    train_tail_loss_start: float = float(os.environ.get("TRAIN_TAIL_LOSS_START", 0.58))
+    train_tail_loss_end: float = float(os.environ.get("TRAIN_TAIL_LOSS_END", 0.9))
+    train_tail_loss_mix: float = float(os.environ.get("TRAIN_TAIL_LOSS_MIX", 0.28))
+    train_tail_loss_tokens: int = int(os.environ.get("TRAIN_TAIL_LOSS_TOKENS", 64))
     beta1: float = float(os.environ.get("BETA1", 0.9))
     beta2: float = float(os.environ.get("BETA2", 0.95))
     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
@@ -853,33 +857,6 @@ def eval_val_doc_isolated(args: Hyperparameters, compiled_masked_loss, val_token
     bits_per_token = val_loss / math.log(2.0)
     val_bpb = bits_per_token * (total_tokens / total_bytes)
     return val_loss, val_bpb
-def loss_and_grad_chunked(
-    args: Hyperparameters,
-    train_loader: TokenLoader,
-    compiled_loss_and_grad,
-    tail_recur_gains: mx.array,
-) -> tuple[mx.array, dict]:
-    chunk_sizes = token_chunks(args.microbatch_tokens, args.train_seq_len, args.mlx_max_microbatch_tokens)
-    total_tokens = float(sum(chunk_sizes))
-    loss_value = mx.array(0.0, dtype=mx.float32)
-    grad_accum: dict[str, mx.array] | None = None
-    for chunk_tokens in chunk_sizes:
-        x, y = train_loader.next_batch(chunk_tokens, args.train_seq_len)
-        loss, grads = compiled_loss_and_grad(x, y, tail_recur_gains)
-        scale = float(y.size) / total_tokens
-        loss_value = loss_value + loss.astype(mx.float32) * scale
-        grad_accum = accumulate_flat_grads(grad_accum, grads, scale)
-        if args.mlx_eager_eval:
-            mx.eval(loss_value, grad_accum)
-    return loss_value, tree_unflatten(list(grad_accum.items()))
-def loss_and_grad_one_batch(
-    args: Hyperparameters,
-    train_loader: TokenLoader,
-    compiled_loss_and_grad,
-    tail_recur_gains: mx.array,
-) -> tuple[mx.array, dict]:
-    x, y = train_loader.next_batch(args.train_batch_tokens, args.train_seq_len)
-    return compiled_loss_and_grad(x, y, tail_recur_gains)
 def eval_val(args: Hyperparameters, compiled_loss, compiled_masked_loss, val_tokens: np.ndarray, doc_spans: list[tuple[int, int]] | None, bos_token_id: int, tail_recur_gains: mx.array, base_bytes_lut: np.ndarray, has_leading_space_lut: np.ndarray, is_boundary_token_lut: np.ndarray, log_fn: Callable[[str], None] | None = None) -> tuple[float, float]:
     if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0:
         return eval_val_doc_isolated(
@@ -1188,6 +1165,23 @@ def tail_recur_schedule(args: Hyperparameters, step: int, active_blocks: int) ->
         gains[idx] = args.tail_recur_min_gain + (1.0 - args.tail_recur_min_gain) * stage_progress
     gains[-1] = 1.0
     return mx.array(gains, dtype=mx.float32)
+def train_tail_loss_schedule(args: Hyperparameters, step: int) -> tuple[int, float]:
+    tail_tokens = min(max(args.train_tail_loss_tokens, 0), args.train_seq_len)
+    if tail_tokens <= 0 or args.train_tail_loss_mix <= 0.0:
+        return 0, 0.0
+    if args.train_tail_loss_end <= args.train_tail_loss_start:
+        progress = 1.0 if step > 0 else 0.0
+    else:
+        progress = step / max(args.iterations, 1)
+        progress = min(max((progress - args.train_tail_loss_start) / (args.train_tail_loss_end - args.train_tail_loss_start), 0.0), 1.0)
+    return tail_tokens, args.train_tail_loss_mix * progress
+def build_train_loss_mask(batch_rows: int, seq_len: int, tail_tokens: int, mix: float) -> mx.array | None:
+    if tail_tokens <= 0 or mix <= 0.0:
+        return None
+    tail_tokens = min(tail_tokens, seq_len)
+    row = np.full((seq_len,), 1.0 - mix, dtype=np.float32)
+    row[-tail_tokens:] += mix * (seq_len / float(tail_tokens))
+    return mx.array(np.broadcast_to(row, (batch_rows, seq_len)), dtype=mx.float32)
 def main() -> None:
     args = Hyperparameters()
     out_dir = Path(args.out_dir)
@@ -1230,12 +1224,12 @@ def main() -> None:
     compiled_loss = mx.compile(lambda x, y, rg: model.loss(x, y, rg), inputs=model.state, outputs=model.state)
     compiled_masked_loss = mx.compile(lambda x, y, m, rg: model.masked_loss(x, y, m, rg), inputs=model.state, outputs=model.state)
     compiled_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y, rg: model.loss(x, y, rg)), inputs=model.state, outputs=model.state)
+    compiled_masked_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y, m, rg: model.masked_loss(x, y, m, rg)), inputs=model.state, outputs=model.state)
     if "MLX_EAGER_EVAL" not in os.environ:
         args.mlx_eager_eval = not args.use_single_microbatch_path
     elif args.use_single_microbatch_path and args.mlx_eager_eval:
         log("WARNING: disabling MLX_EAGER_EVAL on single_microbatch_path for throughput")
         args.mlx_eager_eval = False
-    train_step_loss_and_grad = loss_and_grad_one_batch if args.use_single_microbatch_path else loss_and_grad_chunked
     n_params = sum(int(np.prod(p.shape)) for _, p in tree_flatten(model.parameters()))
     log(f"run_id:{args.run_id}")
     log(f"mlx_version:{mx.__version__}")
@@ -1277,6 +1271,7 @@ def main() -> None:
     log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
     log(f"tail_recur_curriculum:min_gain:{args.tail_recur_min_gain} ramp_start:{args.tail_recur_ramp_start} ramp_end:{args.tail_recur_ramp_end}")
     log(f"tail_recur_staging:gap:{args.tail_recur_stage_gap} span:{args.tail_recur_stage_span}")
+    log(f"train_tail_loss:tokens:{args.train_tail_loss_tokens} mix:{args.train_tail_loss_mix} start:{args.train_tail_loss_start} end:{args.train_tail_loss_end}")
     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
@@ -1326,17 +1321,29 @@ def main() -> None:
             step < 10 or (step + 1) % args.train_log_every == 0 or stop_after_step is not None
         )
         tail_recur_gains = tail_recur_schedule(args, step, args.tail_recur_blocks)
+        train_tail_tokens, train_tail_mix = train_tail_loss_schedule(args, step)
         if args.use_single_microbatch_path:
-            train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
+            x, y = train_loader.next_batch(args.train_batch_tokens, args.train_seq_len)
+            train_loss_mask = build_train_loss_mask(x.shape[0], args.train_seq_len, train_tail_tokens, train_tail_mix)
+            if train_loss_mask is None:
+                train_loss, grads = compiled_loss_and_grad(x, y, tail_recur_gains)
+            else:
+                train_loss, grads = compiled_masked_loss_and_grad(x, y, train_loss_mask, tail_recur_gains)
             if args.mlx_eager_eval:
                 mx.eval(train_loss, grads)
             grads = clip_grad_tree(grads, args.grad_clip_norm)
         else:
             accum: dict[str, mx.array] | None = None
             train_loss = mx.array(0.0, dtype=mx.float32)
-            grad_scale = 1.0 / args.grad_accum_steps
-            for _ in range(args.grad_accum_steps):
-                loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
+            total_tokens = float(args.train_batch_tokens)
+            for chunk_tokens in token_chunks(args.train_batch_tokens, args.train_seq_len, args.mlx_max_microbatch_tokens):
+                x, y = train_loader.next_batch(chunk_tokens, args.train_seq_len)
+                train_loss_mask = build_train_loss_mask(x.shape[0], args.train_seq_len, train_tail_tokens, train_tail_mix)
+                if train_loss_mask is None:
+                    loss, grads = compiled_loss_and_grad(x, y, tail_recur_gains)
+                else:
+                    loss, grads = compiled_masked_loss_and_grad(x, y, train_loss_mask, tail_recur_gains)
+                grad_scale = float(y.size) / total_tokens
                 accum = accumulate_flat_grads(accum, grads, grad_scale)
                 train_loss = train_loss + loss.astype(mx.float32) * grad_scale
                 if args.mlx_eager_eval:
