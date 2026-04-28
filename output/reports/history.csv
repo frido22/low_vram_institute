@@ -812,3 +812,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0050,2.052229,False,False,Learned Tail Recurrence Block Gain
 2026_04_28_run_0051,2.053025,True,False,Reverse-Tail Anchor Refresh Scalar Mix
 2026_04_28_run_0052,2.052045,True,False,Late Tail-Aligned Loss Curriculum
+2026_04_28_run_0053,2.053367,True,False,Late Tail-Aligned Loss Curriculum

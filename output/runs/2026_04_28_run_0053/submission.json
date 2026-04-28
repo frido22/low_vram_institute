@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12748425,
+  "code_bytes": 82090,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666335,
+  "rationale": "Builds on the recurrent-tail baseline with a compact validation-aligned training change instead of another small control sweep. The edit progressively masks training loss toward the sequence tail, aligned to eval stride multiples, so late-phase updates spend more budget on tokens that resemble the scored validation windows while preserving the same model/export path and exact final int8 roundtrip evaluation.",
+  "run_id": "2026_04_28_run_0053",
+  "runtime_seconds": 671.152779,
+  "submitter": "frido22",
+  "title": "Late Tail-Aligned Loss Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 582937,
+  "under_16mb": true,
+  "val_bpb": 2.05336702,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
