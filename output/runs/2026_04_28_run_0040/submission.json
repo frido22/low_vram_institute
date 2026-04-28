@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746126,
+  "code_bytes": 79634,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666492,
+  "rationale": "Builds on the recurrent-tail baseline with a compact training-side curriculum that progressively upweights the sequence suffix scored most similarly to the final stride-based validation path, while keeping exact eval, quant-aware endgame, and export behavior intact. It also folds masked and unmasked loss into one path and removes now-unused helpers to stay lean.",
+  "run_id": "2026_04_28_run_0040",
+  "runtime_seconds": 1063.277122,
+  "submitter": "frido22",
+  "title": "Late Suffix-Aligned Loss Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 968390,
+  "under_16mb": true,
+  "val_bpb": 2.02312628,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
