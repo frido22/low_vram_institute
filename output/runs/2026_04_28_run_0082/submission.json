@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746824,
+  "code_bytes": 80239,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666585,
+  "rationale": "Builds on the current recurrent-tail baseline with a compact structural change instead of another scalar sweep. I added a learned per-tail-block anchor refresh gate, initialized near the old fixed-anchor behavior, so reverse-tail recurrence can gradually update its carry anchor only when training finds it useful. This targets the still-live anchor-refresh idea category while preserving compile stability, tail sharing, exact eval, and compressed size discipline.",
+  "run_id": "2026_04_28_run_0082",
+  "runtime_seconds": 636.253419,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor Refresh Gate",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 548056,
+  "under_16mb": true,
+  "val_bpb": 2.05189305,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
