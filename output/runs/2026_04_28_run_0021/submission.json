@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746652,
+  "code_bytes": 80053,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666599,
+  "rationale": "Builds on the current reverse-tail recurrent baseline with a compact structural edit: the recurrent anchor is no longer frozen across all tail repeats, but is partially refreshed after each repeated block. This keeps the late tail recurrence aligned with the newest hidden state while preserving fixed shapes, the existing curriculum, and the quant-aware/export path. It targets the still-promising reverse-tail anchor variant category without another scalar-only sweep or a sprawling rewrite.",
+  "run_id": "2026_04_28_run_0021",
+  "runtime_seconds": 978.926847,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor Refresh Blend",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 883466,
+  "under_16mb": true,
+  "val_bpb": 2.00742441,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
