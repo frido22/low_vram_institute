@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12748120,
+  "code_bytes": 82325,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665795,
+  "rationale": "Adds a compact late-phase training loss curriculum that downweights prefix positions while keeping the eval-stride tail fully weighted, aiming to align updates with the exact sliding-window validation metric without changing final evaluation or the recurrent-tail export path. The edit reuses the current reverse-tail baseline, keeps shapes compile-stable, and folds duplicated token-loss code so the script stays under the line cap.",
+  "run_id": "2026_04_28_run_0072",
+  "runtime_seconds": 664.973245,
+  "submitter": "frido22",
+  "title": "Late Tail-Weighted Recurrence Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 575523,
+  "under_16mb": true,
+  "val_bpb": 2.05250448,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
