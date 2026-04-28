@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13160222,
+  "code_bytes": 80128,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 13080094,
+  "rationale": "Build on the current reverse-tail recurrent baseline by reallocating a small amount of fp16 keep budget directly into the recurrent value path at export time. The best local family is quantization-sensitive in the tail, and prior value-path float reallocation was one of the few real step-changes; this makes that bias explicit and compact by preserving `attn.c_v.weight` for the last two blocks instead of only the final block, while leaving training, traversal, and wallclock behavior unchanged.",
+  "run_id": "2026_04_28_run_0006",
+  "runtime_seconds": 983.88454,
+  "submitter": "frido22",
+  "title": "Tail Value FP16 Expansion",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 895286,
+  "under_16mb": true,
+  "val_bpb": 1.96691703,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
