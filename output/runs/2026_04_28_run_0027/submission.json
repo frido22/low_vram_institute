@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12769401,
+  "code_bytes": 80131,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12689270,
+  "rationale": "Builds on the current reverse-tail recurrent baseline with a compact schedule change: earlier recurrent tail blocks now start near zero and ramp in with a quadratic curriculum, while the last tail block stays fully active. This spends more of the 600s budget on stabilizing the non-recurrent path early, then phases recurrence back in later without adding export bytes or runtime shape churn.",
+  "run_id": "2026_04_28_run_0027",
+  "runtime_seconds": 772.577914,
+  "submitter": "frido22",
+  "title": "Zero-Start Reverse-Tail Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 684075,
+  "under_16mb": true,
+  "val_bpb": 1.99134465,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
