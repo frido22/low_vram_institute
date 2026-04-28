@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12748317,
+  "code_bytes": 80172,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12668145,
+  "rationale": "Build on the current reverse-tail recurrent baseline with a minimal structural change: add zero-init learned tail_anchor_gates so each recurrent tail block can gently refresh the shared decoder-output anchor toward its updated state. This keeps compile shape stable, preserves near-baseline behavior at initialization, adds only tiny control tensors that already stay in float for export, and directly targets the still-promising reverse-tail anchor variant category without repeating another pure scalar sweep or risky float-budget rewrite.",
+  "run_id": "2026_04_28_run_0025",
+  "runtime_seconds": 1025.816434,
+  "submitter": "frido22",
+  "title": "Gated Reverse-Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 931132,
+  "under_16mb": true,
+  "val_bpb": 2.02166289,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
