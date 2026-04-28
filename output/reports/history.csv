@@ -825,3 +825,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0063,2.050324,True,False,Late Reverse-Tail Anchor Refresh Mix
 2026_04_28_run_0064,2.053446,False,False,Wallclock-Aligned Reverse-Tail Recurrence Curriculum
 2026_04_28_run_0065,2.053335,True,False,Learned Progressive Reverse-Tail Anchor Refresh
+2026_04_28_run_0066,2.051924,False,False,Tail Value-Path FP16 Swap

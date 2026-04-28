@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12744920,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12665497,
+  "rationale": "Reallocate scarce fp16 export budget toward the recurrent tail attention value path. The current best family already leans on reverse-tail recurrence and quant-aware endgame; this edit keeps q/k/v float for recurrent tail blocks, keeps attention projection float for the last two blocks, and trims second-to-last MLP projection float retention to save bytes for the path most likely to survive the exact int8+zlib roundtrip.",
+  "run_id": "2026_04_28_run_0066",
+  "runtime_seconds": 644.226742,
+  "submitter": "frido22",
+  "title": "Tail Value-Path FP16 Swap",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 555171,
+  "under_16mb": true,
+  "val_bpb": 2.05192358,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
