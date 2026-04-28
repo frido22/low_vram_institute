@@ -471,11 +471,8 @@ BLOCK_FP16_MATRIX_SUFFIXES = (
     "mlp.proj.weight",
 )
 BLOCK_FP16_PROJ_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
-BLOCK_FP16_RECUR_VALUE_SUFFIXES = (
-    "attn.c_q.weight",
-    "attn.c_k.weight",
-    "attn.c_v.weight",
-)
+BLOCK_FP16_RECUR_VALUE_SUFFIXES = ("attn.c_k.weight", "attn.c_v.weight")
+BLOCK_FP16_EXIT_VALUE_SUFFIXES = ("attn.c_q.weight",)
 def _np_float32(arr: mx.array) -> np.ndarray:
     return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
 def int8_clip_q(name: str) -> float:
@@ -495,6 +492,9 @@ def build_int8_fp16_keep_names(num_layers: int, tail_recur_blocks: int) -> set[s
     for block_idx in range(max(num_layers - tail_recur_blocks, 0), num_layers):
         prefix = f"blocks.{block_idx}."
         keep.update(prefix + suffix for suffix in BLOCK_FP16_RECUR_VALUE_SUFFIXES)
+    if num_layers > 0:
+        prefix = f"blocks.{num_layers - 1}."
+        keep.update(prefix + suffix for suffix in BLOCK_FP16_EXIT_VALUE_SUFFIXES)
     return keep
 def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
     return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL
