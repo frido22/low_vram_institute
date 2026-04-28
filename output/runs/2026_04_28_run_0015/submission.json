@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12749066,
+  "code_bytes": 80759,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12668307,
+  "rationale": "The current best family is still staged reverse-tail recurrence under a hard 600s stop, but its recurrence curriculum is keyed only to nominal iteration count. On the Mac mini, wallclock reserve often ends training before that schedule fully matures. This edit keeps the same recurrent-tail/export structure and instead drives recurrence staging from `max(step_progress, usable_wallclock_progress)`, so the late-phase recurrence profile is more likely to activate during the real capped run.",
+  "run_id": "2026_04_28_run_0015",
+  "runtime_seconds": 1019.690824,
+  "submitter": "frido22",
+  "title": "Wallclock-Synced Reverse-Tail Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 925301,
+  "under_16mb": true,
+  "val_bpb": 2.01430889,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}

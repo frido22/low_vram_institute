@@ -305,7 +305,7 @@ class GPT(nn.Module):
         ]
         self.tail_recur_start = num_layers - tail_recur_span
         self.final_norm = RMSNormNoWeight()
-        self.tail_recur_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None; self.tail_carry_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None
+        self.tail_recur_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None; self.tail_carry_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None; self.tail_anchor_mix = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None
         for b in self.blocks:
             b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight); b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
         self.tok_emb.weight = (mx.random.normal(self.tok_emb.weight.shape, dtype=mx.float32) * tied_embed_init_std).astype(COMPUTE_DTYPE)
@@ -332,7 +332,7 @@ class GPT(nn.Module):
             for block_idx in range(len(self.blocks) - 1, self.tail_recur_start - 1, -1):
                 recur_idx = block_idx - self.tail_recur_start
                 recur_gain = 1.0 if tail_recur_gains is None else tail_recur_gains[recur_idx].astype(x.dtype)
-                recur_x = x + recur_gain * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + recur_gain * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
+                recur_x = x + recur_gain * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + recur_gain * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x); tail_anchor = tail_anchor + recur_gain * mx.sigmoid(self.tail_anchor_mix[recur_idx]).astype(x.dtype)[None, None, :] * (x - tail_anchor)
         return self.final_norm(x)
     def loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
         x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
@@ -1170,13 +1170,19 @@ def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tupl
     if not quant_aware_active:
         return 1.0, 1.0, 1.0
     return args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul
-def tail_recur_schedule(args: Hyperparameters, step: int, active_blocks: int) -> mx.array:
+def training_progress(args: Hyperparameters, step: int, elapsed_ms: float, max_wallclock_ms: float | None, reserved_final_ms: float) -> float:
+    step_progress = step / max(args.iterations, 1)
+    if max_wallclock_ms is None:
+        return min(max(step_progress, 0.0), 1.0)
+    usable_train_ms = max(max_wallclock_ms - reserved_final_ms, 1.0)
+    time_progress = elapsed_ms / usable_train_ms
+    return min(max(max(step_progress, time_progress), 0.0), 1.0)
+def tail_recur_schedule(args: Hyperparameters, progress: float, active_blocks: int) -> mx.array:
     if active_blocks <= 0:
         return mx.zeros((0,), dtype=mx.float32)
     if args.tail_recur_ramp_end <= args.tail_recur_ramp_start:
-        progress = 1.0 if step > 0 else 0.0
+        progress = 1.0 if progress > 0.0 else 0.0
     else:
-        progress = step / max(args.iterations, 1)
         progress = min(max((progress - args.tail_recur_ramp_start) / (args.tail_recur_ramp_end - args.tail_recur_ramp_start), 0.0), 1.0)
     if active_blocks == 1:
         return mx.ones((1,), dtype=mx.float32)
@@ -1277,6 +1283,7 @@ def main() -> None:
     log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
     log(f"tail_recur_curriculum:min_gain:{args.tail_recur_min_gain} ramp_start:{args.tail_recur_ramp_start} ramp_end:{args.tail_recur_ramp_end}")
     log(f"tail_recur_staging:gap:{args.tail_recur_stage_gap} span:{args.tail_recur_stage_span}")
+    log("tail_recur_progress:max(step,wallclock)")
     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
@@ -1325,7 +1332,8 @@ def main() -> None:
         should_log_train = args.train_log_every > 0 and (
             step < 10 or (step + 1) % args.train_log_every == 0 or stop_after_step is not None
         )
-        tail_recur_gains = tail_recur_schedule(args, step, args.tail_recur_blocks)
+        tail_recur_progress = training_progress(args, step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms)
+        tail_recur_gains = tail_recur_schedule(args, tail_recur_progress, args.tail_recur_blocks)
         if args.use_single_microbatch_path:
             train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
             if args.mlx_eager_eval:
