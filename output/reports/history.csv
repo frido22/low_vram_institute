@@ -841,3 +841,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0080,2.050933,True,False,Decoupled Tail Carry Curriculum
 2026_04_28_run_0081,2.052903,True,False,Capped Reverse-Tail Carry Profile
 2026_04_28_run_0082,2.051893,True,False,Reverse-Tail Anchor Refresh Gate
+2026_04_28_run_0083,2.052357,False,False,Partial Tail Quant-Aware Roundtrip

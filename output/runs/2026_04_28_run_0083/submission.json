@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12745405,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12665982,
+  "rationale": "Narrow quant-aware perturbation and EMA to the tensors that actually move the final int8+zlib score: quantized late-tail matrices and logits-path weights. This keeps float-kept/control tensors live, reduces late over-regularization from whole-model roundtrips, and stays aligned with the recurrent-tail/export endgame instead of smoothing exact-pass tensors that do not suffer quantization error.",
+  "run_id": "2026_04_28_run_0083",
+  "runtime_seconds": 643.836486,
+  "submitter": "frido22",
+  "title": "Partial Tail Quant-Aware Roundtrip",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 554644,
+  "under_16mb": true,
+  "val_bpb": 2.05235675,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
