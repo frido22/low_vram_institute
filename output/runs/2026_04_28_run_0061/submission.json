@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12743298,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12663875,
+  "rationale": "Builds on the strong reverse-tail recurrent family with a compact new control path instead of another scalar sweep. The intended change adds a learned per-tail-block anchor write gate so later recurrent blocks can refresh the anchor they are pulling toward, while keeping shapes compile-stable and preserving the existing quant-aware/export path.",
+  "run_id": "2026_04_28_run_0061",
+  "runtime_seconds": 661.660743,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor Write Gate",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 571759,
+  "under_16mb": true,
+  "val_bpb": 2.052748,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
