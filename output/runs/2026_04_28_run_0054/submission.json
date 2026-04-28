@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12743145,
+  "code_bytes": 81115,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12662030,
+  "rationale": "Builds on the reverse-tail recurrent baseline but decouples recurrence update gain from anchor-carry gain. The deepest recurrent pass stays fully active, while earlier recurrent blocks now ramp their carry path later than their update path. This is a compact, compile-stable curriculum change aimed at preserving the winning tail recurrence structure while reducing early anchor over-coupling that recent refresh/gate variants appear to have destabilized.",
+  "run_id": "2026_04_28_run_0054",
+  "runtime_seconds": 658.922199,
+  "submitter": "frido22",
+  "title": "Staggered Tail Carry Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 569813,
+  "under_16mb": true,
+  "val_bpb": 2.0503932,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
