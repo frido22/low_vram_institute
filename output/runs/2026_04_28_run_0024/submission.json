@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747480,
+  "code_bytes": 81469,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666011,
+  "rationale": "Build on the staged reverse-tail recurrence baseline, but decouple carry activation from recurrence activation. The current family already benefits from reverse tail reuse; this change keeps the recurrent block update schedule intact while delaying and slightly compressing anchor carry on the shallower recurrent passes. The hypothesis is that late-block recurrence should learn earlier, while anchor pull should come online later to reduce over-smoothing and preserve export-friendly tail specialization before quant-aware roundtrips. This is a compact structural edit, compile-stable, and directly targets the winning recurrent-tail path instead of another scalar sweep.",
+  "run_id": "2026_04_28_run_0024",
+  "runtime_seconds": 1022.340863,
+  "submitter": "frido22",
+  "title": "Delayed Tail Carry Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 928770,
+  "under_16mb": true,
+  "val_bpb": 2.02106802,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
