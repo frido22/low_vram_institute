@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12745875,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12666452,
+  "rationale": "This keeps the current reverse-tail family intact but changes the recurrence curriculum to spend early training on a very low-gain recurrent tail, then stage the earlier reverse blocks in later. The hypothesis is that under a 600s budget the strongest recurrent block should stay active while the other repeated tail paths enter more cautiously, reducing early optimization noise and preserving the late export-aligned tail behavior.",
+  "run_id": "2026_04_28_run_0042",
+  "runtime_seconds": 1061.727887,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Low-Gain Stage Warmup",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 967730,
+  "under_16mb": true,
+  "val_bpb": 2.02235567,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
