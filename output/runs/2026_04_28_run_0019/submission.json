@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12914055,
+  "code_bytes": 80199,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12833856,
+  "rationale": "Recent local misses suggest the recurrent-tail/export path is still the live axis, while broader recurrence curricula have destabilized runs. This change stays on the 0031/0004 family and reallocates a small amount of export budget to the tail value path by keeping the last two `attn.c_v.weight` matrices in fp16 and tracking them in the late EMA. The hypothesis is that reverse-tail recurrence is now more limited by value-state reconstruction after int8 roundtrip than by q/k alone, and this is a compact, compile-stable way to improve final exact `int8+zlib` `val_bpb` without reopening the failed curriculum category.",
+  "run_id": "2026_04_28_run_0019",
+  "runtime_seconds": 1026.297915,
+  "submitter": "frido22",
+  "title": "Tail Value FP16 Export Widening",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 933588,
+  "under_16mb": true,
+  "val_bpb": 2.02097411,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
