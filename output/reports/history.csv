@@ -769,3 +769,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0007,1.965895,True,False,Late Tail-Aligned Loss Curriculum
 2026_04_28_run_0008,1.957560,True,False,Staged Reverse-Tail Recurrence Warm Start
 2026_04_28_run_0009,1.964491,False,False,Reverse-Tail KV Float Rescue
+2026_04_28_run_0010,1.962747,True,False,Staged Reverse-Tail Carry-Lead Curriculum

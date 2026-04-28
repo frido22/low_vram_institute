@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12873854,
+  "code_bytes": 80673,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12793181,
+  "rationale": "Builds on the current reverse-tail recurrent baseline with a compact structural change: split recurrence curriculum into separate carry and block-delta gains, so deep tail blocks start by refreshing toward the decoder-output anchor before their recurrent block update fully ramps in. This targets the local anchor-refresh signal without adding new large tensors, keeps compile shapes stable by using a fixed 2xN gain tensor, and preserves the quant-aware/export path.",
+  "run_id": "2026_04_28_run_0010",
+  "runtime_seconds": 1126.543442,
+  "submitter": "frido22",
+  "title": "Staged Reverse-Tail Carry-Lead Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 1037413,
+  "under_16mb": true,
+  "val_bpb": 1.96274746,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
