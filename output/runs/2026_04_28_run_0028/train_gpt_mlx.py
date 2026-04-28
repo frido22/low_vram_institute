@@ -53,8 +53,6 @@ class Hyperparameters:
     quant_aware_proj_start: float = float(os.environ.get("QUANT_AWARE_PROJ_START", 0.55))
     quant_aware_proj_step: float = float(os.environ.get("QUANT_AWARE_PROJ_STEP", 0.2))
     quant_aware_proj_end: float = float(os.environ.get("QUANT_AWARE_PROJ_END", 0.95))
-    quant_aware_attn_mix_mul: float = float(os.environ.get("QUANT_AWARE_ATTN_MIX_MUL", 0.4))
-    quant_aware_other_mix_mul: float = float(os.environ.get("QUANT_AWARE_OTHER_MIX_MUL", 0.6))
     vocab_size: int = int(os.environ.get("VOCAB_SIZE", 1024))
     num_layers: int = int(os.environ.get("NUM_LAYERS", 9))
     model_dim: int = int(os.environ.get("MODEL_DIM", 512))
@@ -75,6 +73,10 @@ class Hyperparameters:
     tail_recur_min_gain: float = float(os.environ.get("TAIL_RECUR_MIN_GAIN", 0.35))
     tail_recur_stage_gap: float = float(os.environ.get("TAIL_RECUR_STAGE_GAP", 0.16))
     tail_recur_stage_span: float = float(os.environ.get("TAIL_RECUR_STAGE_SPAN", 0.12))
+    train_focus_tokens: int = int(os.environ.get("TRAIN_FOCUS_TOKENS", os.environ.get("EVAL_STRIDE", 64)))
+    train_focus_start: float = float(os.environ.get("TRAIN_FOCUS_START", 0.72))
+    train_focus_end: float = float(os.environ.get("TRAIN_FOCUS_END", 0.94))
+    train_focus_max: float = float(os.environ.get("TRAIN_FOCUS_MAX", 0.3))
     beta1: float = float(os.environ.get("BETA1", 0.9))
     beta2: float = float(os.environ.get("BETA2", 0.95))
     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
@@ -317,6 +319,19 @@ class GPT(nn.Module):
         if self.bigram_rank > 0 and prev_ids is not None:
             logits = logits + self.bigram_scale.astype(x.dtype) * self.bigram_out(self.bigram_in(prev_ids.reshape(-1)).astype(x.dtype))
         return self.softcap(logits + self.logit_bias.astype(x.dtype))
+    def _flat_hidden_targets(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None) -> tuple[mx.array, mx.array, mx.array]:
+        return self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]), target_ids.reshape(-1), input_ids.reshape(-1)
+    def _token_losses(self, x: mx.array, y: mx.array, prev_ids: mx.array) -> mx.array:
+        if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
+            logits_f = self.project_logits(x, prev_ids).astype(mx.float32)
+            return mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[:, None], axis=-1).reshape(-1)
+        losses: list[mx.array] = []
+        n = int(x.shape[0])
+        for s in range(0, n, self.logit_chunk_tokens):
+            e = min(s + self.logit_chunk_tokens, n)
+            logits_f = self.project_logits(x[s:e], prev_ids[s:e]).astype(mx.float32)
+            losses.append(mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[s:e, None], axis=-1).reshape(-1))
+        return mx.concatenate(losses, axis=0)
     def __call__(self, input_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
         x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))
         x0 = x
@@ -337,35 +352,26 @@ class GPT(nn.Module):
                 recur_x = x + recur_gain * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + recur_gain * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
         return self.final_norm(x)
     def loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
-        x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
-        if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
-            logits = self.project_logits(x, prev_ids)
-            return nn.losses.cross_entropy(logits.astype(mx.float32), y, reduction="mean")
-        loss_sum = mx.array(0.0, dtype=mx.float32)
-        n = int(x.shape[0])
-        for s in range(0, n, self.logit_chunk_tokens):
-            e = min(s + self.logit_chunk_tokens, n)
-            logits = self.project_logits(x[s:e], prev_ids[s:e])
-            loss_sum = loss_sum + nn.losses.cross_entropy(logits.astype(mx.float32), y[s:e], reduction="sum")
-        return loss_sum / float(n)
+        x, y, prev_ids = self._flat_hidden_targets(input_ids, target_ids, tail_recur_gains)
+        return mx.mean(self._token_losses(x, y, prev_ids))
     def masked_loss(self, input_ids: mx.array, target_ids: mx.array, loss_mask: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
-        x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+        x, y, prev_ids = self._flat_hidden_targets(input_ids, target_ids, tail_recur_gains)
+        token_loss = self._token_losses(x, y, prev_ids)
         mask = loss_mask.reshape(-1).astype(mx.float32)
         denom = mx.maximum(mx.sum(mask), mx.array(1.0, dtype=mx.float32))
-        if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
-            logits = self.project_logits(x, prev_ids)
-            logits_f = logits.astype(mx.float32)
-            token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[:, None], axis=-1).reshape(-1)
-            return mx.sum(token_loss.astype(mx.float32) * mask) / denom
-        loss_sum = mx.array(0.0, dtype=mx.float32)
-        n = int(x.shape[0])
-        for s in range(0, n, self.logit_chunk_tokens):
-            e = min(s + self.logit_chunk_tokens, n)
-            logits = self.project_logits(x[s:e], prev_ids[s:e])
-            logits_f = logits.astype(mx.float32)
-            token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[s:e, None], axis=-1).reshape(-1)
-            loss_sum = loss_sum + mx.sum(token_loss.astype(mx.float32) * mask[s:e])
-        return loss_sum / denom
+        return mx.sum(token_loss * mask) / denom
+    def train_loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None, focus_weight: mx.array | None = None, focus_tokens: int = 0) -> mx.array:
+        x, y, prev_ids = self._flat_hidden_targets(input_ids, target_ids, tail_recur_gains)
+        token_loss = self._token_losses(x, y, prev_ids)
+        base_loss = mx.mean(token_loss)
+        if focus_tokens <= 0 or focus_tokens >= input_ids.shape[1] or focus_weight is None:
+            return base_loss
+        seq_len = input_ids.shape[1]
+        focus_mask = (mx.arange(seq_len, dtype=mx.int32) >= seq_len - focus_tokens).astype(mx.float32)
+        focus_mask = mx.broadcast_to(focus_mask[None, :], input_ids.shape).reshape(-1)
+        focus_loss = mx.sum(token_loss * focus_mask) / mx.maximum(mx.sum(focus_mask), mx.array(1.0, dtype=mx.float32))
+        w = mx.clip(focus_weight.astype(mx.float32), 0.0, 1.0)
+        return base_loss + (focus_loss - base_loss) * w
 class Muon:
     def __init__(self, keys: list[str], params: dict[str, mx.array], args: Hyperparameters):
         self.keys = keys
@@ -642,32 +648,11 @@ def blend_tensor_toward_final(
     if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names):
         return target
     return arr + (target - arr) * mix
-def quant_aware_tensor_mix(name: str, mix: float, attn_mix_mul: float, other_mix_mul: float) -> float:
-    if mix >= 1.0 or any(pattern in name for pattern in INT8_KEEP_FLOAT_FP32_NAME_PATTERNS):
-        return mix
-    if name.endswith(BLOCK_FP16_PROJ_SUFFIXES):
-        return mix
-    if name.endswith(("attn.c_q.weight", "attn.c_k.weight", "attn.c_v.weight")):
-        return mix * attn_mix_mul
-    return mix * other_mix_mul
-def apply_final_roundtrip_to_state(
-    model: GPT,
-    int8_fp16_keep_names: set[str],
-    mix: float = 1.0,
-    tensor_mix_fn: Callable[[str, float], float] | None = None,
-) -> None:
+def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
     model.update(
         tree_unflatten(
             [
-                (
-                    name,
-                    blend_tensor_toward_final(
-                        name,
-                        arr,
-                        int8_fp16_keep_names,
-                        mix if tensor_mix_fn is None else tensor_mix_fn(name, mix),
-                    ),
-                )
+                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix))
                 for name, arr in tree_flatten(model.state)
             ]
         )
@@ -881,6 +866,7 @@ def loss_and_grad_chunked(
     train_loader: TokenLoader,
     compiled_loss_and_grad,
     tail_recur_gains: mx.array,
+    focus_weight: mx.array,
 ) -> tuple[mx.array, dict]:
     chunk_sizes = token_chunks(args.microbatch_tokens, args.train_seq_len, args.mlx_max_microbatch_tokens)
     total_tokens = float(sum(chunk_sizes))
@@ -888,7 +874,7 @@ def loss_and_grad_chunked(
     grad_accum: dict[str, mx.array] | None = None
     for chunk_tokens in chunk_sizes:
         x, y = train_loader.next_batch(chunk_tokens, args.train_seq_len)
-        loss, grads = compiled_loss_and_grad(x, y, tail_recur_gains)
+        loss, grads = compiled_loss_and_grad(x, y, tail_recur_gains, focus_weight)
         scale = float(y.size) / total_tokens
         loss_value = loss_value + loss.astype(mx.float32) * scale
         grad_accum = accumulate_flat_grads(grad_accum, grads, scale)
@@ -900,9 +886,10 @@ def loss_and_grad_one_batch(
     train_loader: TokenLoader,
     compiled_loss_and_grad,
     tail_recur_gains: mx.array,
+    focus_weight: mx.array,
 ) -> tuple[mx.array, dict]:
     x, y = train_loader.next_batch(args.train_batch_tokens, args.train_seq_len)
-    return compiled_loss_and_grad(x, y, tail_recur_gains)
+    return compiled_loss_and_grad(x, y, tail_recur_gains, focus_weight)
 def eval_val(args: Hyperparameters, compiled_loss, compiled_masked_loss, val_tokens: np.ndarray, doc_spans: list[tuple[int, int]] | None, bos_token_id: int, tail_recur_gains: mx.array, base_bytes_lut: np.ndarray, has_leading_space_lut: np.ndarray, is_boundary_token_lut: np.ndarray, log_fn: Callable[[str], None] | None = None) -> tuple[float, float]:
     if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0:
         return eval_val_doc_isolated(
@@ -1211,6 +1198,15 @@ def tail_recur_schedule(args: Hyperparameters, step: int, active_blocks: int) ->
         gains[idx] = args.tail_recur_min_gain + (1.0 - args.tail_recur_min_gain) * stage_progress
     gains[-1] = 1.0
     return mx.array(gains, dtype=mx.float32)
+def train_focus_weight(args: Hyperparameters, step: int) -> mx.array:
+    if args.train_focus_tokens <= 0 or args.train_focus_max <= 0.0:
+        return mx.array(0.0, dtype=mx.float32)
+    progress = step / max(args.iterations, 1)
+    if args.train_focus_end <= args.train_focus_start:
+        ramp = 1.0 if progress >= args.train_focus_start else 0.0
+    else:
+        ramp = min(max((progress - args.train_focus_start) / (args.train_focus_end - args.train_focus_start), 0.0), 1.0)
+    return mx.array(args.train_focus_max * ramp, dtype=mx.float32)
 def main() -> None:
     args = Hyperparameters()
     out_dir = Path(args.out_dir)
@@ -1252,7 +1248,7 @@ def main() -> None:
     tail_recur_eval_gains = mx.ones((args.tail_recur_blocks,), dtype=mx.float32)
     compiled_loss = mx.compile(lambda x, y, rg: model.loss(x, y, rg), inputs=model.state, outputs=model.state)
     compiled_masked_loss = mx.compile(lambda x, y, m, rg: model.masked_loss(x, y, m, rg), inputs=model.state, outputs=model.state)
-    compiled_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y, rg: model.loss(x, y, rg)), inputs=model.state, outputs=model.state)
+    compiled_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y, rg, fw: model.train_loss(x, y, rg, fw, args.train_focus_tokens)), inputs=model.state, outputs=model.state)
     if "MLX_EAGER_EVAL" not in os.environ:
         args.mlx_eager_eval = not args.use_single_microbatch_path
     elif args.use_single_microbatch_path and args.mlx_eager_eval:
@@ -1290,7 +1286,6 @@ def main() -> None:
     log(f"quant_aware:train_seconds:{args.quant_aware_train_seconds:.1f} iters:{args.quant_aware_iters} every:{args.quant_aware_every}")
     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
-    log(f"quant_aware_mix_mul:attn:{args.quant_aware_attn_mix_mul} other:{args.quant_aware_other_mix_mul}")
     log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
     log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
     log(
@@ -1301,6 +1296,7 @@ def main() -> None:
     log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
     log(f"tail_recur_curriculum:min_gain:{args.tail_recur_min_gain} ramp_start:{args.tail_recur_ramp_start} ramp_end:{args.tail_recur_ramp_end}")
     log(f"tail_recur_staging:gap:{args.tail_recur_stage_gap} span:{args.tail_recur_stage_span}")
+    log(f"train_focus:tokens:{args.train_focus_tokens} start:{args.train_focus_start} end:{args.train_focus_end} max:{args.train_focus_max}")
     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
@@ -1350,8 +1346,9 @@ def main() -> None:
             step < 10 or (step + 1) % args.train_log_every == 0 or stop_after_step is not None
         )
         tail_recur_gains = tail_recur_schedule(args, step, args.tail_recur_blocks)
+        focus_weight = train_focus_weight(args, step)
         if args.use_single_microbatch_path:
-            train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
+            train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains, focus_weight)
             if args.mlx_eager_eval:
                 mx.eval(train_loss, grads)
             grads = clip_grad_tree(grads, args.grad_clip_norm)
@@ -1360,7 +1357,7 @@ def main() -> None:
             train_loss = mx.array(0.0, dtype=mx.float32)
             grad_scale = 1.0 / args.grad_accum_steps
             for _ in range(args.grad_accum_steps):
-                loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
+                loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains, focus_weight)
                 accum = accumulate_flat_grads(accum, grads, grad_scale)
                 train_loss = train_loss + loss.astype(mx.float32) * grad_scale
                 if args.mlx_eager_eval:
@@ -1382,17 +1379,7 @@ def main() -> None:
         if should_activate_quant_aware(args, next_step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms) and (
             last_quant_aware_step is None or next_step - last_quant_aware_step >= args.quant_aware_every
         ):
-            apply_final_roundtrip_to_state(
-                model,
-                int8_fp16_keep_names,
-                mix=quant_aware_proj_mix,
-                tensor_mix_fn=lambda name, current_mix: quant_aware_tensor_mix(
-                    name,
-                    current_mix,
-                    args.quant_aware_attn_mix_mul,
-                    args.quant_aware_other_mix_mul,
-                ),
-            )
+            apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix)
             last_quant_aware_step = next_step
             quant_aware_proj_mix = min(quant_aware_proj_mix + args.quant_aware_proj_step, args.quant_aware_proj_end)
             did_quant_aware_roundtrip = True

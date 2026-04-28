@@ -787,3 +787,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0025,2.021663,True,False,Gated Reverse-Tail Anchor Refresh
 2026_04_28_run_0026,1.955270,True,False,Tail Recurrence Eval Alignment
 2026_04_28_run_0027,1.991345,True,False,Zero-Start Reverse-Tail Curriculum
+2026_04_28_run_0028,2.051927,True,False,Late Tail-Aligned Loss Curriculum

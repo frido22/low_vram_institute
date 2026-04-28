@@ -1,80 +1,86 @@
-#!/usr/bin/env python3
-from __future__ import annotations
-import glob
-import json
-import math
-import os
-import pickle
-import sys
-import time
-import uuid
-import zlib
-from collections.abc import Callable
-from pathlib import Path
-import numpy as np
-_OPTIONAL_IMPORT_ERROR = None
-try:
-    import sentencepiece as spm; import mlx.core as mx; import mlx.nn as nn; import mlx.optimizers as optim
-    from mlx.utils import tree_flatten, tree_unflatten
-except ModuleNotFoundError as exc:
-    _OPTIONAL_IMPORT_ERROR = exc
-    class _Missing:
-        class Module: pass
-        def __getattr__(self, _: str): return self
-        def __call__(self, *args, **kwargs): raise ModuleNotFoundError(f"Optional dependency missing: {_OPTIONAL_IMPORT_ERROR.name}") from _OPTIONAL_IMPORT_ERROR
-    spm = mx = nn = optim = _Missing(); tree_flatten = tree_unflatten = _Missing()
-COMPUTE_DTYPE = mx.bfloat16
-class Hyperparameters:
-    data_path: str = os.environ.get("DATA_PATH", "./data/datasets/fineweb10B_sp1024")
-    tokenizer_path: str = os.environ.get("TOKENIZER_PATH", "./data/tokenizers/fineweb_1024_bpe.model")
-    run_id: str = os.environ.get("RUN_ID", str(uuid.uuid4()))
-    seed: int = int(os.environ.get("SEED", 1337))
-    iterations: int = int(os.environ.get("ITERATIONS", 20_000))
-    val_loss_every: int = int(os.environ.get("VAL_LOSS_EVERY", 0))
-    val_batch_size: int = int(os.environ.get("VAL_BATCH_SIZE", 8_192))
-    train_log_every: int = int(os.environ.get("TRAIN_LOG_EVERY", 50))
-    train_batch_tokens: int = int(os.environ.get("TRAIN_BATCH_TOKENS", 6_144))
-    grad_accum_steps: int = int(os.environ.get("GRAD_ACCUM_STEPS", 1))
-    train_seq_len: int = int(os.environ.get("TRAIN_SEQ_LEN", os.environ.get("TRAIN_MAX_SEQ_LEN", 1024)))
-    mlx_max_microbatch_tokens: int = int(os.environ.get("MLX_MAX_MICROBATCH_TOKENS", 8_192))
-    mlx_eager_eval: bool = bool(int(os.environ.get("MLX_EAGER_EVAL", "0")))
-    warmdown_iters: int = int(os.environ.get("WARMDOWN_ITERS", 64))
-    max_wallclock_seconds: float = float(os.environ.get("MAX_WALLCLOCK_SECONDS", 600.0))
-    final_eval_reserve_seconds: float = float(os.environ.get("FINAL_EVAL_RESERVE_SECONDS", 72.0))
-    final_eval_reserve_scale: float = float(os.environ.get("FINAL_EVAL_RESERVE_SCALE", 1.35))
-    final_eval_estimate_batches: int = int(os.environ.get("FINAL_EVAL_ESTIMATE_BATCHES", 2))
-    final_eval_serialization_seconds: float = float(os.environ.get("FINAL_EVAL_SERIALIZATION_SECONDS", 5.0))
-    quant_aware_train_seconds: float = float(os.environ.get("QUANT_AWARE_TRAIN_SECONDS", 48.0))
-    quant_aware_iters: int = int(os.environ.get("QUANT_AWARE_ITERS", 96))
-    quant_aware_every: int = int(os.environ.get("QUANT_AWARE_EVERY", 24))
-    quant_aware_embed_lr_mul: float = float(os.environ.get("QUANT_AWARE_EMBED_LR_MUL", 0.6))
-    quant_aware_matrix_lr_mul: float = float(os.environ.get("QUANT_AWARE_MATRIX_LR_MUL", 0.35))
-    quant_aware_scalar_lr_mul: float = float(os.environ.get("QUANT_AWARE_SCALAR_LR_MUL", 0.8))
-    quant_aware_proj_start: float = float(os.environ.get("QUANT_AWARE_PROJ_START", 0.55))
-    quant_aware_proj_step: float = float(os.environ.get("QUANT_AWARE_PROJ_STEP", 0.2))
-    quant_aware_proj_end: float = float(os.environ.get("QUANT_AWARE_PROJ_END", 0.95))
-    quant_aware_attn_mix_mul: float = float(os.environ.get("QUANT_AWARE_ATTN_MIX_MUL", 0.4))
-    quant_aware_other_mix_mul: float = float(os.environ.get("QUANT_AWARE_OTHER_MIX_MUL", 0.6))
-    vocab_size: int = int(os.environ.get("VOCAB_SIZE", 1024))
-    num_layers: int = int(os.environ.get("NUM_LAYERS", 9))
-    model_dim: int = int(os.environ.get("MODEL_DIM", 512))
-    num_heads: int = int(os.environ.get("NUM_HEADS", 8))
-    num_kv_heads: int = int(os.environ.get("NUM_KV_HEADS", 4))
-    mlp_mult: int = int(os.environ.get("MLP_MULT", 2))
-    tie_embeddings: bool = bool(int(os.environ.get("TIE_EMBEDDINGS", "1")))
-    tied_embed_init_std: float = float(os.environ.get("TIED_EMBED_INIT_STD", 0.005))
-    logit_chunk_tokens: int = int(os.environ.get("LOGIT_CHUNK_TOKENS", 0))
-    logit_softcap: float = float(os.environ.get("LOGIT_SOFTCAP", 30.0))
-    eval_stride: int = int(os.environ.get("EVAL_STRIDE", 64))
-    eval_doc_isolated: bool = bool(int(os.environ.get("EVAL_DOC_ISOLATED", "1")))
-    rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
-    qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 2.0))
-    tail_recur_blocks: int = int(os.environ.get("TAIL_RECUR_BLOCKS", 2))
-    tail_recur_ramp_start: float = float(os.environ.get("TAIL_RECUR_RAMP_START", 0.55))
+/Users/frido_mac/Projects/low_vram_institute/logs/parameter_golf/2026_04_28_run_0028.txt
+WARNING: disabling MLX_EAGER_EVAL on single_microbatch_path for throughput
+run_id:2026_04_28_run_0028
+mlx_version:0.29.3
+train_loader:shards pattern=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/datasets/fineweb10B_sp1024/fineweb_train_*.bin
+val_loader:shards pattern=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/datasets/fineweb10B_sp1024/fineweb_val_*.bin tokens:261120
+WARNING: train_loader:subset dataset:fineweb10B_sp1024 train_shards:1/195 new epochs will arrive sooner than the full dataset
+tokenizer_path:/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/tokenizers/fineweb_1024_bpe.model
+model_params:17193546 vocab_size:1024 layers:9 dim:512 heads:8 kv_heads:4 seq_len:1024 tie_embeddings:True
+iterations:20000 train_batch_tokens:6144 grad_accum_steps:1 microbatch_tokens:6144 microbatch_batch_size:6 val_batch_size:8192 max_wallclock_seconds:600.000
+mlx_max_microbatch_tokens:8192
+optimizer:muon+adam muon_matrix_params:54 scalar_params:44 embed_lr:0.03 matrix_lr:0.02 scalar_lr:0.02 muon_momentum:0.95 muon_steps:5
+val_bpb:enabled tokenizer_kind=sentencepiece tokenizer_path=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/tokenizers/fineweb_1024_bpe.model
+eval_mode:doc_isolated_sliding bos_token_id:1 val_docs:233
+eval_stride:64
+compute_dtype:mlx.core.bfloat16 compile:True
+dtypes tok_emb:mlx.core.bfloat16 linear_weight:mlx.core.float32 skip_weights:mlx.core.float32
+final_eval_budget:estimate_ms:43365 reserve_ms:72000 estimate_batches:2
+quant_aware:train_seconds:48.0 iters:96 every:24
+quant_aware_lr_mul:embed:0.6 matrix:0.35 scalar:0.8
+quant_aware_proj_mix:start:0.55 step:0.2 end:0.95
+int8_transpose_suffixes:mlp.fc.weight
+int8_fp16_keep:count:10 tail_full_blocks:0 tail_proj_blocks:2
+tail_recur:blocks:2 start:7 active:2
+decoder_skip_alignment:start:2 count:3 trim:1
+tail_recur_order:reverse
+tail_recur_carry:decoder_output_anchor
+tail_recur_curriculum:min_gain:0.35 ramp_start:0.55 ramp_end:0.9
+tail_recur_staging:gap:0.16 span:0.12
+train_focus:tokens:64 start:0.72 end:0.94 max:0.3
+tail_ema:decay:0.94 tracked_float_kept:all tracked_proj_suffixes:all
+step:1/20000 train_loss:6.9419 train_time:18ms step_avg:17.62ms tok_s:348858
+step:2/20000 train_loss:13.3247 train_time:2315ms step_avg:1157.27ms tok_s:151879
+step:3/20000 train_loss:10.9046 train_time:6768ms step_avg:2256.15ms tok_s:171036
+step:4/20000 train_loss:9.0011 train_time:13632ms step_avg:3408.10ms tok_s:444278
+step:5/20000 train_loss:7.6759 train_time:20868ms step_avg:4173.67ms tok_s:356535
+step:6/20000 train_loss:7.1251 train_time:27440ms step_avg:4573.36ms tok_s:225423
+step:7/20000 train_loss:7.0734 train_time:34353ms step_avg:4907.64ms tok_s:189558
+step:8/20000 train_loss:6.5371 train_time:41487ms step_avg:5185.83ms tok_s:347871
+step:9/20000 train_loss:6.1918 train_time:51566ms step_avg:5729.57ms tok_s:107722
+step:10/20000 train_loss:6.2758 train_time:62968ms step_avg:6296.84ms tok_s:336019
+step:50/20000 train_loss:4.6483 train_time:76260ms step_avg:1525.21ms tok_s:452593
+quant_aware_roundtrip:step:51
+val_progress:1/255
+val_progress:25/255
+val_progress:50/255
+val_progress:75/255
+val_progress:100/255
+val_progress:125/255
+val_progress:150/255
+val_progress:175/255
+val_progress:200/255
+val_progress:225/255
+val_progress:250/255
+val_progress:255/255
+step:51/20000 val_loss:4.6296 val_bpb:2.0523 train_time:543896ms step_avg:10664.64ms
+stopping_early: wallclock_cap train_time:543896ms step:51/20000
+saved_model:/Users/frido_mac/Projects/low_vram_institute/logs/parameter_golf/2026_04_28_run_0028_mlx_model.npz bytes:67748186
+serialized_model_int8_zlib:12665009 bytes (payload:20483364 raw_pickle:20492785 payload_ratio:3.31x)
+val_progress:1/255
+val_progress:25/255
+val_progress:50/255
+val_progress:75/255
+val_progress:100/255
+val_progress:125/255
+val_progress:150/255
+val_progress:175/255
+val_progress:200/255
+val_progress:225/255
+val_progress:250/255
+val_progress:255/255
+throughput:avg_tok_s:576.11 total_tokens:313344
+final_int8_zlib_roundtrip val_loss:4.6289 val_bpb:2.0519 eval_time:40496ms
+final_int8_zlib_roundtrip_exact val_loss:4.62887717 val_bpb:2.05192662
+_ramp_start: float = float(os.environ.get("TAIL_RECUR_RAMP_START", 0.55))
     tail_recur_ramp_end: float = float(os.environ.get("TAIL_RECUR_RAMP_END", 0.9))
     tail_recur_min_gain: float = float(os.environ.get("TAIL_RECUR_MIN_GAIN", 0.35))
     tail_recur_stage_gap: float = float(os.environ.get("TAIL_RECUR_STAGE_GAP", 0.16))
     tail_recur_stage_span: float = float(os.environ.get("TAIL_RECUR_STAGE_SPAN", 0.12))
+    train_focus_tokens: int = int(os.environ.get("TRAIN_FOCUS_TOKENS", os.environ.get("EVAL_STRIDE", 64)))
+    train_focus_start: float = float(os.environ.get("TRAIN_FOCUS_START", 0.72))
+    train_focus_end: float = float(os.environ.get("TRAIN_FOCUS_END", 0.94))
+    train_focus_max: float = float(os.environ.get("TRAIN_FOCUS_MAX", 0.3))
     beta1: float = float(os.environ.get("BETA1", 0.9))
     beta2: float = float(os.environ.get("BETA2", 0.95))
     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
@@ -317,6 +323,19 @@ class GPT(nn.Module):
         if self.bigram_rank > 0 and prev_ids is not None:
             logits = logits + self.bigram_scale.astype(x.dtype) * self.bigram_out(self.bigram_in(prev_ids.reshape(-1)).astype(x.dtype))
         return self.softcap(logits + self.logit_bias.astype(x.dtype))
+    def _flat_hidden_targets(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None) -> tuple[mx.array, mx.array, mx.array]:
+        return self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]), target_ids.reshape(-1), input_ids.reshape(-1)
+    def _token_losses(self, x: mx.array, y: mx.array, prev_ids: mx.array) -> mx.array:
+        if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
+            logits_f = self.project_logits(x, prev_ids).astype(mx.float32)
+            return mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[:, None], axis=-1).reshape(-1)
+        losses: list[mx.array] = []
+        n = int(x.shape[0])
+        for s in range(0, n, self.logit_chunk_tokens):
+            e = min(s + self.logit_chunk_tokens, n)
+            logits_f = self.project_logits(x[s:e], prev_ids[s:e]).astype(mx.float32)
+            losses.append(mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[s:e, None], axis=-1).reshape(-1))
+        return mx.concatenate(losses, axis=0)
     def __call__(self, input_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
         x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))
         x0 = x
@@ -337,35 +356,26 @@ class GPT(nn.Module):
                 recur_x = x + recur_gain * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + recur_gain * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
         return self.final_norm(x)
     def loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
-        x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
-        if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
-            logits = self.project_logits(x, prev_ids)
-            return nn.losses.cross_entropy(logits.astype(mx.float32), y, reduction="mean")
-        loss_sum = mx.array(0.0, dtype=mx.float32)
-        n = int(x.shape[0])
-        for s in range(0, n, self.logit_chunk_tokens):
-            e = min(s + self.logit_chunk_tokens, n)
-            logits = self.project_logits(x[s:e], prev_ids[s:e])
-            loss_sum = loss_sum + nn.losses.cross_entropy(logits.astype(mx.float32), y[s:e], reduction="sum")
-        return loss_sum / float(n)
+        x, y, prev_ids = self._flat_hidden_targets(input_ids, target_ids, tail_recur_gains)
+        return mx.mean(self._token_losses(x, y, prev_ids))
     def masked_loss(self, input_ids: mx.array, target_ids: mx.array, loss_mask: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
-        x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+        x, y, prev_ids = self._flat_hidden_targets(input_ids, target_ids, tail_recur_gains)
+        token_loss = self._token_losses(x, y, prev_ids)
         mask = loss_mask.reshape(-1).astype(mx.float32)
         denom = mx.maximum(mx.sum(mask), mx.array(1.0, dtype=mx.float32))
-        if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
-            logits = self.project_logits(x, prev_ids)
-            logits_f = logits.astype(mx.float32)
-            token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[:, None], axis=-1).reshape(-1)
-            return mx.sum(token_loss.astype(mx.float32) * mask) / denom
-        loss_sum = mx.array(0.0, dtype=mx.float32)
-        n = int(x.shape[0])
-        for s in range(0, n, self.logit_chunk_tokens):
-            e = min(s + self.logit_chunk_tokens, n)
-            logits = self.project_logits(x[s:e], prev_ids[s:e])
-            logits_f = logits.astype(mx.float32)
-            token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[s:e, None], axis=-1).reshape(-1)
-            loss_sum = loss_sum + mx.sum(token_loss.astype(mx.float32) * mask[s:e])
-        return loss_sum / denom
+        return mx.sum(token_loss * mask) / denom
+    def train_loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None, focus_weight: mx.array | None = None, focus_tokens: int = 0) -> mx.array:
+        x, y, prev_ids = self._flat_hidden_targets(input_ids, target_ids, tail_recur_gains)
+        token_loss = self._token_losses(x, y, prev_ids)
+        base_loss = mx.mean(token_loss)
+        if focus_tokens <= 0 or focus_tokens >= input_ids.shape[1] or focus_weight is None:
+            return base_loss
+        seq_len = input_ids.shape[1]
+        focus_mask = (mx.arange(seq_len, dtype=mx.int32) >= seq_len - focus_tokens).astype(mx.float32)
+        focus_mask = mx.broadcast_to(focus_mask[None, :], input_ids.shape).reshape(-1)
+        focus_loss = mx.sum(token_loss * focus_mask) / mx.maximum(mx.sum(focus_mask), mx.array(1.0, dtype=mx.float32))
+        w = mx.clip(focus_weight.astype(mx.float32), 0.0, 1.0)
+        return base_loss + (focus_loss - base_loss) * w
 class Muon:
     def __init__(self, keys: list[str], params: dict[str, mx.array], args: Hyperparameters):
         self.keys = keys
@@ -642,32 +652,11 @@ def blend_tensor_toward_final(
     if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names):
         return target
     return arr + (target - arr) * mix
-def quant_aware_tensor_mix(name: str, mix: float, attn_mix_mul: float, other_mix_mul: float) -> float:
-    if mix >= 1.0 or any(pattern in name for pattern in INT8_KEEP_FLOAT_FP32_NAME_PATTERNS):
-        return mix
-    if name.endswith(BLOCK_FP16_PROJ_SUFFIXES):
-        return mix
-    if name.endswith(("attn.c_q.weight", "attn.c_k.weight", "attn.c_v.weight")):
-        return mix * attn_mix_mul
-    return mix * other_mix_mul
-def apply_final_roundtrip_to_state(
-    model: GPT,
-    int8_fp16_keep_names: set[str],
-    mix: float = 1.0,
-    tensor_mix_fn: Callable[[str, float], float] | None = None,
-) -> None:
+def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
     model.update(
         tree_unflatten(
             [
-                (
-                    name,
-                    blend_tensor_toward_final(
-                        name,
-                        arr,
-                        int8_fp16_keep_names,
-                        mix if tensor_mix_fn is None else tensor_mix_fn(name, mix),
-                    ),
-                )
+                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix))
                 for name, arr in tree_flatten(model.state)
             ]
         )
@@ -881,6 +870,7 @@ def loss_and_grad_chunked(
     train_loader: TokenLoader,
     compiled_loss_and_grad,
     tail_recur_gains: mx.array,
+    focus_weight: mx.array,
 ) -> tuple[mx.array, dict]:
     chunk_sizes = token_chunks(args.microbatch_tokens, args.train_seq_len, args.mlx_max_microbatch_tokens)
     total_tokens = float(sum(chunk_sizes))
@@ -888,7 +878,7 @@ def loss_and_grad_chunked(
     grad_accum: dict[str, mx.array] | None = None
     for chunk_tokens in chunk_sizes:
         x, y = train_loader.next_batch(chunk_tokens, args.train_seq_len)
-        loss, grads = compiled_loss_and_grad(x, y, tail_recur_gains)
+        loss, grads = compiled_loss_and_grad(x, y, tail_recur_gains, focus_weight)
         scale = float(y.size) / total_tokens
         loss_value = loss_value + loss.astype(mx.float32) * scale
         grad_accum = accumulate_flat_grads(grad_accum, grads, scale)
@@ -900,9 +890,10 @@ def loss_and_grad_one_batch(
     train_loader: TokenLoader,
     compiled_loss_and_grad,
     tail_recur_gains: mx.array,
+    focus_weight: mx.array,
 ) -> tuple[mx.array, dict]:
     x, y = train_loader.next_batch(args.train_batch_tokens, args.train_seq_len)
-    return compiled_loss_and_grad(x, y, tail_recur_gains)
+    return compiled_loss_and_grad(x, y, tail_recur_gains, focus_weight)
 def eval_val(args: Hyperparameters, compiled_loss, compiled_masked_loss, val_tokens: np.ndarray, doc_spans: list[tuple[int, int]] | None, bos_token_id: int, tail_recur_gains: mx.array, base_bytes_lut: np.ndarray, has_leading_space_lut: np.ndarray, is_boundary_token_lut: np.ndarray, log_fn: Callable[[str], None] | None = None) -> tuple[float, float]:
     if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0:
         return eval_val_doc_isolated(
@@ -1211,6 +1202,15 @@ def tail_recur_schedule(args: Hyperparameters, step: int, active_blocks: int) ->
         gains[idx] = args.tail_recur_min_gain + (1.0 - args.tail_recur_min_gain) * stage_progress
     gains[-1] = 1.0
     return mx.array(gains, dtype=mx.float32)
+def train_focus_weight(args: Hyperparameters, step: int) -> mx.array:
+    if args.train_focus_tokens <= 0 or args.train_focus_max <= 0.0:
+        return mx.array(0.0, dtype=mx.float32)
+    progress = step / max(args.iterations, 1)
+    if args.train_focus_end <= args.train_focus_start:
+        ramp = 1.0 if progress >= args.train_focus_start else 0.0
+    else:
+        ramp = min(max((progress - args.train_focus_start) / (args.train_focus_end - args.train_focus_start), 0.0), 1.0)
+    return mx.array(args.train_focus_max * ramp, dtype=mx.float32)
 def main() -> None:
     args = Hyperparameters()
     out_dir = Path(args.out_dir)
@@ -1252,7 +1252,7 @@ def main() -> None:
     tail_recur_eval_gains = mx.ones((args.tail_recur_blocks,), dtype=mx.float32)
     compiled_loss = mx.compile(lambda x, y, rg: model.loss(x, y, rg), inputs=model.state, outputs=model.state)
     compiled_masked_loss = mx.compile(lambda x, y, m, rg: model.masked_loss(x, y, m, rg), inputs=model.state, outputs=model.state)
-    compiled_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y, rg: model.loss(x, y, rg)), inputs=model.state, outputs=model.state)
+    compiled_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y, rg, fw: model.train_loss(x, y, rg, fw, args.train_focus_tokens)), inputs=model.state, outputs=model.state)
     if "MLX_EAGER_EVAL" not in os.environ:
         args.mlx_eager_eval = not args.use_single_microbatch_path
     elif args.use_single_microbatch_path and args.mlx_eager_eval:
@@ -1290,7 +1290,6 @@ def main() -> None:
     log(f"quant_aware:train_seconds:{args.quant_aware_train_seconds:.1f} iters:{args.quant_aware_iters} every:{args.quant_aware_every}")
     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
-    log(f"quant_aware_mix_mul:attn:{args.quant_aware_attn_mix_mul} other:{args.quant_aware_other_mix_mul}")
     log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
     log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
     log(
@@ -1301,6 +1300,7 @@ def main() -> None:
     log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
     log(f"tail_recur_curriculum:min_gain:{args.tail_recur_min_gain} ramp_start:{args.tail_recur_ramp_start} ramp_end:{args.tail_recur_ramp_end}")
     log(f"tail_recur_staging:gap:{args.tail_recur_stage_gap} span:{args.tail_recur_stage_span}")
+    log(f"train_focus:tokens:{args.train_focus_tokens} start:{args.train_focus_start} end:{args.train_focus_end} max:{args.train_focus_max}")
     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
@@ -1350,8 +1350,9 @@ def main() -> None:
             step < 10 or (step + 1) % args.train_log_every == 0 or stop_after_step is not None
         )
         tail_recur_gains = tail_recur_schedule(args, step, args.tail_recur_blocks)
+        focus_weight = train_focus_weight(args, step)
         if args.use_single_microbatch_path:
-            train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
+            train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains, focus_weight)
             if args.mlx_eager_eval:
                 mx.eval(train_loss, grads)
             grads = clip_grad_tree(grads, args.grad_clip_norm)
@@ -1360,7 +1361,7 @@ def main() -> None:
             train_loss = mx.array(0.0, dtype=mx.float32)
             grad_scale = 1.0 / args.grad_accum_steps
             for _ in range(args.grad_accum_steps):
-                loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
+                loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains, focus_weight)
                 accum = accumulate_flat_grads(accum, grads, grad_scale)
                 train_loss = train_loss + loss.astype(mx.float32) * grad_scale
                 if args.mlx_eager_eval:
@@ -1382,17 +1383,7 @@ def main() -> None:
         if should_activate_quant_aware(args, next_step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms) and (
             last_quant_aware_step is None or next_step - last_quant_aware_step >= args.quant_aware_every
         ):
-            apply_final_roundtrip_to_state(
-                model,
-                int8_fp16_keep_names,
-                mix=quant_aware_proj_mix,
-                tensor_mix_fn=lambda name, current_mix: quant_aware_tensor_mix(
-                    name,
-                    current_mix,
-                    args.quant_aware_attn_mix_mul,
-                    args.quant_aware_other_mix_mul,
-                ),
-            )
+            apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix)
             last_quant_aware_step = next_step
             quant_aware_proj_mix = min(quant_aware_proj_mix + args.quant_aware_proj_step, args.quant_aware_proj_end)
             did_quant_aware_roundtrip = True
@@ -1476,3 +1467,81 @@ def main() -> None:
     log(f"final_int8_zlib_roundtrip_exact val_loss:{q_val_loss:.8f} val_bpb:{q_val_bpb:.8f}")
 if __name__ == "__main__":
     main()
+====================================================================================================
+Running Python 3.9.6 (default, Jan  9 2026, 11:03:41) 
+[Clang 17.0.0 (clang-1700.6.4.2)]
+Running MLX 0.29.3
+====================================================================================================
+WARNING: disabling MLX_EAGER_EVAL on single_microbatch_path for throughput
+run_id:2026_04_28_run_0028
+mlx_version:0.29.3
+train_loader:shards pattern=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/datasets/fineweb10B_sp1024/fineweb_train_*.bin
+val_loader:shards pattern=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/datasets/fineweb10B_sp1024/fineweb_val_*.bin tokens:261120
+WARNING: train_loader:subset dataset:fineweb10B_sp1024 train_shards:1/195 new epochs will arrive sooner than the full dataset
+tokenizer_path:/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/tokenizers/fineweb_1024_bpe.model
+model_params:17193546 vocab_size:1024 layers:9 dim:512 heads:8 kv_heads:4 seq_len:1024 tie_embeddings:True
+iterations:20000 train_batch_tokens:6144 grad_accum_steps:1 microbatch_tokens:6144 microbatch_batch_size:6 val_batch_size:8192 max_wallclock_seconds:600.000
+mlx_max_microbatch_tokens:8192
+optimizer:muon+adam muon_matrix_params:54 scalar_params:44 embed_lr:0.03 matrix_lr:0.02 scalar_lr:0.02 muon_momentum:0.95 muon_steps:5
+val_bpb:enabled tokenizer_kind=sentencepiece tokenizer_path=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/tokenizers/fineweb_1024_bpe.model
+eval_mode:doc_isolated_sliding bos_token_id:1 val_docs:233
+eval_stride:64
+compute_dtype:mlx.core.bfloat16 compile:True
+dtypes tok_emb:mlx.core.bfloat16 linear_weight:mlx.core.float32 skip_weights:mlx.core.float32
+final_eval_budget:estimate_ms:43365 reserve_ms:72000 estimate_batches:2
+quant_aware:train_seconds:48.0 iters:96 every:24
+quant_aware_lr_mul:embed:0.6 matrix:0.35 scalar:0.8
+quant_aware_proj_mix:start:0.55 step:0.2 end:0.95
+int8_transpose_suffixes:mlp.fc.weight
+int8_fp16_keep:count:10 tail_full_blocks:0 tail_proj_blocks:2
+tail_recur:blocks:2 start:7 active:2
+decoder_skip_alignment:start:2 count:3 trim:1
+tail_recur_order:reverse
+tail_recur_carry:decoder_output_anchor
+tail_recur_curriculum:min_gain:0.35 ramp_start:0.55 ramp_end:0.9
+tail_recur_staging:gap:0.16 span:0.12
+train_focus:tokens:64 start:0.72 end:0.94 max:0.3
+tail_ema:decay:0.94 tracked_float_kept:all tracked_proj_suffixes:all
+step:1/20000 train_loss:6.9419 train_time:18ms step_avg:17.62ms tok_s:348858
+step:2/20000 train_loss:13.3247 train_time:2315ms step_avg:1157.27ms tok_s:151879
+step:3/20000 train_loss:10.9046 train_time:6768ms step_avg:2256.15ms tok_s:171036
+step:4/20000 train_loss:9.0011 train_time:13632ms step_avg:3408.10ms tok_s:444278
+step:5/20000 train_loss:7.6759 train_time:20868ms step_avg:4173.67ms tok_s:356535
+step:6/20000 train_loss:7.1251 train_time:27440ms step_avg:4573.36ms tok_s:225423
+step:7/20000 train_loss:7.0734 train_time:34353ms step_avg:4907.64ms tok_s:189558
+step:8/20000 train_loss:6.5371 train_time:41487ms step_avg:5185.83ms tok_s:347871
+step:9/20000 train_loss:6.1918 train_time:51566ms step_avg:5729.57ms tok_s:107722
+step:10/20000 train_loss:6.2758 train_time:62968ms step_avg:6296.84ms tok_s:336019
+step:50/20000 train_loss:4.6483 train_time:76260ms step_avg:1525.21ms tok_s:452593
+quant_aware_roundtrip:step:51
+val_progress:1/255
+val_progress:25/255
+val_progress:50/255
+val_progress:75/255
+val_progress:100/255
+val_progress:125/255
+val_progress:150/255
+val_progress:175/255
+val_progress:200/255
+val_progress:225/255
+val_progress:250/255
+val_progress:255/255
+step:51/20000 val_loss:4.6296 val_bpb:2.0523 train_time:543896ms step_avg:10664.64ms
+stopping_early: wallclock_cap train_time:543896ms step:51/20000
+saved_model:/Users/frido_mac/Projects/low_vram_institute/logs/parameter_golf/2026_04_28_run_0028_mlx_model.npz bytes:67748186
+serialized_model_int8_zlib:12665009 bytes (payload:20483364 raw_pickle:20492785 payload_ratio:3.31x)
+val_progress:1/255
+val_progress:25/255
+val_progress:50/255
+val_progress:75/255
+val_progress:100/255
+val_progress:125/255
+val_progress:150/255
+val_progress:175/255
+val_progress:200/255
+val_progress:225/255
+val_progress:250/255
+val_progress:255/255
+throughput:avg_tok_s:576.11 total_tokens:313344
+final_int8_zlib_roundtrip val_loss:4.6289 val_bpb:2.0519 eval_time:40496ms
+final_int8_zlib_roundtrip_exact val_loss:4.62887717 val_bpb:2.05192662
