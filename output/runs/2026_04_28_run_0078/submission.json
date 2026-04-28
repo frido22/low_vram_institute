@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 11770063,
+  "code_bytes": 80085,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 11689978,
+  "rationale": "Shift the fp16 export budget toward recurrent-tail value matrices, which are reused during reverse-tail recurrence and have been a stronger local signal than broad projection keeps. This makes a real byte-allocation change while staying compact: reduce generic tail projection fp16 retention from 2 blocks to 1 block, add an explicit recurrent-tail c_v keep set, and remove the old special-case last-block c_v keep that was less aligned with the recurrence path.",
+  "run_id": "2026_04_28_run_0078",
+  "runtime_seconds": 663.322852,
+  "submitter": "frido22",
+  "title": "Recurrent Tail Value-Path FP16 Budget Swap",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 575489,
+  "under_16mb": true,
+  "val_bpb": 2.05270459,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
