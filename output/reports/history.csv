@@ -823,3 +823,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0061,2.052748,False,False,Reverse-Tail Anchor Write Gate
 2026_04_28_run_0062,2.051303,True,False,Late Tail-Aligned Loss Bias Curriculum
 2026_04_28_run_0063,2.050324,True,False,Late Reverse-Tail Anchor Refresh Mix
+2026_04_28_run_0064,2.053446,False,False,Wallclock-Aligned Reverse-Tail Recurrence Curriculum

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12745411,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12665988,
+  "rationale": "The strongest local family is still the compact reverse-tail recurrent baseline, but its recurrence curriculum was keyed to nominal iteration count even though the launcher is wallclock-capped. On a 600 second Mac-mini run that can leave the staged tail recurrence under-activated or inconsistently activated across throughput regimes. This edit keeps the same architecture and export path, but re-times the tail recurrence schedule against usable training wallclock before the reserved final-eval window, so the recurrent tail ramps when the run is actually late rather than when an arbitrary ITERATIONS counter says it is late.",
+  "run_id": "2026_04_28_run_0064",
+  "runtime_seconds": 653.51766,
+  "submitter": "frido22",
+  "title": "Wallclock-Aligned Reverse-Tail Recurrence Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 564111,
+  "under_16mb": true,
+  "val_bpb": 2.05344614,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
