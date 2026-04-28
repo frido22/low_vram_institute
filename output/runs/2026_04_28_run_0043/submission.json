@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746369,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12666946,
+  "rationale": "Build on the recurrent-tail baseline by keeping the deepest reverse-tail replay fully active while delaying and damping shallower recurrent blocks. The intended edit adds `TAIL_RECUR_STAGE_WARMUP` and `TAIL_RECUR_BASE_GAIN`, changes `tail_recur_schedule()` so shallow recurrent blocks start near-zero and only rise later in training, and logs the new curriculum knobs.",
+  "run_id": "2026_04_28_run_0043",
+  "runtime_seconds": 650.446023,
+  "submitter": "frido22",
+  "title": "Delayed Shallow Tail Recurrence Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 561707,
+  "under_16mb": true,
+  "val_bpb": 2.05244792,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

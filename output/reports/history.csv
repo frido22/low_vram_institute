@@ -802,3 +802,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0040,2.023126,True,False,Late Suffix-Aligned Loss Curriculum
 2026_04_28_run_0041,2.052387,True,False,Late Tail-Masked Training Curriculum
 2026_04_28_run_0042,2.022356,False,False,Reverse-Tail Low-Gain Stage Warmup
+2026_04_28_run_0043,2.052448,False,False,Delayed Shallow Tail Recurrence Curriculum
