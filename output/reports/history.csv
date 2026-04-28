@@ -839,3 +839,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0078,2.052705,True,False,Recurrent Tail Value-Path FP16 Budget Swap
 2026_04_28_run_0079,2.012075,True,False,Staged Zero-Start Reverse Tail Curriculum
 2026_04_28_run_0080,2.050933,True,False,Decoupled Tail Carry Curriculum
+2026_04_28_run_0081,2.052903,True,False,Capped Reverse-Tail Carry Profile

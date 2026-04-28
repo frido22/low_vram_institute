@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747436,
+  "code_bytes": 81501,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665935,
+  "rationale": "Builds on the recurrent-tail baseline with a compact structural change: keep the reverse-tail update path staged as before, but cap only the early carry/anchor injection for non-final recurrent passes during both training and final eval. The hypothesis is that the strong late-block recurrence remains useful, while reducing over-pulling toward the decoder anchor improves export-surviving tail behavior without adding bytes or broad rewrites.",
+  "run_id": "2026_04_28_run_0081",
+  "runtime_seconds": 673.104651,
+  "submitter": "frido22",
+  "title": "Capped Reverse-Tail Carry Profile",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 584928,
+  "under_16mb": true,
+  "val_bpb": 2.05290327,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
