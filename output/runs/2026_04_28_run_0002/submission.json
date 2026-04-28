@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13047892,
+  "code_bytes": 81028,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12966864,
+  "rationale": "Builds on the current reverse-tail recurrent baseline with a compact structural change: earlier recurrent tail passes and their carry refresh are capped below the deepest pass, keeping the strongest recurrence on the most export-sensitive final block while reducing over-rotation in earlier recurrent blocks. This stays compile-stable, near-byte-neutral, and directly targets the close-miss capped-profile idea instead of another scalar-only sweep.",
+  "run_id": "2026_04_28_run_0002",
+  "runtime_seconds": 940.387547,
+  "submitter": "frido22",
+  "title": "Depth-Capped Reverse Tail Recurrence",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 852244,
+  "under_16mb": true,
+  "val_bpb": 1.96829085,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
