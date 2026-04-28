@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12732561,
+  "code_bytes": 79773,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12652788,
+  "rationale": "Builds on the recurrent-tail baseline by changing the tail curriculum from always-on low-gain recurrence to true staged activation. Early training keeps the recurrent tail off, then turns blocks on progressively, which is closer to the best local curriculum signal and removes the now-unused minimum-gain control.",
+  "run_id": "2026_04_28_run_0079",
+  "runtime_seconds": 1012.853752,
+  "submitter": "frido22",
+  "title": "Staged Zero-Start Reverse Tail Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 919422,
+  "under_16mb": true,
+  "val_bpb": 2.0120749,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
