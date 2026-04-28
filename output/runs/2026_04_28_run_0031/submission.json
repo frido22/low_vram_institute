@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12080797,
+  "code_bytes": 80335,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12000462,
+  "rationale": "Recent recurrence curricula regressed, but anchor-refresh and recurrent-tail float rescue remain the best live categories. This keeps the reverse-tail family intact while making one compact structural change to the recurrent pass: the decoder-output anchor now refreshes slightly after each recurrent block instead of staying frozen. In parallel, the fp16 export budget is reallocated from recurrent-tail Q/K toward V-path preservation, keeping the last K as a stabilizer. The hypothesis is better late-tail state reuse plus export sensitivity on the value path, without broad shape or optimizer churn.",
+  "run_id": "2026_04_28_run_0031",
+  "runtime_seconds": 1024.291313,
+  "submitter": "frido22",
+  "title": "Anchor-Refresh Reverse Tail + V-Path FP16 Swap",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 929977,
+  "under_16mb": true,
+  "val_bpb": 2.01242672,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
