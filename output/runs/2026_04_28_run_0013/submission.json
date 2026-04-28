@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12740453,
+  "code_bytes": 80258,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12660195,
+  "rationale": "Builds on the current recurrent-tail baseline with a compact curriculum change instead of another scalar sweep. Earlier recurrent tail blocks now stay fully off until their stage opens, concentrating limited Mac-mini step budget on the deepest repeated block first; the carry path is also gain-squared so anchor pull stays weaker during partial activation. This is a compile-stable structural edit aimed directly at final int8 roundtrip behavior, while keeping the script lean and preserving the existing export-aware endgame.",
+  "run_id": "2026_04_28_run_0013",
+  "runtime_seconds": 920.719351,
+  "submitter": "frido22",
+  "title": "Staged Reverse-Tail Recurrence Sparsification",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 826047,
+  "under_16mb": true,
+  "val_bpb": 1.99974757,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}

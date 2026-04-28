@@ -772,3 +772,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0010,1.962747,True,False,Staged Reverse-Tail Carry-Lead Curriculum
 2026_04_28_run_0011,2.051001,True,False,Reverse-Tail Anchor Refresh Gate
 2026_04_28_run_0012,1.966041,True,False,Recurrent-Tail V Float Rescue
+2026_04_28_run_0013,1.999748,True,False,Staged Reverse-Tail Recurrence Sparsification
