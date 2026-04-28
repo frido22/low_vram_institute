@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12778508,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12699085,
+  "rationale": "Built on the current recurrent-tail baseline instead of restarting. This run adds a compact late-phase training-loss curriculum that keeps full-sequence supervision early, then progressively downweights earlier tokens while preserving full weight on the final 128 positions. The hypothesis is that the best reverse-tail recurrent family is already strong, and the next useful budget shift is validation alignment: spend more late training signal on the tail region that matters most to final exact int8+zlib eval, without changing eval code, data paths, wallclock limits, or artifact format. The edit is compile-stable, reuses the existing masked-loss path, and stays under the line cap.",
+  "run_id": "2026_04_28_run_0017",
+  "runtime_seconds": 795.137437,
+  "submitter": "frido22",
+  "title": "Late Tail-Weighted Loss Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 706168,
+  "under_16mb": true,
+  "val_bpb": 1.9910507,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
