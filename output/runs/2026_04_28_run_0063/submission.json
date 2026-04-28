@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747135,
+  "code_bytes": 82224,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664911,
+  "rationale": "Build on the staged reverse-tail recurrence baseline instead of another scalar sweep. This adds a compile-stable late curriculum that gradually refreshes the frozen decoder-output anchor toward the evolving recurrent state before each reverse tail replay. The hypothesis is that the best family wants some anchor staleness early for stability, but a modest late refresh should reduce mismatch between the recurrent carry path and the final int8 roundtrip model without adding parameters or export bytes.",
+  "run_id": "2026_04_28_run_0063",
+  "runtime_seconds": 631.570309,
+  "submitter": "frido22",
+  "title": "Late Reverse-Tail Anchor Refresh Mix",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 541194,
+  "under_16mb": true,
+  "val_bpb": 2.05032445,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
