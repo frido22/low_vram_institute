@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747830,
+  "code_bytes": 82117,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665713,
+  "rationale": "Builds on the recurrent-tail baseline with a compact, compile-stable structural edit: recurrent tail blocks now train with a staged anchor-refresh mix that gradually lets later recurrent passes refresh their carry anchor, while exact final eval uses the fully refreshed setting. This targets the still-live reverse-tail anchor variant category without adding new objectives or broad shape churn.",
+  "run_id": "2026_04_28_run_0048",
+  "runtime_seconds": 624.148144,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor Refresh Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 535248,
+  "under_16mb": true,
+  "val_bpb": 2.04969602,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
