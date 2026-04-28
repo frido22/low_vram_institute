@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12748668,
+  "code_bytes": 81503,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12667165,
+  "rationale": "The best path in this repo is still the compact reverse-tail recurrent family, but recent flat or bad runs suggest the current single recurrence gain may be turning on anchor transport and block replay too abruptly together. This edit keeps the same 9x512 recurrent-tail/export regime and exact eval path, but splits the late-tail curriculum into two compile-stable schedules: carry-to-anchor activates earlier and starts softer, while replay of the recurrent blocks ramps slightly later. The hypothesis is that earlier hidden-state anchoring stabilizes the recurrent tail under the 600s budget, then the nonlinear replay can spend capacity later when the representation is already aligned, improving the final int8+zlib roundtrip score without adding parameter-heavy machinery or bloating the script.",
+  "run_id": "2026_04_28_run_0037",
+  "runtime_seconds": 639.086051,
+  "submitter": "frido22",
+  "title": "Decoupled Tail Carry and Replay Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 549500,
+  "under_16mb": true,
+  "val_bpb": 2.05138021,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
