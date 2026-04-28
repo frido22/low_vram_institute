@@ -73,9 +73,6 @@ class Hyperparameters:
     tail_recur_min_gain: float = float(os.environ.get("TAIL_RECUR_MIN_GAIN", 0.35))
     tail_recur_stage_gap: float = float(os.environ.get("TAIL_RECUR_STAGE_GAP", 0.16))
     tail_recur_stage_span: float = float(os.environ.get("TAIL_RECUR_STAGE_SPAN", 0.12))
-    tail_anchor_refresh_start: float = float(os.environ.get("TAIL_ANCHOR_REFRESH_START", 0.7))
-    tail_anchor_refresh_end: float = float(os.environ.get("TAIL_ANCHOR_REFRESH_END", 0.96))
-    tail_anchor_refresh_max: float = float(os.environ.get("TAIL_ANCHOR_REFRESH_MAX", 0.4))
     beta1: float = float(os.environ.get("BETA1", 0.9))
     beta2: float = float(os.environ.get("BETA2", 0.95))
     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
@@ -318,7 +315,7 @@ class GPT(nn.Module):
         if self.bigram_rank > 0 and prev_ids is not None:
             logits = logits + self.bigram_scale.astype(x.dtype) * self.bigram_out(self.bigram_in(prev_ids.reshape(-1)).astype(x.dtype))
         return self.softcap(logits + self.logit_bias.astype(x.dtype))
-    def __call__(self, input_ids: mx.array, tail_recur_gains: mx.array | None = None, tail_anchor_refresh: mx.array | None = None) -> mx.array:
+    def __call__(self, input_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
         x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))
         x0 = x
         skips: list[mx.array] = []
@@ -332,16 +329,17 @@ class GPT(nn.Module):
             x = self.blocks[self.num_encoder_layers + i](x, x0)
         if self.tail_recur_gates is not None:
             tail_anchor = x
-            anchor_refresh = mx.array(0.0, dtype=x.dtype) if tail_anchor_refresh is None else tail_anchor_refresh.astype(x.dtype)
+            tail_span = len(self.blocks) - self.tail_recur_start
             for block_idx in range(len(self.blocks) - 1, self.tail_recur_start - 1, -1):
                 recur_idx = block_idx - self.tail_recur_start
                 recur_gain = 1.0 if tail_recur_gains is None else tail_recur_gains[recur_idx].astype(x.dtype)
                 recur_x = x + recur_gain * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x)
                 x = recur_x + recur_gain * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
-                tail_anchor = tail_anchor + anchor_refresh * (x - tail_anchor)
+                if recur_idx > 0:
+                    tail_anchor = tail_anchor + (x - tail_anchor) * (recur_gain * (0.5 * recur_idx / tail_span))
         return self.final_norm(x)
-    def loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None, tail_anchor_refresh: mx.array | None = None) -> mx.array:
-        x = self(input_ids, tail_recur_gains, tail_anchor_refresh).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+    def loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
+        x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
             logits = self.project_logits(x, prev_ids)
             return nn.losses.cross_entropy(logits.astype(mx.float32), y, reduction="mean")
@@ -352,8 +350,8 @@ class GPT(nn.Module):
             logits = self.project_logits(x[s:e], prev_ids[s:e])
             loss_sum = loss_sum + nn.losses.cross_entropy(logits.astype(mx.float32), y[s:e], reduction="sum")
         return loss_sum / float(n)
-    def masked_loss(self, input_ids: mx.array, target_ids: mx.array, loss_mask: mx.array, tail_recur_gains: mx.array | None = None, tail_anchor_refresh: mx.array | None = None) -> mx.array:
-        x = self(input_ids, tail_recur_gains, tail_anchor_refresh).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+    def masked_loss(self, input_ids: mx.array, target_ids: mx.array, loss_mask: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
+        x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
         mask = loss_mask.reshape(-1).astype(mx.float32)
         denom = mx.maximum(mx.sum(mask), mx.array(1.0, dtype=mx.float32))
         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
@@ -750,7 +748,7 @@ def fill_doc_window(doc_tokens: np.ndarray, seq_len: int, bos_token_id: int, sco
         y_row[:] = chunk[1:]
     mask_row.fill(0.0)
     mask_row[-score_tokens:] = 1.0
-def eval_val_doc_isolated(args: Hyperparameters, compiled_masked_loss, val_tokens: np.ndarray, doc_spans: list[tuple[int, int]], bos_token_id: int, tail_recur_gains: mx.array, tail_anchor_refresh: mx.array, base_bytes_lut: np.ndarray, has_leading_space_lut: np.ndarray, is_boundary_token_lut: np.ndarray, log_fn: Callable[[str], None] | None = None) -> tuple[float, float]:
+def eval_val_doc_isolated(args: Hyperparameters, compiled_masked_loss, val_tokens: np.ndarray, doc_spans: list[tuple[int, int]], bos_token_id: int, tail_recur_gains: mx.array, base_bytes_lut: np.ndarray, has_leading_space_lut: np.ndarray, is_boundary_token_lut: np.ndarray, log_fn: Callable[[str], None] | None = None) -> tuple[float, float]:
     val_batch_tokens = args.val_batch_size // args.grad_accum_steps
     if val_batch_tokens < args.train_seq_len:
         raise ValueError(
@@ -779,7 +777,7 @@ def eval_val_doc_isolated(args: Hyperparameters, compiled_masked_loss, val_token
         x = mx.array(x_np[:num_rows], dtype=mx.int32)
         y = mx.array(y_np[:num_rows], dtype=mx.int32)
         mask = mx.array(mask_np[:num_rows], dtype=mx.float32)
-        batch_loss = compiled_masked_loss(x, y, mask, tail_recur_gains, tail_anchor_refresh).astype(mx.float32)
+        batch_loss = compiled_masked_loss(x, y, mask, tail_recur_gains).astype(mx.float32)
         mx.eval(batch_loss)
         total_loss_sum += float(batch_loss.item()) * token_count
         total_tokens += token_count
@@ -864,7 +862,6 @@ def loss_and_grad_chunked(
     train_loader: TokenLoader,
     compiled_loss_and_grad,
     tail_recur_gains: mx.array,
-    tail_anchor_refresh: mx.array,
 ) -> tuple[mx.array, dict]:
     chunk_sizes = token_chunks(args.microbatch_tokens, args.train_seq_len, args.mlx_max_microbatch_tokens)
     total_tokens = float(sum(chunk_sizes))
@@ -872,7 +869,7 @@ def loss_and_grad_chunked(
     grad_accum: dict[str, mx.array] | None = None
     for chunk_tokens in chunk_sizes:
         x, y = train_loader.next_batch(chunk_tokens, args.train_seq_len)
-        loss, grads = compiled_loss_and_grad(x, y, tail_recur_gains, tail_anchor_refresh)
+        loss, grads = compiled_loss_and_grad(x, y, tail_recur_gains)
         scale = float(y.size) / total_tokens
         loss_value = loss_value + loss.astype(mx.float32) * scale
         grad_accum = accumulate_flat_grads(grad_accum, grads, scale)
@@ -884,11 +881,10 @@ def loss_and_grad_one_batch(
     train_loader: TokenLoader,
     compiled_loss_and_grad,
     tail_recur_gains: mx.array,
-    tail_anchor_refresh: mx.array,
 ) -> tuple[mx.array, dict]:
     x, y = train_loader.next_batch(args.train_batch_tokens, args.train_seq_len)
-    return compiled_loss_and_grad(x, y, tail_recur_gains, tail_anchor_refresh)
-def eval_val(args: Hyperparameters, compiled_loss, compiled_masked_loss, val_tokens: np.ndarray, doc_spans: list[tuple[int, int]] | None, bos_token_id: int, tail_recur_gains: mx.array, tail_anchor_refresh: mx.array, base_bytes_lut: np.ndarray, has_leading_space_lut: np.ndarray, is_boundary_token_lut: np.ndarray, log_fn: Callable[[str], None] | None = None) -> tuple[float, float]:
+    return compiled_loss_and_grad(x, y, tail_recur_gains)
+def eval_val(args: Hyperparameters, compiled_loss, compiled_masked_loss, val_tokens: np.ndarray, doc_spans: list[tuple[int, int]] | None, bos_token_id: int, tail_recur_gains: mx.array, base_bytes_lut: np.ndarray, has_leading_space_lut: np.ndarray, is_boundary_token_lut: np.ndarray, log_fn: Callable[[str], None] | None = None) -> tuple[float, float]:
     if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0:
         return eval_val_doc_isolated(
             args,
@@ -897,7 +893,6 @@ def eval_val(args: Hyperparameters, compiled_loss, compiled_masked_loss, val_tok
             doc_spans,
             bos_token_id,
             tail_recur_gains,
-            tail_anchor_refresh,
             base_bytes_lut,
             has_leading_space_lut,
             is_boundary_token_lut,
@@ -927,7 +922,7 @@ def eval_val(args: Hyperparameters, compiled_loss, compiled_masked_loss, val_tok
             x = mx.array(x_np, dtype=mx.int32)
             y = mx.array(y_np, dtype=mx.int32)
             chunk_token_count = float(y.size)
-            batch_loss = compiled_loss(x, y, tail_recur_gains, tail_anchor_refresh).astype(mx.float32)
+            batch_loss = compiled_loss(x, y, tail_recur_gains).astype(mx.float32)
             mx.eval(batch_loss)
             total_loss_sum += float(batch_loss.item()) * chunk_token_count
             prev_ids = x_np.reshape(-1)
@@ -980,7 +975,7 @@ def eval_val(args: Hyperparameters, compiled_loss, compiled_masked_loss, val_tok
         x = mx.array(x_np, dtype=mx.int32)
         y = mx.array(y_np, dtype=mx.int32)
         mask = mx.array(mask_np, dtype=mx.float32)
-        batch_loss = compiled_masked_loss(x, y, mask, tail_recur_gains, tail_anchor_refresh).astype(mx.float32)
+        batch_loss = compiled_masked_loss(x, y, mask, tail_recur_gains).astype(mx.float32)
         mx.eval(batch_loss)
         total_loss_sum += float(batch_loss.item()) * batch_token_count
         total_tokens += batch_token_count
@@ -993,7 +988,7 @@ def eval_val(args: Hyperparameters, compiled_loss, compiled_masked_loss, val_tok
     bits_per_token = val_loss / math.log(2.0)
     val_bpb = bits_per_token * (total_tokens / total_bytes)
     return val_loss, val_bpb
-def estimate_eval_time_ms(args: Hyperparameters, compiled_loss, compiled_masked_loss, val_tokens: np.ndarray, doc_spans: list[tuple[int, int]] | None, bos_token_id: int, tail_recur_gains: mx.array, tail_anchor_refresh: mx.array) -> float:
+def estimate_eval_time_ms(args: Hyperparameters, compiled_loss, compiled_masked_loss, val_tokens: np.ndarray, doc_spans: list[tuple[int, int]] | None, bos_token_id: int, tail_recur_gains: mx.array) -> float:
     if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0:
         val_batch_tokens = args.val_batch_size // args.grad_accum_steps
         if val_batch_tokens < args.train_seq_len:
@@ -1046,7 +1041,6 @@ def estimate_eval_time_ms(args: Hyperparameters, compiled_loss, compiled_masked_
                             mx.array(y_np, dtype=mx.int32),
                             mx.array(mask_np, dtype=mx.float32),
                             tail_recur_gains,
-                            tail_anchor_refresh,
                         ).astype(mx.float32)
                         mx.eval(batch_loss)
                         seen_units += 1
@@ -1077,7 +1071,6 @@ def estimate_eval_time_ms(args: Hyperparameters, compiled_loss, compiled_masked_
                         mx.array(y_np, dtype=mx.int32),
                         mx.array(mask_np, dtype=mx.float32),
                         tail_recur_gains,
-                        tail_anchor_refresh,
                     ).astype(mx.float32)
                     mx.eval(batch_loss)
                     seen_units += 1
@@ -1095,7 +1088,6 @@ def estimate_eval_time_ms(args: Hyperparameters, compiled_loss, compiled_masked_
                 mx.array(y_np[:pending], dtype=mx.int32),
                 mx.array(mask_np[:pending], dtype=mx.float32),
                 tail_recur_gains,
-                tail_anchor_refresh,
             ).astype(mx.float32)
             mx.eval(batch_loss)
             seen_units += 1
@@ -1121,7 +1113,7 @@ def estimate_eval_time_ms(args: Hyperparameters, compiled_loss, compiled_masked_
             chunk = val_tokens[raw_start:raw_end]
             x = mx.array(chunk[:-1].reshape(-1, args.train_seq_len), dtype=mx.int32)
             y = mx.array(chunk[1:].reshape(-1, args.train_seq_len), dtype=mx.int32)
-            batch_loss = compiled_loss(x, y, tail_recur_gains, tail_anchor_refresh).astype(mx.float32)
+            batch_loss = compiled_loss(x, y, tail_recur_gains).astype(mx.float32)
             mx.eval(batch_loss)
             if batch_idx >= sample_units:
                 break
@@ -1151,7 +1143,7 @@ def estimate_eval_time_ms(args: Hyperparameters, compiled_loss, compiled_masked_
         x = mx.array(x_np, dtype=mx.int32)
         y = mx.array(y_np, dtype=mx.int32)
         mask = mx.array(mask_np, dtype=mx.float32)
-        batch_loss = compiled_masked_loss(x, y, mask, tail_recur_gains, tail_anchor_refresh).astype(mx.float32)
+        batch_loss = compiled_masked_loss(x, y, mask, tail_recur_gains).astype(mx.float32)
         mx.eval(batch_loss)
         if batch_idx >= sample_units:
             break
@@ -1200,14 +1192,6 @@ def tail_recur_schedule(args: Hyperparameters, step: int, active_blocks: int) ->
         gains[idx] = args.tail_recur_min_gain + (1.0 - args.tail_recur_min_gain) * stage_progress
     gains[-1] = 1.0
     return mx.array(gains, dtype=mx.float32)
-def tail_anchor_refresh_schedule(args: Hyperparameters, step: int) -> mx.array:
-    if args.tail_anchor_refresh_max <= 0.0:
-        return mx.array(0.0, dtype=mx.float32)
-    if args.tail_anchor_refresh_end <= args.tail_anchor_refresh_start:
-        progress = 1.0 if step > 0 else 0.0
-    else:
-        progress = min(max(step / max(args.iterations, 1) - args.tail_anchor_refresh_start, 0.0) / max(args.tail_anchor_refresh_end - args.tail_anchor_refresh_start, 1e-6), 1.0)
-    return mx.array(args.tail_anchor_refresh_max * progress * progress, dtype=mx.float32)
 def main() -> None:
     args = Hyperparameters()
     out_dir = Path(args.out_dir)
@@ -1247,10 +1231,9 @@ def main() -> None:
     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
     opt = SplitOptimizers(model, args)
     tail_recur_eval_gains = mx.ones((args.tail_recur_blocks,), dtype=mx.float32)
-    tail_anchor_refresh_eval = mx.array(args.tail_anchor_refresh_max, dtype=mx.float32)
-    compiled_loss = mx.compile(lambda x, y, rg, ar: model.loss(x, y, rg, ar), inputs=model.state, outputs=model.state)
-    compiled_masked_loss = mx.compile(lambda x, y, m, rg, ar: model.masked_loss(x, y, m, rg, ar), inputs=model.state, outputs=model.state)
-    compiled_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y, rg, ar: model.loss(x, y, rg, ar)), inputs=model.state, outputs=model.state)
+    compiled_loss = mx.compile(lambda x, y, rg: model.loss(x, y, rg), inputs=model.state, outputs=model.state)
+    compiled_masked_loss = mx.compile(lambda x, y, m, rg: model.masked_loss(x, y, m, rg), inputs=model.state, outputs=model.state)
+    compiled_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y, rg: model.loss(x, y, rg)), inputs=model.state, outputs=model.state)
     if "MLX_EAGER_EVAL" not in os.environ:
         args.mlx_eager_eval = not args.use_single_microbatch_path
     elif args.use_single_microbatch_path and args.mlx_eager_eval:
@@ -1279,7 +1262,7 @@ def main() -> None:
     log(f"eval_stride:{args.eval_stride}")
     log(f"compute_dtype:{COMPUTE_DTYPE} compile:True")
     log(f"dtypes tok_emb:{model.tok_emb.weight.dtype} linear_weight:{model.blocks[0].attn.c_q.weight.dtype} skip_weights:{model.skip_weights.dtype}")
-    estimated_final_eval_ms = estimate_eval_time_ms(args, compiled_loss, compiled_masked_loss, val_tokens, doc_spans, bos_token_id, tail_recur_eval_gains, tail_anchor_refresh_eval)
+    estimated_final_eval_ms = estimate_eval_time_ms(args, compiled_loss, compiled_masked_loss, val_tokens, doc_spans, bos_token_id, tail_recur_eval_gains)
     reserved_final_ms = max(
         1000.0 * args.final_eval_reserve_seconds,
         estimated_final_eval_ms * args.final_eval_reserve_scale + 1000.0 * args.final_eval_serialization_seconds,
@@ -1296,9 +1279,9 @@ def main() -> None:
     )
     log(f"decoder_skip_alignment:start:{model.decoder_skip_start} count:{model.skip_weights.shape[0]} trim:{max((0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]) - 1, 0)}")
     log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
+    log("tail_recur_anchor:progressive_refresh")
     log(f"tail_recur_curriculum:min_gain:{args.tail_recur_min_gain} ramp_start:{args.tail_recur_ramp_start} ramp_end:{args.tail_recur_ramp_end}")
     log(f"tail_recur_staging:gap:{args.tail_recur_stage_gap} span:{args.tail_recur_stage_span}")
-    log(f"tail_anchor_refresh:start:{args.tail_anchor_refresh_start} end:{args.tail_anchor_refresh_end} max:{args.tail_anchor_refresh_max}")
     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
@@ -1321,7 +1304,6 @@ def main() -> None:
                 doc_spans,
                 bos_token_id,
                 tail_recur_eval_gains,
-                tail_anchor_refresh_eval,
                 base_bytes_lut,
                 has_leading_space_lut,
                 is_boundary_token_lut,
@@ -1349,9 +1331,8 @@ def main() -> None:
             step < 10 or (step + 1) % args.train_log_every == 0 or stop_after_step is not None
         )
         tail_recur_gains = tail_recur_schedule(args, step, args.tail_recur_blocks)
-        tail_anchor_refresh = tail_anchor_refresh_schedule(args, step)
         if args.use_single_microbatch_path:
-            train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains, tail_anchor_refresh)
+            train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
             if args.mlx_eager_eval:
                 mx.eval(train_loss, grads)
             grads = clip_grad_tree(grads, args.grad_clip_norm)
@@ -1360,7 +1341,7 @@ def main() -> None:
             train_loss = mx.array(0.0, dtype=mx.float32)
             grad_scale = 1.0 / args.grad_accum_steps
             for _ in range(args.grad_accum_steps):
-                loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains, tail_anchor_refresh)
+                loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
                 accum = accumulate_flat_grads(accum, grads, grad_scale)
                 train_loss = train_loss + loss.astype(mx.float32) * grad_scale
                 if args.mlx_eager_eval:
@@ -1453,7 +1434,6 @@ def main() -> None:
         doc_spans,
         bos_token_id,
         tail_recur_eval_gains,
-        tail_anchor_refresh_eval,
         base_bytes_lut,
         has_leading_space_lut,
         is_boundary_token_lut,

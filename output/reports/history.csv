@@ -816,3 +816,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0054,2.050393,True,False,Staggered Tail Carry Curriculum
 2026_04_28_run_0055,2.052543,True,False,Tail Value-Path FP16 Reallocation
 2026_04_28_run_0056,2.051592,True,False,Tail Value Rescue Export Reallocation
+2026_04_28_run_0057,2.051943,True,False,Progressive Reverse-Tail Anchor Refresh

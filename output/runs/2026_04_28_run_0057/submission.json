@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747080,
+  "code_bytes": 80185,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666895,
+  "rationale": "Builds directly on the best reverse-tail recurrent family with a compact structural change: the recurrence anchor now refreshes after deeper reverse-tail passes, so earlier recurrent blocks see a less stale carry target. This keeps shapes, params, export path, and wallclock behavior stable while probing a nearby unspent anchor-scheduling variant instead of another scalar sweep.",
+  "run_id": "2026_04_28_run_0057",
+  "runtime_seconds": 611.364014,
+  "submitter": "frido22",
+  "title": "Progressive Reverse-Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 522114,
+  "under_16mb": true,
+  "val_bpb": 2.05194311,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
