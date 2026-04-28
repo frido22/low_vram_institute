@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746516,
+  "code_bytes": 80058,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666458,
+  "rationale": "Build on the current recurrent-tail baseline with a compact structural edit: make tail carry activation lag behind recurrent block reuse via `carry_gain = recur_gain^2`, then softly refresh the anchor after each reverse-tail recurrence step. This keeps early curriculum behavior closer to the stable decoder-output anchor while still letting later recurrent passes migrate the anchor toward the updated state, which is a targeted attempt to improve final int8 roundtrip robustness without adding major code or parameter bloat.",
+  "run_id": "2026_04_28_run_0022",
+  "runtime_seconds": 992.666159,
+  "submitter": "frido22",
+  "title": "Quadratic Carry-Gated Reverse-Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 897230,
+  "under_16mb": true,
+  "val_bpb": 2.01130825,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
