@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12744076,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12664653,
+  "rationale": "Keep the current staged reverse-tail baseline, but add a tiny learned per-block recurrence gain on top of the existing schedule. This stays compile-stable, costs only a couple of scalars, survives export as a kept float control tensor, and gives the model a direct way to attenuate or amplify each recurrent tail block for the final int8 roundtrip objective instead of relying only on the fixed external curriculum.",
+  "run_id": "2026_04_28_run_0050",
+  "runtime_seconds": 645.572616,
+  "submitter": "frido22",
+  "title": "Learned Tail Recurrence Block Gain",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 557002,
+  "under_16mb": true,
+  "val_bpb": 2.05222888,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
