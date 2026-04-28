@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747316,
+  "code_bytes": 80284,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12667032,
+  "rationale": "Builds directly on the current reverse-tail recurrent baseline with a small structural change: the decoder-output anchor is no longer frozen across both recurrent tail replays. Instead it is refreshed toward each replayed state by a fixed scalar, which should reduce stale-anchor overconstraint in the 2-block tail while keeping shapes, compile behavior, parameter count, and export path unchanged. This targets the still-promising reverse-tail anchor neighborhood without repeating learned/gated anchor variants or broad hyperparameter sweeps.",
+  "run_id": "2026_04_28_run_0038",
+  "runtime_seconds": 580.986736,
+  "submitter": "frido22",
+  "title": "Deterministic Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 491728,
+  "under_16mb": true,
+  "val_bpb": 2.05111917,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

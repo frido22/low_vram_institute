@@ -797,3 +797,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0035,2.052095,True,False,Reverse-Tail Anchor Refresh Gate
 2026_04_28_run_0036,2.053030,True,False,Learned Reverse-Tail Anchor Refresh
 2026_04_28_run_0037,2.051380,True,False,Decoupled Tail Carry and Replay Curriculum
+2026_04_28_run_0038,2.051119,True,False,Deterministic Tail Anchor Refresh
