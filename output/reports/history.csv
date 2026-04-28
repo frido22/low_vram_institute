@@ -818,3 +818,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0056,2.051592,True,False,Tail Value Rescue Export Reallocation
 2026_04_28_run_0057,2.051943,True,False,Progressive Reverse-Tail Anchor Refresh
 2026_04_28_run_0058,2.050980,True,False,Late Reverse-Tail Anchor EMA
+2026_04_28_run_0059,2.051213,True,False,Lagged Tail Recurrence Write Curriculum

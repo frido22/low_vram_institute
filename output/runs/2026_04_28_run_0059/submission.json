@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746804,
+  "code_bytes": 81079,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665725,
+  "rationale": "Builds on the staged reverse-tail recurrence baseline instead of resetting. This keeps the winning reverse traversal, decoder-output anchor, and quant-aware endgame, but splits tail recurrence into an earlier higher-floor carry curriculum and a slightly delayed write curriculum. The hypothesis is that in the 600s Mac-mini regime, stabilizing anchor reuse before letting recurrent block writes grow should improve final int8 roundtrip behavior without adding compile churn, shape changes, or meaningful artifact-size risk.",
+  "run_id": "2026_04_28_run_0059",
+  "runtime_seconds": 639.594562,
+  "submitter": "frido22",
+  "title": "Lagged Tail Recurrence Write Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 550367,
+  "under_16mb": true,
+  "val_bpb": 2.0512132,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
