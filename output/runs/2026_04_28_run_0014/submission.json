@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12870362,
+  "code_bytes": 80208,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12790154,
+  "rationale": "Builds on the current reverse-tail recurrent baseline with a compact structural edit instead of another scalar sweep. The tail recurrence now learns a per-block anchor-refresh mix that progressively updates the decoder-output anchor after each reverse recurrence pass, aiming to keep the carry target aligned with the refined tail state while preserving fixed shapes, the same final exact int8+zlib evaluation path, and the existing export-aware endgame.",
+  "run_id": "2026_04_28_run_0014",
+  "runtime_seconds": 1115.009376,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor EMA Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 1026567,
+  "under_16mb": true,
+  "val_bpb": 1.96272983,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
