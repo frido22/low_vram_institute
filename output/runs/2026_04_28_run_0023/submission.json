@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12743211,
+  "code_bytes": 80024,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12663187,
+  "rationale": "Keeps the current 9x512 reverse-tail baseline but changes the recurrent tail schedule shape inside the forward path: anchor carry now ramps in earlier via recur_gain*(2-recur_gain), while the extra shared block rewrite is delayed via recur_gain^2. This is a compact recurrence-scheduling transplant aimed at preserving the strong reverse-tail anchor behavior and improving late-run stability under the exact int8 roundtrip objective without adding parameters or export complexity.",
+  "run_id": "2026_04_28_run_0023",
+  "runtime_seconds": 614.028458,
+  "submitter": "frido22",
+  "title": "Carry-First Reverse-Tail Recurrence",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 524405,
+  "under_16mb": true,
+  "val_bpb": 2.05399691,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

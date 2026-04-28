@@ -782,3 +782,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0020,2.023054,True,False,Reverse-Tail Value-Path Float Reallocation
 2026_04_28_run_0021,2.007424,True,False,Reverse-Tail Anchor Refresh Blend
 2026_04_28_run_0022,2.011308,True,False,Quadratic Carry-Gated Reverse-Tail Anchor Refresh
+2026_04_28_run_0023,2.053997,True,False,Carry-First Reverse-Tail Recurrence
