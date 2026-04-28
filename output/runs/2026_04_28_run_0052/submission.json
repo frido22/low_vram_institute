@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747320,
+  "code_bytes": 82396,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664924,
+  "rationale": "Build on the recurrent-tail baseline by shifting the training objective toward the exact scoring regime late in the wallclock budget. The edit keeps the reverse-tail recurrence and quant-aware endgame intact, but swaps training onto a masked-loss path with a gradual prefix downweight and tail emphasis during the final ~120s (or last 192 iters without wallclock). This is compact, compile-stable, and directly targets final_int8_zlib_roundtrip_exact val_bpb instead of replaying another small LR/export tweak.",
+  "run_id": "2026_04_28_run_0052",
+  "runtime_seconds": 636.209068,
+  "submitter": "frido22",
+  "title": "Late Tail-Aligned Loss Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 546410,
+  "under_16mb": true,
+  "val_bpb": 2.05204464,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
