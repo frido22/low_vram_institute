@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 15509143,
+  "code_bytes": 82075,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 15427068,
+  "rationale": "Adds a compact final-stage export-budget search that greedily upgrades the most distortion-prone late tail tensors to fp16 only when the exact int8+zlib artifact stays within the 16,000,000-byte cap. This builds on the current recurrent-tail baseline, targets the real scored path directly, and keeps training/validation behavior unchanged aside from the final quantization-aligned endgame.",
+  "run_id": "2026_04_28_run_0067",
+  "runtime_seconds": 639.509898,
+  "submitter": "frido22",
+  "title": "Adaptive Tail FP16 Export Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 537282,
+  "under_16mb": true,
+  "val_bpb": 2.0520276,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

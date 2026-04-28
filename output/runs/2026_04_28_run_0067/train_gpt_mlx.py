@@ -455,6 +455,8 @@ INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99
 INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
 INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
 INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
+INT8_ADAPTIVE_MAX_BYTES = int(os.environ.get("INT8_ADAPTIVE_MAX_BYTES", 16_000_000))
+INT8_ADAPTIVE_CANDIDATE_BLOCKS = int(os.environ.get("INT8_ADAPTIVE_CANDIDATE_BLOCKS", 3))
 PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
 INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
 INT8_FP16_KEEP_NAMES = tuple(
@@ -630,25 +632,45 @@ def roundtrip_tensor_like_final(
     if transposed:
         out_arr = np.ascontiguousarray(out_arr.T)
     return mx.array(np.ascontiguousarray(out_arr), dtype=arr.dtype)
-def blend_tensor_toward_final(
-    name: str,
-    arr: mx.array,
-    int8_fp16_keep_names: set[str],
-    mix: float,
-) -> mx.array:
-    target = roundtrip_tensor_like_final(name, arr, int8_fp16_keep_names)
-    if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names):
-        return target
-    return arr + (target - arr) * mix
 def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
     model.update(
         tree_unflatten(
             [
-                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix))
+                (
+                    name,
+                    target if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names)
+                    else arr + (target - arr) * mix,
+                )
                 for name, arr in tree_flatten(model.state)
+                for target in (roundtrip_tensor_like_final(name, arr, int8_fp16_keep_names),)
             ]
         )
     )
+def refine_int8_fp16_keep_names(flat_state: dict[str, mx.array], keep_names: set[str], num_layers: int, tail_recur_blocks: int) -> tuple[set[str], int]:
+    def quant_bytes(keep: set[str]) -> int:
+        return len(zlib.compress(pickle.dumps(quantize_state_dict_int8(flat_state, keep)[0], protocol=pickle.HIGHEST_PROTOCOL), level=9))
+    keep = set(keep_names); best_bytes = quant_bytes(keep)
+    if best_bytes >= INT8_ADAPTIVE_MAX_BYTES:
+        return keep, best_bytes
+    start = max(num_layers - max(tail_recur_blocks + 1, INT8_ADAPTIVE_CANDIDATE_BLOCKS), 0)
+    scored: list[tuple[float, str]] = []
+    for block_idx in range(start, num_layers):
+        prefix = f"blocks.{block_idx}."
+        for suffix in ("attn.c_v.weight", "attn.proj.weight", "mlp.proj.weight", "mlp.fc.weight"):
+            name = prefix + suffix
+            arr = flat_state.get(name)
+            if arr is None or name in keep or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, keep):
+                continue
+            target = roundtrip_tensor_like_final(name, arr, keep); base = _np_float32(arr); delta = base - _np_float32(target)
+            err = float(np.mean(delta * delta, dtype=np.float64)) / max(float(np.mean(base * base, dtype=np.float64)), 1e-12)
+            q, s, o, _ = quantize_float_array(name, arr); extra_bytes = keep_float_array(name, arr, {}).nbytes - (q.nbytes + s.nbytes + (0 if o is None else o.nbytes))
+            if err > 0.0 and extra_bytes > 0:
+                scored.append((err / extra_bytes, name))
+    for _, name in sorted(scored, reverse=True):
+        trial = set(keep); trial.add(name); trial_bytes = quant_bytes(trial)
+        if trial_bytes <= INT8_ADAPTIVE_MAX_BYTES:
+            keep, best_bytes = trial, trial_bytes
+    return keep, best_bytes
 def build_sentencepiece_luts(
     sp: spm.SentencePieceProcessor, vocab_size: int
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -1398,7 +1420,10 @@ def main() -> None:
         log(f"quant_aware_roundtrip:step:{step} final_pre_save")
     if tracked_ema:
         model.update(tree_unflatten(list(tracked_ema.items())))
-        apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
+    flat_state = {k: v for k, v in tree_flatten(model.state)}
+    int8_fp16_keep_names, refined_quant_bytes = refine_int8_fp16_keep_names(flat_state, int8_fp16_keep_names, args.num_layers, args.tail_recur_blocks)
+    apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
+    log(f"int8_keep_refine:tensors:{len(int8_fp16_keep_names)} quantized_bytes:{refined_quant_bytes}")
     out_path = out_dir / f"{args.run_id}_mlx_model.npz"
     flat_state = {k: v for k, v in tree_flatten(model.state)}
     mx.savez(str(out_path), **flat_state)
