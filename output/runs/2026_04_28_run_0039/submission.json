@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12743463,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12664040,
+  "rationale": "Build on the current best recurrent-tail script with a compact float-budget reallocation instead of another scalar sweep. The change keeps `attn.c_v.weight` in fp16 for every recurrent tail block during final int8 export, extending the already-proven q/k rescue to the full recurrent attention path while preserving the same training loop, recurrence curriculum, and exact final evaluation path. This directly targets a still-promising local category: recurrent-tail float rescue near the 16 MB cap.",
+  "run_id": "2026_04_28_run_0039",
+  "runtime_seconds": 649.813809,
+  "submitter": "frido22",
+  "title": "Dual Recurrent-Tail QKV FP16 Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 560313,
+  "under_16mb": true,
+  "val_bpb": 2.05259945,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
