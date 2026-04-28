@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12743205,
+  "code_bytes": 78329,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664876,
+  "rationale": "Separate reverse-tail carry scheduling from reverse-tail block-delta scheduling so the anchor pull stays softer and slightly delayed during training while final eval still runs fully recurrent. This is a compact structural change on top of the recurrent-tail baseline, aimed at improving the final int8 roundtrip score without adding shape churn or export-path complexity.",
+  "run_id": "2026_04_28_run_0080",
+  "runtime_seconds": 680.308997,
+  "submitter": "frido22",
+  "title": "Decoupled Tail Carry Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 589988,
+  "under_16mb": true,
+  "val_bpb": 2.05093325,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
