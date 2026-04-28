@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12131971,
+  "code_bytes": 80942,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12051029,
+  "rationale": "Build on the recurrent-tail baseline by reallocating scarce fp16 keep budget toward tail attention V-path tensors, while trimming default proj float retention and narrowing EMA tracking to tail-sensitive/export-critical tensors. The hypothesis is that final int8+zlib exact eval is more sensitive to recurrent-tail value transport and less helped by smoothing earlier or non-tail float-kept weights, so this spends bytes and endgame averaging where the winning reverse-tail path should care most.",
+  "run_id": "2026_04_28_run_0003",
+  "runtime_seconds": 905.246134,
+  "submitter": "frido22",
+  "title": "Tail V-Path FP16 Reallocation With Tail-Focused EMA",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 816502,
+  "under_16mb": true,
+  "val_bpb": 1.96948032,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
