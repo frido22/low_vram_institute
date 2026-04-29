@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12748251,
+  "code_bytes": 81548,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666703,
+  "rationale": "Adds a compact late-phase training loss curriculum that progressively upweights eval-like suffix tokens while keeping the existing reverse-tail recurrence, quant-aware endgame, and export budget intact. This spends late-run gradient budget closer to the final doc-isolated stride objective without changing validation or the final int8 roundtrip path.",
+  "run_id": "2026_04_29_run_0021",
+  "runtime_seconds": 665.693913,
+  "submitter": "frido22",
+  "title": "Late Tail-Aligned Loss Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 577261,
+  "under_16mb": true,
+  "val_bpb": 2.05182771,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
