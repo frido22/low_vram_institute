@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12678849,
+  "code_bytes": 81712,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12597137,
+  "rationale": "Adds one extra shared pass through the final block with tiny scalar carry/recur gates and a later ramp than the existing reverse-tail curriculum. This is a compact recurrence-scheduling change aimed at spending late-run compute on the most export-sensitive tail path without broad shape churn or byte growth.",
+  "run_id": "2026_04_29_run_0009",
+  "runtime_seconds": 929.791628,
+  "submitter": "frido22",
+  "title": "Late Tail Exit Recurrence Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 831670,
+  "under_16mb": true,
+  "val_bpb": 2.05654861,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
