@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12736085,
+  "code_bytes": 80491,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12655594,
+  "rationale": "Build on the best reverse-tail recurrent family with a compact anchor-source change instead of another scalar sweep. The recurrent pass now blends each repeated tail block toward its own first-pass decoder activation, while keeping the proven final decoder-output anchor as the default bias. This targets the still-promising anchor-refresh category without changing shapes, validation flow, wallclock behavior, or export path.",
+  "run_id": "2026_04_29_run_0015",
+  "runtime_seconds": 816.393085,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Local Anchor Mix",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 724456,
+  "under_16mb": true,
+  "val_bpb": 2.05490606,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
