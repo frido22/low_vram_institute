@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12743734,
+  "code_bytes": 80560,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12663174,
+  "rationale": "Recent tail curriculum variants were too disruptive, but the best path still points to staged reverse-tail recurrence. This edit keeps the winning 9x512 recurrent-tail family intact while splitting each recurrent step into an earlier anchor-carry phase and a later heavier block-replay phase. Carry gains ramp with a softer exponent and block gains ramp with a steeper exponent, so the model can learn to refresh from the decoder-output anchor before paying the full recurrent transform cost. That is a compact, compile-stable structural change aimed directly at the strongest remaining local signal: recurrence scheduling on the reverse-tail path, not another scalar sweep.",
+  "run_id": "2026_04_29_run_0047",
+  "runtime_seconds": 689.012533,
+  "submitter": "frido22",
+  "title": "Asymmetric Reverse-Tail Recurrence Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 600137,
+  "under_16mb": true,
+  "val_bpb": 2.05422923,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
