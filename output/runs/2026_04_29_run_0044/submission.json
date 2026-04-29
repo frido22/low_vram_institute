@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12896901,
+  "code_bytes": 79874,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12817027,
+  "rationale": "Builds on the recurrent-tail baseline with a stricter staged curriculum: recurrent blocks stay fully off until their reverse-tail stage begins, then ramp from `tail_recur_min_gain` to 1.0. This shifts more of the 600s budget into the base path early and only spends extra recurrence once later tail blocks are ready.",
+  "run_id": "2026_04_29_run_0044",
+  "runtime_seconds": 1021.548404,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Hard Activation Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 927609,
+  "under_16mb": true,
+  "val_bpb": 2.01007265,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
