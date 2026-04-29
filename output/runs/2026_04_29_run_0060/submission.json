@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747726,
+  "code_bytes": 81699,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666027,
+  "rationale": "Adds a compact validation-aligned training curriculum instead of another small scalar sweep. Late in training, the loss keeps full-sequence context but downweights prefix tokens and preserves full weight on the final 256-token suffix, matching the recurrent-tail/export regime and the evaluation window emphasis more directly without changing final eval, shapes, data order, or the quantized endgame.",
+  "run_id": "2026_04_29_run_0060",
+  "runtime_seconds": 648.243493,
+  "submitter": "frido22",
+  "title": "Late Tail-Loss Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 560430,
+  "under_16mb": true,
+  "val_bpb": 2.05274719,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
