@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12739659,
+  "code_bytes": 80730,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12658929,
+  "rationale": "Builds on the reverse-tail recurrent baseline with a compile-stable curriculum that activates the recurrent tail from the deepest block upward before all tail blocks participate. This spends early steps on the most valuable reverse-tail reuse path, then expands recurrence later, which is closer to the best staged-curriculum signal than another scalar-only sweep.",
+  "run_id": "2026_04_29_run_0038",
+  "runtime_seconds": 1062.813338,
+  "submitter": "frido22",
+  "title": "Staged Reverse-Tail Block Activation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 968772,
+  "under_16mb": true,
+  "val_bpb": 2.01656922,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
