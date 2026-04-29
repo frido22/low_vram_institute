@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12744875,
+  "code_bytes": 80172,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664703,
+  "rationale": "The recent failures were mostly new curricula or export-side tweaks layered onto the same recurrent-tail family. I kept the strong 9x512 reverse-tail baseline intact and made one compact structural change directly in the winning path: the recurrence anchor is no longer frozen across the whole reverse tail pass. Instead, after each recurrent block update, the anchor is refreshed slightly toward the new state. This spends no new parameter bytes, keeps shapes compile-stable, preserves the reverse-tail recurrence/export endgame, and specifically probes the locally promising anchor-refresh neighborhood without another scalar-only sweep.",
+  "run_id": "2026_04_29_run_0058",
+  "runtime_seconds": 647.027055,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor Drift Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 558409,
+  "under_16mb": true,
+  "val_bpb": 2.05190071,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
