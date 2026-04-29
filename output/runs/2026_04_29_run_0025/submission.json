@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12414540,
+  "code_bytes": 80009,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12334531,
+  "rationale": "Shifts the limited fp16 export budget deeper into the winning recurrent tail by keeping value matrices for every recurrent block while only preserving q/k on the final tail block. The hypothesis is that reverse-tail recurrence is more sensitive to value-path reconstruction than to older tail q/k precision, so this should improve final int8+zlib roundtrip fidelity without adding parameters or runtime cost.",
+  "run_id": "2026_04_29_run_0025",
+  "runtime_seconds": 656.415147,
+  "submitter": "frido22",
+  "title": "Tail Value-Path FP16 Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 566964,
+  "under_16mb": true,
+  "val_bpb": 2.0522503,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

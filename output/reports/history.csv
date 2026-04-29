@@ -869,3 +869,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0022,2.052304,True,False,Learned Reverse-Tail Anchor Refresh
 2026_04_29_run_0023,2.052292,True,False,Wallclock-Aligned Reverse-Tail Curriculum
 2026_04_29_run_0024,2.050966,True,False,Staged Reverse-Tail Anchor Refresh Carryover
+2026_04_29_run_0025,2.052250,True,False,Tail Value-Path FP16 Reallocation
