@@ -925,3 +925,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0082,2.052717,False,False,Odds-Then-Evens Tail Recurrence Traversal
 2026_04_29_run_0083,2.056123,True,False,Learned Tail Exit Anchor Gate
 2026_04_29_run_0084,2.052501,True,False,Byte-Neutral Tail Value FP16 Reallocation
+2026_04_29_run_0085,2.052030,True,False,Soft Quant-Aware Tail-Gain Blend
