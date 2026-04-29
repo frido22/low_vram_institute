@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12687192,
+  "code_bytes": 21245,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665947,
+  "rationale": "Builds on the staged reverse-tail best by spending the terminal budget on training and the required exact int8+zlib score path only. The embedded script lowers the final reserve, skips the pre-save float validation pass, and removes the unused full-precision npz save so more wallclock can go to late quant-aware training while preserving VAL_LOSS_EVERY=0 and the final exact evaluation.",
+  "run_id": "2026_04_29_run_0088",
+  "runtime_seconds": 623.22686,
+  "submitter": "frido22",
+  "title": "Reserve-Reclaimed Exact-Only Endgame",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 574945,
+  "under_16mb": true,
+  "val_bpb": 2.05283596,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
