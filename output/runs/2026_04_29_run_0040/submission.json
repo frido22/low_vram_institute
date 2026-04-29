@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747242,
+  "code_bytes": 80385,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666857,
+  "rationale": "Build on the reverse-tail recurrent baseline with a compact structural change: store forward tail states and let each recurrent tail block blend its own local forward anchor with the final decoder anchor through a learned scalar. This targets the still-promising reverse-tail anchor family, keeps shapes compile-stable, adds few bytes, and directly changes the carry path that matters for final int8 roundtrip behavior.",
+  "run_id": "2026_04_29_run_0040",
+  "runtime_seconds": 648.834422,
+  "submitter": "frido22",
+  "title": "Blended Local-Global Tail Anchors",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 560081,
+  "under_16mb": true,
+  "val_bpb": 2.05497583,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
