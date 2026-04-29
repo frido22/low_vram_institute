@@ -915,3 +915,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0071,2.052090,True,False,Tail Value And MLP EMA Endgame
 2026_04_29_run_0072,2.062243,True,False,Two-Stream Fixed-Offset Training Loader
 2026_04_29_run_0074,2.054222,True,False,Learned Reverse-Tail Exit Blend
+2026_04_29_run_0075,2.054235,True,False,Boosted Shallow Tail Eval Recurrence
