@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12913539,
+  "code_bytes": 79757,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12833782,
+  "rationale": "Build on the best recurrent-tail/export path by reallocating a small extra fp16 budget to `attn.c_v.weight` across all recurrent tail blocks instead of only the last block. Local close misses suggest recurrent-tail float rescue is still live, and preserving V on every repeated tail block is a compact export-aligned change that directly targets final int8+zlib behavior.",
+  "run_id": "2026_04_29_run_0041",
+  "runtime_seconds": 681.084121,
+  "submitter": "frido22",
+  "title": "Recurrent Tail V FP16 Keep Expansion",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 593240,
+  "under_16mb": true,
+  "val_bpb": 2.05270542,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

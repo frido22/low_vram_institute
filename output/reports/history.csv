@@ -884,3 +884,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0037,2.054105,True,False,Delayed Tail Carry Curriculum
 2026_04_29_run_0038,2.016569,True,False,Staged Reverse-Tail Block Activation
 2026_04_29_run_0040,2.054976,True,False,Blended Local-Global Tail Anchors
+2026_04_29_run_0041,2.052705,True,False,Recurrent Tail V FP16 Keep Expansion
