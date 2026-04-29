@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12915584,
+  "code_bytes": 80657,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12834927,
+  "rationale": "Push the recurrent tail to its final evaluation behavior during the late quant-aware phase, and reallocate a small fp16 budget to tail V projections across the recurrent endgame. This keeps the change compact, targets the winning reverse-tail family directly, and optimizes for the exported int8+zlib score rather than intermediate loss.",
+  "run_id": "2026_04_29_run_0034",
+  "runtime_seconds": 649.151865,
+  "submitter": "frido22",
+  "title": "Quant-Aware Full-Tail Endgame",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 561276,
+  "under_16mb": true,
+  "val_bpb": 2.05226108,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
