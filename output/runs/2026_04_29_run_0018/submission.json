@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12916239,
+  "code_bytes": 80758,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12835481,
+  "rationale": "Build on the staged reverse-tail recurrence baseline by reallocating a small amount of export budget to keep recurrent-tail V projections in fp16 during int8 roundtrip. The local best family is already quantization-sensitive in the recurrent tail, and recent close misses suggest tail float-budget rescue is still live; this targets the value path directly without changing training shapes, step structure, or wallclock behavior.",
+  "run_id": "2026_04_29_run_0018",
+  "runtime_seconds": 655.44602,
+  "submitter": "frido22",
+  "title": "Recurrent Tail V FP16 Rescue Sweep",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 566903,
+  "under_16mb": true,
+  "val_bpb": 2.05375225,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
