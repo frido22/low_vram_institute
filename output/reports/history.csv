@@ -845,3 +845,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_28_run_0084,2.070995,True,False,Late Final-Block Tail Recurrence
 2026_04_28_run_0085,2.050948,False,False,Late Suffix Loss Curriculum
 2026_04_28_run_0086,2.052683,True,False,Late Suffix-Loss Curriculum
+2026_04_29_run_0001,2.051479,True,False,Learned Tail Anchor Refresh

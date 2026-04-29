@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746020,
+  "code_bytes": 80517,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665503,
+  "rationale": "Builds on the current reverse-tail recurrent baseline instead of resetting. The edit adds a tiny learned scalar refresh on the recurrent anchor after each reverse tail replay, so late repeated blocks can gradually update the carry target instead of always pulling against a frozen decoder-output anchor. This is a compact recurrence-structure change in an unspent nearby category, keeps shapes compile-stable, costs almost no bytes, survives int8 export as a control tensor, and preserves the existing quant-aware endgame and exact final_int8_zlib_roundtrip_exact path.",
+  "run_id": "2026_04_29_run_0001",
+  "runtime_seconds": 634.512524,
+  "submitter": "frido22",
+  "title": "Learned Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 545813,
+  "under_16mb": true,
+  "val_bpb": 2.05147934,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
