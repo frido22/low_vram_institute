@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 11770636,
+  "code_bytes": 80135,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 11690501,
+  "rationale": "Reallocate a slice of the fp16 export budget from late projection rescue toward the recurrent tail value path. The current script already protects recurrent tail Q/K and the final block V during export; this change extends fp16 preservation to V across the recurrent tail while trimming default tail projection rescue from two blocks to one. It is a compact export-aligned structural edit aimed directly at final int8+zlib roundtrip behavior, with no added runtime or compile churn.",
+  "run_id": "2026_04_29_run_0026",
+  "runtime_seconds": 634.381509,
+  "submitter": "frido22",
+  "title": "Tail Value-Path Float Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 545629,
+  "under_16mb": true,
+  "val_bpb": 2.0524618,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
