@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746965,
+  "code_bytes": 81386,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665579,
+  "rationale": "Adds a compact anchor-refresh curriculum on top of the current reverse recurrent tail. Training now learns with a gradually refreshed tail anchor while exact final eval uses the fully refreshed path, testing a nearby structural idea from the best recurrence family instead of another scalar sweep.",
+  "run_id": "2026_04_29_run_0020",
+  "runtime_seconds": 626.101155,
+  "submitter": "frido22",
+  "title": "Staged Reverse-Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 536371,
+  "under_16mb": true,
+  "val_bpb": 2.05094654,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
