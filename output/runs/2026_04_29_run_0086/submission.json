@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12940073,
+  "code_bytes": 23081,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12916992,
+  "rationale": "Builds on the staged reverse-tail recurrent best without spending wallclock on another training-control sweep. The change reallocates a small amount of remaining export headroom to preserve the final recurrent tail value projection and cheap output calibration scalars in fp32 through the exact int8+zlib roundtrip. That targets the quantized scoring path directly, keeps the proven recurrence schedule and training loop unchanged, and should remain under the 16MB cap given the current artifact is about 15.67MB.",
+  "run_id": "2026_04_29_run_0086",
+  "runtime_seconds": 660.50609,
+  "submitter": "frido22",
+  "title": "Final Value FP32 Export Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 572333,
+  "under_16mb": true,
+  "val_bpb": 2.05268485,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
