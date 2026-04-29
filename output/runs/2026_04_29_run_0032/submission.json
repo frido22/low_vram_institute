@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12745138,
+  "code_bytes": 80466,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664672,
+  "rationale": "Adds a tiny learned scalar anchor-refresh gate per recurrent tail block, building on the current reverse-tail decoder-anchor path. This is a compact nearby variant of the locally promising anchor-refresh family: it keeps shapes and the quant-aware/export path stable, changes recurrence behavior materially, and costs only a couple of fp32 control scalars.",
+  "run_id": "2026_04_29_run_0032",
+  "runtime_seconds": 676.962143,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor Blend Scalars",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 588604,
+  "under_16mb": true,
+  "val_bpb": 2.05198158,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
