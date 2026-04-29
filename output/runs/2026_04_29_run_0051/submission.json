@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12739199,
+  "code_bytes": 80155,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12659044,
+  "rationale": "Builds on the best reverse-tail recurrent baseline with a compact curriculum change: earlier recurrent tail blocks now start effectively off and ramp in quadratically from a new cold gain instead of contributing at the old nonzero floor from step 0. This keeps compile-stable shapes, preserves the proven export path, and tests a cleaner late-phase recurrence scheduling hypothesis after recent always-on tail variants regressed.",
+  "run_id": "2026_04_29_run_0051",
+  "runtime_seconds": 647.359762,
+  "submitter": "frido22",
+  "title": "Cold-Start Tail Recurrence Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 558779,
+  "under_16mb": true,
+  "val_bpb": 2.04738491,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
