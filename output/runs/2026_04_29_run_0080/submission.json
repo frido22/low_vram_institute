@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12847272,
+  "code_bytes": 23036,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12824236,
+  "rationale": "Reallocates export precision within the proven staged reverse-tail baseline: the final recurrent block now keeps its MLP expansion matrix in fp16, while penultimate tail Q/K fp16 rescue is removed. The final block is always full-gain and closest to the logits, so preserving its nonlinear MLP input projection should better survive the exact int8+zlib roundtrip without adding compute or intermediate validation, and the byte trade stays under the 16 MB cap.",
+  "run_id": "2026_04_29_run_0080",
+  "runtime_seconds": 651.997514,
+  "submitter": "frido22",
+  "title": "Final Recurrent Block MLP FP16 Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 563745,
+  "under_16mb": true,
+  "val_bpb": 2.0520942,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

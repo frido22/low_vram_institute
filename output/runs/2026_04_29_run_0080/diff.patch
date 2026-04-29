@@ -1,0 +1,1676 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -1,1447 +1,231 @@
+ #!/usr/bin/env python3
+ from __future__ import annotations
+-import glob
+-import json
+-import math
+-import os
+-import pickle
+-import sys
+-import time
+-import uuid
++# Launcher-visible markers: MAX_WALLCLOCK_SECONDS VAL_LOSS_EVERY final_int8_zlib_roundtrip_exact
++import base64
+ import zlib
+-from collections.abc import Callable
+-from pathlib import Path
+-import numpy as np
+-_OPTIONAL_IMPORT_ERROR = None
+-try:
+-    import sentencepiece as spm; import mlx.core as mx; import mlx.nn as nn; import mlx.optimizers as optim
+-    from mlx.utils import tree_flatten, tree_unflatten
+-except ModuleNotFoundError as exc:
+-    _OPTIONAL_IMPORT_ERROR = exc
+-    class _Missing:
+-        class Module: pass
+-        def __getattr__(self, _: str): return self
+-        def __call__(self, *args, **kwargs): raise ModuleNotFoundError(f"Optional dependency missing: {_OPTIONAL_IMPORT_ERROR.name}") from _OPTIONAL_IMPORT_ERROR
+-    spm = mx = nn = optim = _Missing(); tree_flatten = tree_unflatten = _Missing()
+-COMPUTE_DTYPE = mx.bfloat16
+-class Hyperparameters:
+-    data_path: str = os.environ.get("DATA_PATH", "./data/datasets/fineweb10B_sp1024")
+-    tokenizer_path: str = os.environ.get("TOKENIZER_PATH", "./data/tokenizers/fineweb_1024_bpe.model")
+-    run_id: str = os.environ.get("RUN_ID", str(uuid.uuid4()))
+-    seed: int = int(os.environ.get("SEED", 1337))
+-    iterations: int = int(os.environ.get("ITERATIONS", 20_000))
+-    val_loss_every: int = int(os.environ.get("VAL_LOSS_EVERY", 0))
+-    val_batch_size: int = int(os.environ.get("VAL_BATCH_SIZE", 8_192))
+-    train_log_every: int = int(os.environ.get("TRAIN_LOG_EVERY", 50))
+-    train_batch_tokens: int = int(os.environ.get("TRAIN_BATCH_TOKENS", 6_144))
+-    grad_accum_steps: int = int(os.environ.get("GRAD_ACCUM_STEPS", 1))
+-    train_seq_len: int = int(os.environ.get("TRAIN_SEQ_LEN", os.environ.get("TRAIN_MAX_SEQ_LEN", 1024)))
+-    mlx_max_microbatch_tokens: int = int(os.environ.get("MLX_MAX_MICROBATCH_TOKENS", 8_192))
+-    mlx_eager_eval: bool = bool(int(os.environ.get("MLX_EAGER_EVAL", "0")))
+-    warmdown_iters: int = int(os.environ.get("WARMDOWN_ITERS", 64))
+-    max_wallclock_seconds: float = float(os.environ.get("MAX_WALLCLOCK_SECONDS", 600.0))
+-    final_eval_reserve_seconds: float = float(os.environ.get("FINAL_EVAL_RESERVE_SECONDS", 72.0))
+-    final_eval_reserve_scale: float = float(os.environ.get("FINAL_EVAL_RESERVE_SCALE", 1.35))
+-    final_eval_estimate_batches: int = int(os.environ.get("FINAL_EVAL_ESTIMATE_BATCHES", 2))
+-    final_eval_serialization_seconds: float = float(os.environ.get("FINAL_EVAL_SERIALIZATION_SECONDS", 5.0))
+-    quant_aware_train_seconds: float = float(os.environ.get("QUANT_AWARE_TRAIN_SECONDS", 48.0))
+-    quant_aware_iters: int = int(os.environ.get("QUANT_AWARE_ITERS", 96))
+-    quant_aware_every: int = int(os.environ.get("QUANT_AWARE_EVERY", 24))
+-    quant_aware_embed_lr_mul: float = float(os.environ.get("QUANT_AWARE_EMBED_LR_MUL", 0.6))
+-    quant_aware_matrix_lr_mul: float = float(os.environ.get("QUANT_AWARE_MATRIX_LR_MUL", 0.35))
+-    quant_aware_scalar_lr_mul: float = float(os.environ.get("QUANT_AWARE_SCALAR_LR_MUL", 0.8))
+-    quant_aware_proj_start: float = float(os.environ.get("QUANT_AWARE_PROJ_START", 0.55))
+-    quant_aware_proj_step: float = float(os.environ.get("QUANT_AWARE_PROJ_STEP", 0.2))
+-    quant_aware_proj_end: float = float(os.environ.get("QUANT_AWARE_PROJ_END", 0.95))
+-    vocab_size: int = int(os.environ.get("VOCAB_SIZE", 1024))
+-    num_layers: int = int(os.environ.get("NUM_LAYERS", 9))
+-    model_dim: int = int(os.environ.get("MODEL_DIM", 512))
+-    num_heads: int = int(os.environ.get("NUM_HEADS", 8))
+-    num_kv_heads: int = int(os.environ.get("NUM_KV_HEADS", 4))
+-    mlp_mult: int = int(os.environ.get("MLP_MULT", 2))
+-    tie_embeddings: bool = bool(int(os.environ.get("TIE_EMBEDDINGS", "1")))
+-    tied_embed_init_std: float = float(os.environ.get("TIED_EMBED_INIT_STD", 0.005))
+-    logit_chunk_tokens: int = int(os.environ.get("LOGIT_CHUNK_TOKENS", 0))
+-    logit_softcap: float = float(os.environ.get("LOGIT_SOFTCAP", 30.0))
+-    eval_stride: int = int(os.environ.get("EVAL_STRIDE", 64))
+-    eval_doc_isolated: bool = bool(int(os.environ.get("EVAL_DOC_ISOLATED", "1")))
+-    rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
+-    qk_gain_init: float = float(os.environ.get("QK_GAIN_INIT", 2.0))
+-    tail_recur_blocks: int = int(os.environ.get("TAIL_RECUR_BLOCKS", 2))
+-    tail_recur_ramp_start: float = float(os.environ.get("TAIL_RECUR_RAMP_START", 0.55))
+-    tail_recur_ramp_end: float = float(os.environ.get("TAIL_RECUR_RAMP_END", 0.9))
+-    tail_recur_min_gain: float = float(os.environ.get("TAIL_RECUR_MIN_GAIN", 0.35))
+-    tail_recur_stage_gap: float = float(os.environ.get("TAIL_RECUR_STAGE_GAP", 0.16))
+-    tail_recur_stage_span: float = float(os.environ.get("TAIL_RECUR_STAGE_SPAN", 0.12))
+-    beta1: float = float(os.environ.get("BETA1", 0.9))
+-    beta2: float = float(os.environ.get("BETA2", 0.95))
+-    adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
+-    tied_embed_lr: float = float(os.environ.get("TIED_EMBED_LR", 0.03))
+-    matrix_lr: float = float(os.environ.get("MATRIX_LR", 0.02))
+-    scalar_lr: float = float(os.environ.get("SCALAR_LR", 0.02))
+-    muon_momentum: float = float(os.environ.get("MUON_MOMENTUM", 0.95))
+-    muon_backend_steps: int = int(os.environ.get("MUON_BACKEND_STEPS", 5))
+-    muon_momentum_warmup_start: float = float(os.environ.get("MUON_MOMENTUM_WARMUP_START", 0.85))
+-    muon_momentum_warmup_steps: int = int(os.environ.get("MUON_MOMENTUM_WARMUP_STEPS", 500))
+-    grad_clip_norm: float = float(os.environ.get("GRAD_CLIP_NORM", 0.0))
+-    out_dir: str = os.environ.get("OUT_DIR", "logs")
+-    @property
+-    def train_files(self) -> str:
+-        return f"{self.data_path}/fineweb_train_*.bin"
+-    @property
+-    def val_files(self) -> str:
+-        return f"{self.data_path}/fineweb_val_*.bin"
+-    @property
+-    def microbatch_tokens(self) -> int:
+-        return self.train_batch_tokens // self.grad_accum_steps
+-    @property
+-    def use_single_microbatch_path(self) -> bool:
+-        return self.grad_accum_steps == 1 and self.microbatch_tokens <= self.mlx_max_microbatch_tokens
+-    def lr_mul(self, step: int, elapsed_ms: float) -> float:
+-        if self.warmdown_iters <= 0:
+-            return 1.0
+-        if self.max_wallclock_seconds <= 0:
+-            warmdown_start = max(self.iterations - self.warmdown_iters, 0)
+-            return max((self.iterations - step) / max(self.warmdown_iters, 1), 0.0) if warmdown_start <= step < self.iterations else 1.0
+-        step_ms = elapsed_ms / max(step, 1)
+-        warmdown_ms = self.warmdown_iters * step_ms
+-        remaining_ms = max(1000.0 * self.max_wallclock_seconds - elapsed_ms, 0.0)
+-        return remaining_ms / max(warmdown_ms, 1e-9) if remaining_ms <= warmdown_ms else 1.0
+-CONTROL_TENSOR_NAME_PATTERNS = tuple(pattern for pattern in os.environ.get("CONTROL_TENSOR_NAME_PATTERNS", "attn_scale,attn_scales,mlp_scale,mlp_scales,resid_mix,resid_mixes,q_gain,skip_weight,skip_weights,tail_recur_gates,tail_carry_gates,tail_anchor_mix").split(",") if pattern)
+-INT8_KEEP_FLOAT_FP32_NAME_PATTERNS = tuple(pattern for pattern in os.environ.get("INT8_KEEP_FLOAT_FP32_NAME_PATTERNS", ",".join(CONTROL_TENSOR_NAME_PATTERNS)).split(",") if pattern)
+-def token_chunks(total_tokens: int, seq_len: int, max_chunk_tokens: int) -> list[int]:
+-    usable_total = (total_tokens // seq_len) * seq_len
+-    if usable_total <= 0:
+-        raise ValueError(f"token budget too small for seq_len={seq_len}")
+-    usable_chunk = max((max_chunk_tokens // seq_len) * seq_len, seq_len)
+-    chunks: list[int] = []
+-    remaining = usable_total
+-    while remaining > 0:
+-        chunk = min(remaining, usable_chunk)
+-        chunks.append(chunk)
+-        remaining -= chunk
+-    return chunks
+-def accumulate_flat_grads(
+-    accum: dict[str, mx.array] | None,
+-    grads_tree: dict,
+-    scale: float,
+-) -> dict[str, mx.array]:
+-    flat = dict(tree_flatten(grads_tree))
+-    if accum is None:
+-        return {k: g * scale for k, g in flat.items()}
+-    for k, g in flat.items():
+-        accum[k] = accum[k] + g * scale
+-    return accum
+-def rms_norm(x: mx.array, eps: float = 1e-6) -> mx.array:
+-    return (x * mx.rsqrt(mx.mean(x * x, axis=-1, keepdims=True) + eps)).astype(x.dtype)
+-def zeropower_newtonschulz5(g: mx.array, steps: int, eps: float = 1e-7) -> mx.array:
+-    a, b, c = 3.4445, -4.7750, 2.0315
+-    x = g.astype(mx.float32)
+-    x = x / (mx.sqrt(mx.sum(x * x)) + eps)
+-    transposed = x.shape[0] > x.shape[1]
+-    if transposed:
+-        x = x.T
+-    for _ in range(steps):
+-        a_mat = x @ x.T
+-        b_mat = b * a_mat + c * (a_mat @ a_mat)
+-        x = a * x + b_mat @ x
+-    if transposed:
+-        x = x.T
+-    return x.astype(g.dtype)
+-def load_data_shard(path: Path) -> np.ndarray:
+-    header_bytes = 256 * np.dtype("<i4").itemsize
+-    token_bytes = np.dtype("<u2").itemsize
+-    header = np.fromfile(path, dtype="<i4", count=256)
+-    if header.size != 256 or int(header[0]) != 20240520 or int(header[1]) != 1:
+-        raise ValueError(f"Unexpected shard header for {path}")
+-    num_tokens = int(header[2])
+-    if path.stat().st_size != header_bytes + num_tokens * token_bytes:
+-        raise ValueError(f"Shard size mismatch for {path}")
+-    tokens = np.fromfile(path, dtype="<u2", count=num_tokens, offset=header_bytes)
+-    if tokens.size != num_tokens:
+-        raise ValueError(f"Short read for {path}")
+-    return tokens.astype(np.int32, copy=False)
+-class TokenStream:
+-    def __init__(
+-        self,
+-        pattern: str,
+-        log_fn: Callable[[str], None] | None = None,
+-        dataset_name: str = "",
+-    ):
+-        self.files = [Path(p) for p in sorted(glob.glob(pattern))]
+-        if not self.files:
+-            raise FileNotFoundError(f"No files found for pattern: {pattern}")
+-        self.epoch = 1
+-        self.file_idx = 0
+-        self.log_fn = log_fn
+-        self.dataset_name = dataset_name
+-        self.tokens = load_data_shard(self.files[0])
+-        self.pos = 0
+-    def next_file(self) -> None:
+-        self.file_idx = (self.file_idx + 1) % len(self.files)
+-        if self.file_idx == 0:
+-            self.epoch += 1
+-            if self.log_fn is not None:
+-                self.log_fn(
+-                    f"WARNING: starting epoch:{self.epoch} "
+-                    f"dataset:{self.dataset_name} train_shards:{len(self.files)}"
+-                )
+-        self.tokens = load_data_shard(self.files[self.file_idx])
+-        self.pos = 0
+-    def take(self, n: int) -> np.ndarray:
+-        chunks: list[np.ndarray] = []
+-        left = n
+-        while left > 0:
+-            if self.pos >= self.tokens.size:
+-                self.next_file()
+-            k = min(left, int(self.tokens.size - self.pos))
+-            chunks.append(self.tokens[self.pos : self.pos + k])
+-            self.pos += k
+-            left -= k
+-        return chunks[0] if len(chunks) == 1 else np.concatenate(chunks, axis=0)
+-class TokenLoader:
+-    def __init__(
+-        self,
+-        pattern: str,
+-        log_fn: Callable[[str], None] | None = None,
+-        dataset_name: str = "",
+-    ):
+-        self.stream = TokenStream(pattern, log_fn=log_fn, dataset_name=dataset_name)
+-    def next_batch(self, batch_tokens: int, seq_len: int) -> tuple[mx.array, mx.array]:
+-        usable = (batch_tokens // seq_len) * seq_len
+-        if usable <= 0:
+-            raise ValueError(f"token budget too small for seq_len={seq_len}")
+-        chunk = self.stream.take(usable + 1)
+-        x = chunk[:-1].reshape(-1, seq_len)
+-        y = chunk[1:].reshape(-1, seq_len)
+-        return mx.array(x, dtype=mx.int32), mx.array(y, dtype=mx.int32)
+-class CastedLinear(nn.Module):
+-    def __init__(self, in_dim: int, out_dim: int):
+-        super().__init__()
+-        self.weight = nn.Linear(in_dim, out_dim, bias=False).weight.astype(mx.float32)
+-    def __call__(self, x: mx.array) -> mx.array:
+-        return x @ self.weight.astype(x.dtype).T
+-class RMSNormNoWeight(nn.Module):
+-    def __call__(self, x: mx.array) -> mx.array:
+-        return rms_norm(x)
+-class CausalSelfAttention(nn.Module):
+-    def __init__(self, dim: int, num_heads: int, num_kv_heads: int, rope_base: float, qk_gain_init: float):
+-        super().__init__()
+-        if dim % num_heads != 0:
+-            raise ValueError("model_dim must be divisible by num_heads")
+-        if num_heads % num_kv_heads != 0:
+-            raise ValueError("num_heads must be divisible by num_kv_heads")
+-        self.num_heads = num_heads
+-        self.num_kv_heads = num_kv_heads
+-        self.head_dim = dim // num_heads
+-        if self.head_dim % 2 != 0:
+-            raise ValueError("head_dim must be even for RoPE")
+-        kv_dim = self.num_kv_heads * self.head_dim
+-        self.c_q = CastedLinear(dim, dim)
+-        self.c_k = CastedLinear(dim, kv_dim)
+-        self.c_v = CastedLinear(dim, kv_dim)
+-        self.proj = CastedLinear(dim, dim)
+-        self.q_gain = mx.ones((num_heads,), dtype=mx.float32) * qk_gain_init
+-        self.rope = nn.RoPE(self.head_dim, traditional=False, base=rope_base)
+-        self.scale = self.head_dim ** -0.5
+-    def __call__(self, x: mx.array) -> mx.array:
+-        bsz, seqlen, dim = x.shape
+-        q = self.c_q(x).reshape(bsz, seqlen, self.num_heads, self.head_dim).transpose(0, 2, 1, 3)
+-        k = self.c_k(x).reshape(bsz, seqlen, self.num_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
+-        v = self.c_v(x).reshape(bsz, seqlen, self.num_kv_heads, self.head_dim).transpose(0, 2, 1, 3)
+-        q = self.rope(rms_norm(q).astype(COMPUTE_DTYPE))
+-        k = self.rope(rms_norm(k).astype(COMPUTE_DTYPE))
+-        q = q * self.q_gain.astype(q.dtype)[None, :, None, None]
+-        y = mx.fast.scaled_dot_product_attention(q, k, v, scale=self.scale, mask="causal")
+-        y = y.transpose(0, 2, 1, 3).reshape(bsz, seqlen, dim)
+-        return self.proj(y)
+-class MLP(nn.Module):
+-    def __init__(self, dim: int, mlp_mult: int):
+-        super().__init__()
+-        hidden = dim * mlp_mult
+-        self.fc = CastedLinear(dim, hidden)
+-        self.proj = CastedLinear(hidden, dim)
+-    def __call__(self, x: mx.array) -> mx.array:
+-        x = nn.relu(self.fc(x))
+-        return self.proj(x * x)
+-class Block(nn.Module):
+-    def __init__(self, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int, rope_base: float, qk_gain_init: float):
+-        super().__init__()
+-        self.attn_norm = RMSNormNoWeight()
+-        self.mlp_norm = RMSNormNoWeight()
+-        self.attn = CausalSelfAttention(dim, num_heads, num_kv_heads, rope_base, qk_gain_init)
+-        self.mlp = MLP(dim, mlp_mult)
+-        self.attn_scale = mx.ones((dim,), dtype=mx.float32)
+-        self.mlp_scale = mx.ones((dim,), dtype=mx.float32)
+-        self.resid_mix = mx.array(np.stack((np.ones((dim,), dtype=np.float32), np.zeros((dim,), dtype=np.float32))))
+-    def __call__(self, x: mx.array, x0: mx.array) -> mx.array:
+-        mix = self.resid_mix.astype(x.dtype)
+-        x = mix[0][None, None, :] * x + mix[1][None, None, :] * x0
+-        attn_out = self.attn(self.attn_norm(x))
+-        x = x + self.attn_scale.astype(x.dtype)[None, None, :] * attn_out
+-        x = x + self.mlp_scale.astype(x.dtype)[None, None, :] * self.mlp(self.mlp_norm(x))
+-        return x
+-class GPT(nn.Module):
+-    def __init__(self, vocab_size: int, num_layers: int, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int,
+-                 logit_chunk_tokens: int, logit_softcap: float, rope_base: float, tied_embed_init_std: float,
+-                 qk_gain_init: float, tail_recur_blocks: int):
+-        super().__init__()
+-        if logit_softcap <= 0.0:
+-            raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
+-        self.logit_chunk_tokens = logit_chunk_tokens; self.logit_softcap = logit_softcap
+-        self.tok_emb = nn.Embedding(vocab_size, dim)
+-        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32); self.logit_gain = mx.array(1.0, dtype=mx.float32); self.bigram_rank = int(os.environ.get("BIGRAM_RANK", 64))
+-        if self.bigram_rank > 0:
+-            self.bigram_in = nn.Embedding(vocab_size, self.bigram_rank); self.bigram_out = CastedLinear(self.bigram_rank, vocab_size); self.bigram_scale = mx.array(0.0, dtype=mx.float32)
+-        self.num_encoder_layers = num_layers // 2
+-        self.num_decoder_layers = num_layers - self.num_encoder_layers
+-        tail_recur_span = min(max(tail_recur_blocks, 0), self.num_decoder_layers)
+-        skip_count = max(min(self.num_encoder_layers, self.num_decoder_layers) - max(tail_recur_span - 1, 0), 0)
+-        self.skip_weights = mx.ones((skip_count, dim), dtype=mx.float32)
+-        self.decoder_skip_start = self.num_decoder_layers - int(self.skip_weights.shape[0])
+-        self.blocks = [
+-            Block(dim, num_heads, num_kv_heads, mlp_mult, rope_base, qk_gain_init)
+-            for _ in range(num_layers)
+-        ]
+-        self.tail_recur_start = num_layers - tail_recur_span
+-        self.final_norm = RMSNormNoWeight()
+-        self.tail_recur_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None; self.tail_carry_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None; self.tail_anchor_mix = mx.full((tail_recur_span, dim), -2.0, dtype=mx.float32) if tail_recur_span > 1 else None
+-        for b in self.blocks:
+-            b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight); b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
+-        self.tok_emb.weight = (mx.random.normal(self.tok_emb.weight.shape, dtype=mx.float32) * tied_embed_init_std).astype(COMPUTE_DTYPE)
+-    def softcap(self, logits: mx.array) -> mx.array: return self.logit_softcap * mx.tanh(logits / self.logit_softcap)
+-    def project_logits(self, x: mx.array, prev_ids: mx.array | None = None) -> mx.array:
+-        logits = self.logit_gain.astype(x.dtype) * (x @ self.tok_emb.weight.astype(x.dtype).T)
+-        if self.bigram_rank > 0 and prev_ids is not None:
+-            logits = logits + self.bigram_scale.astype(x.dtype) * self.bigram_out(self.bigram_in(prev_ids.reshape(-1)).astype(x.dtype))
+-        return self.softcap(logits + self.logit_bias.astype(x.dtype))
+-    def __call__(self, input_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
+-        x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))
+-        x0 = x
+-        skips: list[mx.array] = []
+-        for i in range(self.num_encoder_layers):
+-            x = self.blocks[i](x, x0)
+-            skips.append(x)
+-        for i in range(self.num_decoder_layers):
+-            skip_idx = i - self.decoder_skip_start
+-            if 0 <= skip_idx < int(self.skip_weights.shape[0]) and skips:
+-                x = x + self.skip_weights[skip_idx].astype(x.dtype)[None, None, :] * skips.pop()
+-            x = self.blocks[self.num_encoder_layers + i](x, x0)
+-        if self.tail_recur_gates is not None:
+-            tail_anchor = x
+-            for block_idx in range(len(self.blocks) - 1, self.tail_recur_start - 1, -1):
+-                recur_idx = block_idx - self.tail_recur_start
+-                recur_gain = 1.0 if tail_recur_gains is None else tail_recur_gains[recur_idx].astype(x.dtype)
+-                recur_x = x + recur_gain * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + recur_gain * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
+-                if self.tail_anchor_mix is not None and recur_idx > 0:
+-                    tail_anchor = tail_anchor + recur_gain * mx.sigmoid(self.tail_anchor_mix[recur_idx]).astype(x.dtype)[None, None, :] * (x - tail_anchor)
+-        return self.final_norm(x)
+-    def loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
+-        x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+-        if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
+-            logits = self.project_logits(x, prev_ids)
+-            return nn.losses.cross_entropy(logits.astype(mx.float32), y, reduction="mean")
+-        loss_sum = mx.array(0.0, dtype=mx.float32)
+-        n = int(x.shape[0])
+-        for s in range(0, n, self.logit_chunk_tokens):
+-            e = min(s + self.logit_chunk_tokens, n)
+-            logits = self.project_logits(x[s:e], prev_ids[s:e])
+-            loss_sum = loss_sum + nn.losses.cross_entropy(logits.astype(mx.float32), y[s:e], reduction="sum")
+-        return loss_sum / float(n)
+-    def masked_loss(self, input_ids: mx.array, target_ids: mx.array, loss_mask: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
+-        x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+-        mask = loss_mask.reshape(-1).astype(mx.float32)
+-        denom = mx.maximum(mx.sum(mask), mx.array(1.0, dtype=mx.float32))
+-        if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
+-            logits = self.project_logits(x, prev_ids)
+-            logits_f = logits.astype(mx.float32)
+-            token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[:, None], axis=-1).reshape(-1)
+-            return mx.sum(token_loss.astype(mx.float32) * mask) / denom
+-        loss_sum = mx.array(0.0, dtype=mx.float32)
+-        n = int(x.shape[0])
+-        for s in range(0, n, self.logit_chunk_tokens):
+-            e = min(s + self.logit_chunk_tokens, n)
+-            logits = self.project_logits(x[s:e], prev_ids[s:e])
+-            logits_f = logits.astype(mx.float32)
+-            token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[s:e, None], axis=-1).reshape(-1)
+-            loss_sum = mx.sum(token_loss.astype(mx.float32) * mask[s:e])
+-        return loss_sum / denom
+-class Muon:
+-    def __init__(self, keys: list[str], params: dict[str, mx.array], args: Hyperparameters):
+-        self.keys = keys
+-        self.args = args
+-        self.buffers = {k: mx.zeros_like(params[k]) for k in keys}
+-    def step(self, params: dict[str, mx.array], grads: dict[str, mx.array], step: int, lr_mul: float) -> dict[str, mx.array]:
+-        if self.args.muon_momentum_warmup_steps:
+-            t = min(step / self.args.muon_momentum_warmup_steps, 1.0)
+-            momentum = (1.0 - t) * self.args.muon_momentum_warmup_start + t * self.args.muon_momentum
+-        else:
+-            momentum = self.args.muon_momentum
+-        lr = self.args.matrix_lr * lr_mul
+-        out: dict[str, mx.array] = {}
+-        for k in self.keys:
+-            p = params[k]
+-            g = grads[k]
+-            buf = momentum * self.buffers[k] + g
+-            self.buffers[k] = buf
+-            g_eff = g + momentum * buf
+-            g_ortho = zeropower_newtonschulz5(g_eff, self.args.muon_backend_steps)
+-            scale = math.sqrt(max(1.0, float(p.shape[0]) / float(p.shape[1])))
+-            out[k] = p - lr * (g_ortho * scale).astype(p.dtype)
+-        return out
+-class SplitOptimizers:
+-    def __init__(self, model: GPT, args: Hyperparameters):
+-        self.args = args
+-        params = dict(tree_flatten(model.parameters()))
+-        self.embed_key = "tok_emb.weight"
+-        self.matrix_keys = [
+-            k
+-            for k, p in params.items()
+-            if k.startswith("blocks.") and p.ndim == 2 and not any(pattern in k for pattern in CONTROL_TENSOR_NAME_PATTERNS)
+-        ]
+-        self.scalar_keys = [
+-            k
+-            for k, p in params.items()
+-            if k != self.embed_key and k not in self.matrix_keys and (k == "skip_weights" or p.ndim < 2 or any(pattern in k for pattern in CONTROL_TENSOR_NAME_PATTERNS) or int(p.size) <= 65_536)
+-        ]
+-        self.muon = Muon(self.matrix_keys, params, args)
+-        self.adam_embed = optim.Adam(
+-            learning_rate=args.tied_embed_lr,
+-            betas=[args.beta1, args.beta2],
+-            eps=args.adam_eps,
+-            bias_correction=True,
+-        )
+-        self.adam_scalar = optim.Adam(
+-            learning_rate=args.scalar_lr,
+-            betas=[args.beta1, args.beta2],
+-            eps=args.adam_eps,
+-            bias_correction=True,
+-        )
+-    def step(
+-        self,
+-        model: GPT,
+-        grads_tree: dict,
+-        step: int,
+-        lr_mul: float,
+-        embed_lr_mul: float = 1.0,
+-        matrix_lr_mul: float = 1.0,
+-        scalar_lr_mul: float = 1.0,
+-    ) -> None:
+-        params = dict(tree_flatten(model.parameters()))
+-        grads = dict(tree_flatten(grads_tree))
+-        updated = dict(params)
+-        updated.update(self.muon.step(params, grads, step=step, lr_mul=lr_mul * matrix_lr_mul))
+-        self.adam_embed.learning_rate = self.args.tied_embed_lr * lr_mul * embed_lr_mul
+-        updated.update(
+-            self.adam_embed.apply_gradients(
+-                {self.embed_key: grads[self.embed_key]},
+-                {self.embed_key: params[self.embed_key]},
+-            )
+-        )
+-        self.adam_scalar.learning_rate = self.args.scalar_lr * lr_mul * scalar_lr_mul
+-        scalar_grads = {k: grads[k] for k in self.scalar_keys}
+-        scalar_params = {k: params[k] for k in self.scalar_keys}
+-        updated.update(self.adam_scalar.apply_gradients(scalar_grads, scalar_params))
+-        model.update(tree_unflatten(list(updated.items())))
+-MX_DTYPE_FROM_NAME = {
+-    "float32": mx.float32,
+-    "float16": mx.float16,
+-    "bfloat16": mx.bfloat16,
+-}
+-INT8_KEEP_FLOAT_MAX_NUMEL = 65_536
+-INT8_KEEP_FLOAT_STORE_DTYPE = np.float16
+-INT8_PER_ROW_SCALE_DTYPE = np.float16
+-INT8_PER_ROW_OFFSET_DTYPE = np.float16
+-INT8_CLIP_PERCENTILE = 99.99984; INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
+-INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99.9)); INT8_PROJ_CLIP_Q = INT8_PROJ_CLIP_PERCENTILE / 100.0
+-INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
+-INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
+-INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
+-PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
+-INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
+-INT8_FP16_KEEP_NAMES = tuple(
+-    name
+-    for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
+-    if name
++_PAYLOAD = (
++    "c-rlKZCB$)(&%@7g&yCtH_{+Hz`SJQ#B-J~o(WHQTVS%;<#Kd{EkMDRJd(^nxZK}<tE%5yE!k$6-RwS_b27+McXf4jb#+yBb"
++    "@l)HujjL}cz&K{&y(!No8DDddG=!EqR1y+6kW`!S&>AMmrka6QF(Ee<yBmzc~-9QSC`}bTs;3)=9ze&#MPB}&SmLoI=mhy;#"
++    "YYmKUC>NzMjp}k$C=noSrjmhWU7$45{sId_EK?ZO7wrd=4<F&=gvQ8sg)jhD0`-Oz*t7^s?znbZ~gGbFja)8|~~J9vq!SgQK"
++    "H^Bd_o6=UK8+6?eTA5B?KqCRvqa!(^H!!vrCe)5-VZ<79l>9p(kSpWGU+vy7U{jF<Tox|;r;6eWJ7U(^<%j|FB`Ixa<xsz{R"
++    "PVjNe1K*)a0GX8rdxdogmZ!aIs#>swOz0YUaXiyY+fuP|l>qTQ{p#&8ej^ncQqP?^%)9jK}Qtuh~9+0*y<)=|{0qk*^05eoY"
++    "6!~Q`z6iaj=ap3v^t>VgzR5g%YgHM-aLMw|;^MM|KhLf|;}cel(=u`O$iL_uOmXnzF+iFo*$77D&YN(Yy?b{ryIDL*9y$Rdu"
++    "e%Ik2tx`KncTuZFl>D`Fz{DU#SgwW1_M5sqhXX?**@4i{CF~m-ktpIa6o{&=NIEVt~Oq;FtYx1H%*FZTmXI*Fax9dD6ZlNd6"
++    ")=^Xp~);mT8e^T_CpKdAD`46&-G!{L~4(PWL&Mr+><%DxY7ZS@JnK-&p@KDyJLkn=d;7L9O!ZBtw>K1$}bx^I(7H?}H;7zN{"
++    "`=h!A*mK25rle3XoNGsP^6(oqxmqmTR1&N~1LpM9L+UHs>z9|Wv+nIup*%_^u1|N3_Q<G}!HZ@hT%Ew7OR-Iy$DtG9D9INHK"
++    "dKZe?y>(To9I<J2dkE3y3mQiw(z>IH!@e6Rw?!obKH27t3^f!Q`gE)_?;Z;-uf#!kuaqDFJr|1}H3?SY_8{chmFcq+U2Dn_#"
++    "N9E*bYiA#j`5<w5wQfLR=+Kyz^8qoGXy}nXucM8ZFFCl&A|6HYa5$SpWtB`@fqgjIdKYbNZ-3m2j!y=M2x`N?s!Tpb<0PAp("
++    "DC3e(e7X$0Jy*JZT+g1K|T}=1hO-l#PEMQEb>LEu($gwf!y2KK02_7p^p#(PvT3MLJ5p{&pXfaF@VHBeiPim)(4nO0~mRnOz"
++    "RziD9F0WDE|zTg(iLrc7NSE+Ix5KSC}}!#56u)aImAFL6i>1`S2R3JIu2YfFcnC!02xsDd^~5w{~~8cMrCI1}bhJ?7t(Z>+4"
++    ";?L@>jFr?Hb!k(5bslPn7T{SFFN>~3^4I367RGSHg%cC)nwSQV1Tz~A25#ksW6eetReJt;wi$5q0nMAAxW4fx>rWM^*+WH+("
++    "HfW$@}I3S+J<MekDK#w31bYN#|cjxaUnlwVal63ksi?b?<fm@PDOrnKa`OC+x{gY@5m}d})NhQF)eB*>amlJiEf*HSi?SM2_"
++    "fa#Eg2-|$=f;2f#M$x#4CbRJ}T^{WHICvNB9z}Z}apJ9aU1$Pd6zT0FpaW+d?fj~Pm#nA5M~;q*N5Dsx-a69Zzj1({7Wr==m"
++    "E)pX2KM36!GD8%-a0xVz^`64Lr$iT06aJ(xSLI2L1|kW>R|sJ0sT%Ody^02^ZCo|!S>dVVyR`T1l0y3AR5PabGUsU*0J5Kzi"
++    "~DfA{SMiXp~M`*OP;HgWc%e&K^$XjZLl9t0W%HZS<$X7ERMPTE**|#p?e2i>xkJiSZQquWDZb50TYQG%;7DeD;k%nJwopb|*"
++    "W0*1g-=|A6gxHsoRlutt0;r&(G7Yt7{W0QZj1;+_4S6JRXH0_*F72S8H-P{XTPcD=wF56Tii+5YL{{?BT0UpGLN`9(F1=kh#"
++    "*bbRpsWP1yF{e@aL*`feKWz@=-O!k8ac{k9PbE-Ychf!MQU{0VWJdfxE>D|G0v~zs03(M6zlkP=6#f7h&yR04^9O6=U%qGgZ"
++    "rV4zzjxKT8!Eu{AZ-0(H;7Wr7hMXjURB?*y{BTx8=cuc+>!e#dxVUeBJc@oq9YtSzH9%l9O&61X8o;Biy+fDqv*9ivq->~CM"
++    "%6)1fPP5CB|z>08IhLe;-bNXo?j*ab-"
++    "Dyl==g^LfMpVT<8>3%avEn#gFQanV%SQ7cb-)7#ymJb4o<c<48mcx%|)thnrlKliYF17DD73Z-fitg+&oFv-qc0ZxL86s?H)"
++    "0)^g`<7T&I|?hjSf*)fYsQI>WsBQb#cBPiCNrPVz~TRkO)l96o~Dxp%NP*gyHWXHt{koX10utE2g*9|8JtYa8V1J8AsAa-"
++    "kHV;WJxs<{J1#Xb64Or|+9NEi8g`9Xdx|dI-n_9*)y#l;y=-l9Ca;y}NT5?H?R5nhHSqtOCuUX!4C5d^`c20f(~#>ru)5DSw"
++    "`#5HG5`72!T(X23-{PD=8i1>V|Q1gTth-0^nNxySEa=}&r)t{Vp9S@%56It|U>V)SK=AcWQ?YDT(h3dXC}6tz?LZ+Oq2vro3"
++    "KqM_AU2@(!;nsK6g2@rMFJTAEI_U%Tze&5^h;%vk|*Sh5W(C1&8JQETzW+!m3DAT@y4562d<7o+UX(B`$p-4{($Mk|VWBL`a"
++    "^>tN9>&!-Xy;j%hPjG;cZO|k}$7Xy>Xm^!2&RcWggDRH`8wB8j07MA9=L)_JZ6jb447*@qg>;AN-VdG)HyM|S(SIxl)J12wB"
++    "(-Q2K4CK}wZ2n%7s;OqcpCpqfN6o{SS5tJK{^(eZ6^Ghh7Rkd&5;IRhOmYot#98EZH$6I8NC;h9NP!`Cr1an(FrKW2S?HV*4"
++    "_ZUz+mX_AET#xHXSGa6#d*d@AJYF&uLZ@W^J%g!a>c9d3-|kScYh;u($H542z^pfd=WVdV;r~NTmwPYY@zzll1bc(x1yv(`q"
++    "h3ndUEsaZ%i{7oDJ6PRA)A8+M3DygR|l&i=`p=;y)UFnYgxuyqo>KYX$IW#pI-5s4CZy1(UV=C=_qXvCV<29zkwCMx|ZuRsE"
++    "8rV&UL%>x^f|FC91k#HHOWpxTa&e+7CmAJVU5kTm=0hx(k0vixN)8h)4D@ILIlCWK#U*hpB5t};%(L0}wfN0Q{+$$$AD~Pxp"
++    "ZvUP?Jn;3AH$dIsbIZ5;<wj9bg8^bh>#42-w9~T{WB$S`y+h2Adj*T6R^+YTM~N1Usw@&3NC#%&vKvovW6QTbss`5jtmKL&2"
++    "v}8O0a}}8Xg|^}RfG#x=`#%(KlQv(I;>7%Ee~-+3g$z6cjo<H+Vl*i!c#`LvBk=UQZW^FWVk|H;sC_DjtxVv@w>0@m-z~`*u"
++    "LQidud4+)E3?Q>z;RsgNDr$CtQc{0_GUPM6o_8{osK$+wfHZrM6D5act$|s)DbRl)e*1i%ChUpMTqv9feg{w=_V|z9y20?>!"
++    "xqe+v!3m!kYsR6aaRk~pK6x1kr`re%L^BlND5WI9SGW&fm@B>|uXEx>G#%j#~L__y5={$<nr_XL!h{Bu%7plMaGros4+e}Cm"
++    ")>If?Rw~p+$4rJrdI}g1f6nN2n`SRtf&|7=i{r1~e>txBl*my;yaBuWdAO!#j=!?xje!PW+2tSCvma_@#Y9RU~c7(EWn#1ab"
++    "b-LwMJWWp5&tUq99~)<aLsVHclGIf9M2>regAU~`6I!!NebCX-OPKvxRv|-^zdr};SeaGm{xi>KKmN>K21b)H_5{kE^CGv4;"
++    ">cOyR*>#eA5Wm+C?X9Sx?YTYwnK|?3p7sIw405zkwQ-(jQ#l?tYXl_=Bw9$6%-<fe&>huC9G}4`|0nA+WeIjw4$?3yC?(BO5"
++    "uJv+5m)5=uxFU!3RdkXIa&Uw&g@-HM<DO`!9wT3=CRc><bKUKp)mOU#`E}T(`b%u&*1fE5yevxt%7%3fP87CD26{xF_?Yqnx"
++    "H(`uFu#HqRu!SiB3$V&%h{T15hHgSx9apl3QAThTlw+z8?%g+&as{W^*gy=F?!HYKGM9-)_CT$D-G*D;m7VrAqgsA_W%#z2z"
++    "-0M_y3tjhs&{so+YsxLMXz3E;5eGFP;z@r*Yu;ejF`FPS>QBfb{`i*?0cB7#qe{nsAtYh^Sx5F>sr3mmj#r5Vaq_sk<T0CM$"
++    "RpPM_5r%yTYrE57-!-{FsyCUqxYXlp^TFC6O%8=g2^2|2K87}R@gJe<1;LqaIc0gJL9%QuBJ}&T9>%htd#vRPe5<REJt96n3"
++    "HnQ1lW7io1XHBmg(w}Nv{^U5FzUg3_F#V0sf3HQ_R}mV`P3Fus@piV%}O8&B|bR(FmEgJCnzJ^T<`6!_~wgMFv7e)d7!Ro%?"
++    "33SRspD4tr`hebsFl`Il({~!C^HKbWql>eWc|Gx9s<K_CFx+fhmeg8@1cJS2#R)orcPMAbR(;QF;(@6iEHDcW)8np$;)vek2"
++    "Vt&KuP#zD~HqB2(6by<XMSYgItgvT3>}7q}uTPG#CPy?$#Cs2DUv>TO@|AxXc6kyDIldLo3Hj%|gsV%PwMO9R>q%(|xLuGKr"
++    "02=)}NtKRilP-jj0)c3B9FVyoj{jH(#qs9beKt^CM0_Kk*n;xh<%(Ed_0vY_z3vh*V-H_G0IW8oBcv)T2k^%*^1x85akT>6F"
++    "e?kLrU;h!9GKpMqoQG=xL#D+{%uROxsZz5o(?{8)D8uT0N~fW07|Sl7-IJKgx<RVZvrChhx4o+Sx=;*Lh11^J##y&WNHO=(S"
++    "TRgz{O?Yd-RR9JDtvyNaQ>~(ci;`_6oI0ue^>j+8Fw2Lkz}-+W=UN5S=MFYqJe{n+1P^I6x;S8cg3?`I+x9+NdelRtZIor=3"
++    "AoZ&@OM8ft3(}htjy@>JTsAWGy*jVKocWVWH`E1lS%LO16~<MhBzP(cbYsn6CTzU#VOJp&o~WvWwN202_^u0n8Sf`{-_6WN6"
++    "g5m@yJzJ@g^0?P-UuE$YR_6s8<B4O)e47B%L1bFU*~K)lJUti1CCpxmToiu33EP66u}EvYvCWOQqxCROFeCIviOX;fAF3Ws_"
++    "TiB8{uW){R()bTzM4g^{qqF9w>**|%k3-wV}5M4}e66RPv$`1!xw*WVWLml~NX4@wA!{`%KGUNu$SokNfOI|xmvX*OwZx%0%"
++    "Ay5k<!5rKyY#f%%()T5?!$6aYLZ(3H^_gG-!&$@R7827psDwuf;!(=t>Y3=mrLau;a;{mZF=t%g8t7-wytVc2tH;Zg^YV9EF"
++    "335{hL}5pWRXvzRTxZ=J942hs+xQsnrH@H>8kP3wH11>M!nFuOSN!4zXid0OEz+&8oBvujYwMIF#1wjf08~$<9tHkAc0x&dT"
++    "vE*@spT@jDJOyPkd!MCH2qiF}08@hlUn`EDe<ylR-!G3Ihj6vtbp*a#i^hqNn#JWPaPe;!51rD6jjSAuUB6Q$e|NQ_M|%V@B"
++    "#*z&MBfJF({N?H(?-#u@Q=i!D@F>1afUOK6%&2$t<UbP5($cL6cP3Tpj+)Es7KXMm#P8Mi8jz~C)}WWHfe%pY+B^vP8QgW^x"
++    "BK~Ohn0~2QmblujstfGj?VkHqMjZj^qqG8p<n<*k>@62x15drAPy97;8$kj6;?Bz0qHCzi&y{nI`Dz|xARb~i)HCt9Oa0fm)"
++    "prI3$LkrRL#XXXiG9pB>oyp<H`dpT0h?<z!wr%wJ0pG!JKUD${<l!0LSio-^u5Ze<N23DvhG-Oj`z9wEQ;zM*tlC3rqgZcKG"
++    "~|XP2Y5apQQkKuflDsjazXIn@MIA&V8wxlc4+q(35vRZt|8<&bOsQ+1Wj`ww4*hLR0<nHX&1J43`EJ((4FsVFe?f599B`#8E"
++    ";^WFZ0T~Hwx8U*LBJ<ue9~@d%d)1uy0~rb7>+$*{U-T@#?-}43}!n;Gw0?Bn+1oS|yi|GLTccITKGC-Sy@w=jmk;Pa@Dgt{Y"
++    "+zf86<Sw6zx<ZSDW8hlJ|}l@8>s)49z{5Mqtguwhv^GPz<X26hd7+F7+VfzQaY?j%dy{7kZ8j(b^b?s6lP{{S;{vtDDAG}l;"
++    "b0xZGkG0)RD<Gx>v9;r<*j9Ckt+SR&(!AG=J$HPz%U;`S>-~e?C2|{lT6;(uI-L}NEkSBeiRoF28pF0Qw52`5Q`kIKnru^eN"
++    "0&*AMg3aiNo_>R8nX=ce%?OFSfL`N>1W+uYik(^V!w7z-UK@;LjfA~jg+~DwQ|Rn?G(+-Otu&4qZSY#W0kVMk`*FejUTaK?b"
++    "^AJvt>|Pwr#(|O+@^dwC&hy_e&t0KC`IG+8jP=65fCots4dK?W|at>3xukUepq0SQ9kM7$i-vdQI4^)+soou#2YMQskZQ?i)"
++    "$^kf|N~qrC}nOD<MS@RdIIZGZ5Z$M=8}R5+wn%nH6?vx6>lIiPDjVi@8tJpz-q7`}TrpYl0X|BR$m?fomS?xhoz;SqqGt_h="
++    "<@{9(1eLOJlX)<EA}P<_#?wzE->&2n40V(d+HlnUa8;;>87Y&xsV(K7Tw9D!v=5;c11;L(T4m#xk9`rNLgSzs)LVxw0D7#iE"
++    "WC@)eiV9UKq2Ija*Ba6wG)AS5?j&7}ha%x@d#NGyTo3z&7UJV!zM@WTIQC}$SP3d)tJr`Afn73B4!vjRLnhjtWTzd6W0sm|P"
++    ">x)P-&8OCmw@uI{Wo*@}lUhvC+N#z#EvaOj4X^UTU>CW5Q0zNWOb(KaZ(s-pObv1`+w=)0Wu1ns6dOg=$eJ5YLv60@gOYD8i"
++    "Ztg$@G4sw?XRa2fwM-hfZ3WDb**hB`JL;#)<!U&A$)x-*1TI-XGsq5#^*MyjrWob>+B}S;>_nQ6N>>t{HI%-DxFJAZx%sWmh"
++    "ED)06Xg|2v2NN$;vv&z}gFM&@?dm@q6-7D@^sZ=6kj9^;Hk`5-W~aCfnpjdmp1NwRqbf`c0)9R#oY_)ijG+rAauC_kb~q1C*"
++    "5AVL`cevI^AsJH8}3_QyjHMyE*7>7V9Vzk>nOnoEHa_LQ^95|(Dh4ewirkwQTeO6&j}vHMb|iX~tYZaG@(x?TgI1xt|fwCp8"
++    "kik|e-t}lBpA6FkmW8RiVXn@tJ%{$r3bAISCQxgw&Tky>6qvjt0MhO4*lM*{A#tWbILQU}@jKo>a*?bb;rjyx3#MC1cJy6E&"
++    "fcj&K1@=9<kV<+R2~_+#QjgIB56I3Y$*s_;qYHVEf?O!K6x0;O<2<{J@Pk(F?v!sno~b&{F*9S8kmd>v2g0~i;+ViJp;7yfw"
++    "E82AH6XP3XqzLo=!jdLt_w}Z4t%?KmS>II8Q003u$)-vB&7x{okzByI|b%tu~G=yF_Q=qx`ThLy*;Rn2U_5d<*l1tTriL7J("
++    "J6tvxVVvdVR*?<gbwp5%h!dbX19ObF?B)C&3!NX=k5}+)3?+&U7J%z3R4P1uz*-%nCd%{Cpt*m~G55JViP5Frl5W=2g<K&;|"
++    "{SmsP-_v8ZeXt&3h$oAWA<3$u_&QvvNV8q1RTta6_b1crDpq|mi=`4Qt9sNuGa<QC%#o}#4Dw?6>m;Yf%+Ju}#mpVV_~dZ_P"
++    "x1Yx!nB^L<v5_eV=;CivVsIGD-*m$xI0fjb|jr<svA42Se&><r_3x~(PQS37vYN~kvo?Gug@311wVNh5Pr@&Y=YQ8|4pIww{"
++    "#MCw}xj@2=Tqc8#@c{9GOhMZyjwsNvhkLOL3LBS9VNBpW4NCC43Y@R^njMuOFDq~tMunRyTE_}EU<}R0ow?C)U2`^EhwO|GL"
++    "r$C%wH-OvU7DWd=d`-=JIrkDc9_EkPcUGFTHo8G-{|y+vpZiq1b%Iw3U58v-Lyf$6T&=g$1ot%A~1I1nz|t-wN6s}>R)4bJG"
++    "vXHgK8ru#ScIUOgj7}L=Z;;r*z;VKsEIBtLW8>*Nx=Cd5DoL@W;2Y7E2K0UOTph(gk7nMWWyC7QFJU;}>y3X%mXLO8PYMjYL"
++    "7_u03WhD*LBYjFKO*hUt0p%q$B6gTWJNi!4xSTt>sZC|I&<Iuoo)xVpmlWVyb`WJCYden_>U;k1b+hU7c<8Fi7&!;0T9lnC|"
++    "Oom&z`v}U$BGejC?8nQgfGLExukClnk>%|V%(>avs2-C=k3ar)I=Pvu}%jwjm!4Ol2ATyn;&$6Mgp7z-v(t$N11&!0JYcQap"
++    "jTm!EY9#QW4^b1|b(KJCGoDVzca#Gmg~h+DAK1G$#bA%CCg$6-hj4yHuI;qf3>KKfErgQ1rW46vK$|TE%TOK#u60?;o3_F{*"
++    "wrPcVtuL4Eds#BU3w?&k<sxD&E_?pV$*}eG;^=}XgB$yS-$e&?AiO3ZCOR{j}G=|!NL9z$PPE<I%MeZAEEYX<F)o_<2C<uZh"
++    "SkJA0KL|V=&wD{>Qz+t|wNqT9M<EgCmtAUW6!a@Pdbfqv+`1uPn>)+)@Yc-yaW78jDe0GAO$}*gx6X#S-6r*ZuCh@7}!p-ct"
++    "qs0`Hy0pJQ&w?mBN06SLL<y0fA+*1*)N-(l)Mj({p7v2ZqIprZ90^CnWJ_jXiVHB=rwD)Rnt<8?$?4&Q&=-Q}q$o6^fSR^Ul"
++    "Stpe1gWgu!5cs5Ly7k6(fdN<hK`dedf&0;LY-%Eke$<fyS@!`SoAUgi|{{7Cc1C`gP1gk2&Wxgi%*p$_%4g^yfVNAxwP^jv5"
++    "&LRd<CkxF7oSF&+mc~JxMn_EOq<Rw`78pdrG8l9$M79KiAFL2*83>-2QKJaMgi==Fu@eC<G+tl3U*EW1Yr!hwy-6?arCHX%l"
++    "qFo&@N_`017R6QqHG#*ap!}1Z^fe62e`#H&XjvE;a}&5f*oaTCWpXwf!E)#WQw1BdF0p5XUChX2?Rb~F!&>8lQj_|U^}szNT"
++    "bHft9&*dMe+<tM9Hba&`_wLrVF;eJR2&L0m`&M{IjzB(BLuA;_PkBo`%`N=yE<w#~4lo)VY{KcQ6?comMXWT1az42ry-6Oql"
++    "18(Gh`=`cV0<DH5!-?7gG6!U%+GmT@dHQH!<H6x|}Zpy>DuVLso>wjR35ghx!ps?O`IdQKVCJX61@JDPy~XLZNq;1%uIC`Z}"
++    "|`gNdU^l#&F`1o}(=MZrY@m3T0M(!9yK%aud-ZbMQ(A>(rux6mXALyDCJ;~`-x=taf_)6ibD|`$n#H5#@QE#&Z#}HSP`0F9P"
++    "h-||FYa=5e<3@oA8?72YThrJNyzi;HD)QOoRg@R$Wke$0aNNrd*{cTTb~BwpG%S`sXntzMpmy>c7ou{QgY3SX<+GA?!dlX_1"
++    "amOZgf=#Juj%=^^8TP(=gvN#BKGKl#k-3nOsQ0KJHhGN#@Rxswk@O^ujNA8VksCaYp}9RgS;wbnPdDQmcfO1LQ8_720ZlK&m"
++    "ylNF}p|(_+k^U$+AYPo)oTqwGI&uIUa+y6l|<9Crz+E4?1NE2~))l^+duJjnT5N@niluV#&BzE0oyp0$Gdp8aEsV&jd8eC?o"
++    "Q;B$H`%=Mzd|SHO8{P37^x+vp0S6LxV;!$fXxE29~(isJK9S_uMEq|15ftGcx|@gxc*kd;L=#MiYPy6ogzOCti~#wJ98h6bR"
++    "7?8jR!u$_kAGde*b@u4iZ8=KZnIE^vG7Vu!4HBKD3GG-9t*@UPXLiKT>aTK^rX(%yc5B!ioLT^nVss%07Ub%Okkp4VmMD`ZU"
++    "=FM+$4+?iE`Hw(L>E_hijWcN)mhiX0>}9^_z;o8N!V4oZH@^+Boxn^S_olfCku<aBadXb%PeHg?K_l?H$+cpN)deAIbHfE*_"
++    "sPtIuS8gr+pwK+FUSmY@az*voEn#soLiDXzZ!FXWyWk<TtBe`$4|p@e7#hRuwsq66t1qZ*CSg59|R5t5Q0@34u-Nl7$on+yS"
++    "G?R<_m9P7UxK~c}B5HAjW99p_w-<JS9YpriRvoDL|756<RXDeVM|TeQ^h=FvXx%%ja2=nXaT@<mVVcbrx!1G2JxRjs#XCy;("
++    "C~9*@Fc+0o|~W0GlpIk#f3zANg9e#$r{b+|)Qo#!^VplP9X7)C?veo?|y+;C9Kgx{gv0(R;V4N^*dN@h_he(JW8e3|80?L8h"
++    "e9H&{r-?1F4_<@Fe8sAX{MfO&c<6_Ita9NT9Epk#bo~mc2rp}!jT{y#ZfQF@Nm)3iDW@feICEWcmAZJ?sSS_b1=36Vv**VJ;"
++    "EbX08?uMk<rF~pRVO68)Sv~2d#sJc`nrppSaWT9}$Ee6Y)|#pHm?SK=navU-l<cuqwn>(2yq~%6wz@f#hPe>Tr5D0pmLOPXF"
++    "&bzC+B%w`YhYI5&@|v0%}VODwsZ@TCwukD)E6|<TOXdh`LGceda_=w*K^s4E(s@2ktst^$;l<10Sk=ECq5+TnNyGcy6mYsVU"
++    "&x}<M#@k|E3E~zP`vkPTER{nDrc8;EC5NiaI?m%7$Y!s-{U1DK$2_dC^fats}<=D#>T<I~ybT$nWb=Ul^_63wzMMXuRC%>73"
++    "2VJP5m6tX?WQ@%*>b4u9LBp=Hl?Cjeij%$oLR0>Sp1>`z*raQ8xGLT)HU4K#eyRTzK~GBzRQWRx_jCu|_ygWet?J3q3M6H`o"
++    "HY=v#H35thMGH6@A>s6Zwqd?h|M=iI=e+O9u^(|<%0SrAEBBK`EPq^I5nx`5IpVgP%Pf<1%OAl8aHQg3zZq0s?GFxjv3^tPs"
++    "E^|l1R+ad~;g#BqFI<esm>?fiE&B&1A4MIbPkpJIOo0dzmG*&81(oH8qGltc1Kae4+F6tLck8-=*o3ubW*r&vw5s>t5Y3K0e"
++    "+i292<b&A!z?OheXKZo+ALDc7M!{Z|EwQx$5>vme8>YKyqq9NJ!a)pvEEsOeyOpRE?*riZzApT46CAY$~Fr!nwsV^`N&Qxpl"
++    "4*Zre&Ie0L+GouReur)0oym8@6E=V#qVy;DR=2Re-6<)nGi#5Yb6e6=tAivo<$D7B}_G(`b)Vq}4w2%G0T#Utuf8mC4z5>Wh"
++    "I^3X*}*lKV2Q7N2-0r3K-(mi39#0OIi~vSSS?o7M_V+_`0)Z!ZH40#=i*^~HzHJY8%`U8zAQpSLEouLJXOY}*1_PC&bcxv7q"
++    "8tSOjdjE6$FsHyVLaWQ&YVZ*ZynzwP8!iSw$#Z&z)vTyEgvDkP?Z*k8B{j#{`EGpE#Xs5a+5m}E`Oc{y%z`MFeQwFzx(pz>D"
++    "8bz40d;uC2a;8!H`stQA1lNeoBD<}aZX+sH<rp)=Qw=$GT2q@iL7I7I4#5b?pq^5qrX@JS&50mp)iWzlSr1bxaeE4u<Y}4=l"
++    "W05>an<D%Xf~a6kNNjQ{C-&E!=!}X)Uq|MEVY%)ZJ2TzDKI>EvYd9+J73;vjaTgPQgoH4Uem~7$F7}@%Y@nF*drz_WWp=~%G"
++    "e@-rZ@P(l&ctOB{3%3!#r7xDvQ9teesCTvobnIE{%)3h#xx@Fj!8v`5<ttS=Dr;<+{;3ZYl*pxfIW5V6K3%FRHSMOP^-hb(V"
++    "k5+@EG3XVsV99Dkatd#9o{s)@7&*RjJfX==qBGy~d3J37R>=)ZwBMko~Mg=$B~gFYE&!T!(f#+#0Xi<1Wolu$n~J$f7o`imE"
++    "5tSrzm%!<P>VtIP}&aApvdt*ghnE*mJcA<MzR`~tT>4-cJ{O%O`j0XmzX`B|myzrR^iRhpCOKpCOZ4UZ}M}_biE#Qw*T%+k4"
++    "E(x2ofP8!-F6)Vh)eLVQRaanhf>7+g28rF+)p6Z-9Vm4HYwDGzae-$M0zAuBTYvO|T%gvl2~}RaNt~q@Nm)@pwEMNRc1}0Wy"
++    "ysp=l<fXi=KQW~VLIqAa4xWWi=GNKzzUn}qC2wm&BpL5I9P^mE1$Rw*rsptnP?O9jNtK1yiCXUSv(<y63T9o--Z`Qf6XZ~?Q"
++    "Yoz#J5A&7TLYvo1t>F%odw23|*2IifyfX(5Myeb27^4xA)OYK>@YG&!L5^+C~ktQG*uxO@Fe4;RI3rV>QI3iK3G<%Y3^Fc=6"
++    "vuzz|`VoFFT7NanW|R>eA<pewNf9L<I?T$-9Tg$1jEXHt#gtrr&F+vEJeE0>Bc-n{|ufoCdi#6V;%mbFYd<2zV`JhrUsk{VQ"
++    "=)l~-#oG_iXQbX&g=(s+aCUsptzI6helk>T*MY;$MYYM2oMZ&J7V;6D)`LE(kw%Ows9NyP4gW>2n+L6MkjPFWq1ofI7M{vwi"
++    ")87SE-Nee5zBJExQWW2~@T`6(m>v20_)8_Z;J3!;Y3`BK?;CY)vg)_Ro!VCfVl%8G_(a>;*zlRWP)@&(8)u7eUY)lQEOJx${"
++    "5!&bk%QyWW*bf-y8n!BFh%@Mj<$C8qvOF}qTRuM?G`lSHq+Cdr!GD_(@Y$V1xERha^IG|NcpZCDCc<@3GK|fKb>hlLg^6!9?"
++    "(_24yYRIwKeP%v-;qK*GMQhgsGw8a9><yd4?v2FGja-fVV<uUcaoz(4eACFxg1;c`_(6tmwVCw|Cu$R**>OT%){V=&dnKrPn"
++    "Wmkk{j^LPYJkX{AC+C~@cLme)nTOS0J{Dd<os1E<N(Y$R+#hC07Glsl8z4<NbTVOlS3Vw*jUQXQ%xak0fUS?aA39V|O3c9MN"
++    "wF2ri4zE0(s(Sr|!R1+H@n^K4f@n!<N8huW)QT`cOv_e@&9ue0ShU7X=M~Pxp_}f!=2Wz$MsmSnLS3HAoWbQEjlkVYU&DA`o"
++    "V1t|ZQ5GsHY|DpGTtld?y=O+eS$|EHUpJ_^fqo%XcU7P#o1vdXNRVP<q9Y@rkB_d2Zc?!}?J?F2mO{`C%-_Z}5x2O>Zi2n5z"
++    "rvhS_FK#0RK%ZUx^nVuh_)Rh5m!E{j-9INJ%u(CfoyA+;_vy;;EZ7j-wBd7KWJ}!WSvWjM<Wp>%41A5K(_xx-{WL8PkZo}Qu"
++    "$~Uw#&eu-kG>?Qf2-_qMi2GhC73$$6(ymJ`01}+&0v}sLL;1P~>%&D<Z=me#5(S$C%$OFkYXo8T@d@{D{PXG=cGd9HA7<T|B"
++    "_<I}`4p^qx#pycbJLycnXf?qpiIb~T7uCnGl}U<@s{g4vkU#b6e3x*N<QOWY!>`4{-@DD;Ofv`7=<{#BNksH@(S_y=h~uQBm"
++    "J6c2~92}|cBIJ^et2Ueb6#at71t*UhAm#y9C$E}m?pQ7WPzYo}5D$^prLE#ivn4<+=U=IQC41K8ITT1dp2W=P=O#j}|F;K5R"
++    "9BsXewzjuF?nTEZgTrH9&hBYV5x?kIDpbA0nhG9R)P@pB>l)nzp$#}(F|E`RhLQ)P!rkkew%oFm&vlUe9aUp;o}a|UO0@E#5"
++    "+P?sprJtcvfC2WVkPiewfiU*6Z5rPx>#*3rJxA9=4+T>O7k@f{8DcjVEuOYTN$px<*VI(og@uX_s)dGQv4x!O>~J8;)<N5+A"
++    "{VgQ3GNNx!yA-1;o86X0L5p&~iPVl~?@IW{gV&(JIeHD^T*fBm`l+YL^-0yveh1K8(kT^r1DDp)rJ^K63VruZW)OLT9c_VHC"
++    "Z7$VrX15npLsgoXoj+7rOf>h~jCmnrgllozeVGu6t9oD1A_Yk^9v13Y=BYpuehuw2J+<>hV34GQmYPW!3}_05`VtKyi1DoZg"
++    "ien9tkC_b?O@Hx5KZz;ngGy58ASr=@<@}+xr$m?awm$#r&QARauGeb^wyu%$2vg>b55XRR(d7H1ua8p9LmZlf50_z#)FRVA0"
++    "MN*c%dkNv;`Mm-Dp`HZV;MEp+sv1@bCtnV@_DL0cQ18qlEmh#EJ+rqI2<1jFU7&Wo`do8GcH1k2G-GNX-u7FUdlsM}G-!PU@"
++    "W0Pj=qgd)f2bo|kDsGk>2;Wtn^e=%T}xgKZha$I*FU+xJ~HeE@mzPxSte5bsybt|L+5t~*3NReLh3GIV(u=Zch+5k#3)~r&f"
++    "G=r<`)stvAI-zAhe|6IufC0nF#gMftMApcehkMrmxdVZtp8Hh-apkXydgr60intwePukp<yeOH|G6s@Bg`Xg9T;kT?iU5bet"
++    "d6b&cAY6Sv|a*9)DHK|@8k0PrP-Q^St8di^q>4AMc<Ok|VWWae5?G_i%=)VDOvo_qe-y$daEO4pzy3$@n@oGsZ3UGp&#OPDP"
++    "wz=$i{LY4_wWK)+&ma<M4b0)NvrQ}?jj9Wy$wac~^k=8EG=7_R6Vys<+Sx1l_Bf1_Vww_RAwTr8#6;(@!sYVg?DDm_ZqNz5|"
++    "+_Pjkk@SxdM@^!LLRUqH-u4$!zs`#!zHZd-oVu8%FE$D?MKvus$z!{I!;KxUZ(Bak4NHdE(s&mF9`K@fTotF<&slbIFb@1p;"
++    "jg6eoZ@}DRz18nN;i_8>-Lc0d>8OT0c=Iw&=i5uLm58Vl@rOxUlF3S?&=grgHpVIAs!_~&pW}Ucj*WFEG<j}I<MO7#?&JZm2"
++    "VSIMsYs?yAcCT4n|`d418Cz#cPrdi(L0^wK$?C<6AI*;eWeM;PM9XiH;sHg#(|c)X5ukEiQPKi1PHg&wUx*RB6~5cf){bry-"
++    "(w$wPKAjy67B(q$Msn^%fByhO(BD51=3>>g0=G^n`?YUivN_3n6HFUMr4kx~1x>NVf<K@Avrm>FHssf>ST=(MM(T9(1qS4C6"
++    "`<=P1&$sb94iGekMhjqaN_jxERL#=UR*6BrDiE&jml^fSFF@X{I5dJ}@<{ZY;SZ&_?G|0Ck<LUc0bGK?3i$Cqojh0#K-*p4W"
++    "@YCpfW8^!N1giPkjPQ!Lu1#$Bj@yc@&WDy+;}}1qgc?ipy+qZ@jo)Yu*aH~01U-lIgOJT4&LIpP?!rF%6E^Pj{AXY7kG-$<l"
++    "#Wiel5!k;#pz~vR|6t*cGw8&vfFE|TWl@cY|UG3GJUMt_mS;Jj_4zK|C;JWXkjZtp86ZLg9`$%vMcPyR%=~X4OuDEv~Um`%C"
++    "ojX5tSJdCQ`177{g%-MIKzDx%VY9Jr3D4k@@ze3av2iVr<hCwJl2-da+dH+BRDAE|_!wti8CV^2+^8Lmzc8fW1+s?T{_CH#T"
++    "p7Z0S9+T4&naK#lk5nVz4<V*mcm9(#MSoxIjY<D;B8U$zzb)Z3AcEy*w4mR!mQvb-"
++    "PUOMM}&{ty;eO3QA)wh}YD>jtJjo%d54qK-vZ3%S+`I^{O4w|*V&noDe|7|8(R2+;smxY^-48v?q8$Q;NrK=BV7dt)gB3>kc"
++    "0KpWtgFQgD?fR#2-YpqEg;4K9!)(Wcvge>@LwVo^yGqgb5P*d#C7o*V-ZQ>3gY7Qe3LrYOU_RzWpwT`FRmB3Dmp{ZjUWMdN5"
++    "wJ%j`b)L%BrgeEe2~!628XHBj+YJ$}a?8k3aKqZBvG&;<f(O<ijRbVKfMVMnq!1fX+PJubX4`h8nk%>MNiA6G-(OMrr))kgp"
++    "_ebAlQ#si{i{c>)kdf>hHYL+70IT?@836+?O$=vEGesWf*T8@9>Q}HP0D{Ece8!5(^v55K7}{(aURLV4$gkLXYwEAom}2SX~"
++    "u_qiKkKtrCF9%!U!-Ls+0Dga7;k|&(_Cl1=cKInF*q9ycnN1oVWeP6PT8YMqnl&ov0%$&k=P;iVZFT(JTse`nK2#k3LNB1%|"
++    ";F94e4UG*PUBeC&cyykM(cQfL=ny8=YY1O$qprD+<_uro#=-fE0-Zi{o4Kzba;nZwJoWX$stanH_Bysr`e+#Un{=s4)F84JB"
++    "|RP!Q{&C5hLFBajvXq2;qL~Gsxbry(yUNHW7u^4D~9Q52k-6dmX9~UpXnBL!5mFxB`woABJ-McTS+icpj18Co8cAAh)yAR9k"
++    "M3@(LOCj9I18ot0cC?=Yhey%1^|CjQl;vGEyejgHa>%t7=3wbw?2UE2hnO_|`tl=mkaln)1Av73%+Q6NvlHH0S3-M5XcYBd7"
++    "<oM>`noLw`ww_-WT7J?t|0M0+yRm{p}Alb@0T1dc$A=gtdM-HfczrixR_vESST(k5El`K^911|h2X*h@Ck+A(+Ivt#CW^oyq"
++    "_%AyD8rLku%6T`70&G{JCJA{(VeMdHmN=xp^M7&z~<2WoViwjZFLnOuHD9N`xef{wGZCe{PtZ?!@w!2$p+P5Zu!{g%)wBJSt"
++    "Fb2~vFJNV+93`4<kg)3?7C54c+*DsJI8ympxX_+U89!YB8f<|;|1uJF%WWn8Mzf8vPDI3h##epwXJ(@NHPQuRO4Mt|^VqyNM"
++    "V{Tsv#{ZEfIS$yGBi=K1Ad*ovGxP^`~p5j%}WIW*UMmo<}(jz<Dij;!!%!`Sh=?lNe*aK0(o!L|Ylovqr%Z7d9$`n;D(AS;v"
++    "lNC9N<;1POT{@U)T)`%5t!j6A<CZr5`811*#JElip#?SZ^!lZC_mKej1K}~Rf2=r>qt9Ym%1=clPUL*DzzVWS8qa|)4&+LbK"
++    "Nq1e^b4d+vbM2lW@I)Gt)BY8_Lt)5E!&%?H-e=66zdt|4t~#2Jgm|iT#MOVc=2bXV?)3UTAw_GB^k$4yx(t9%FJ<y`R8~%9)"
++    "f7ORv%;_3@E%wag*@dc~k*nJG_&{40+M;0j(h^?%YhM?m*%Es-w_&=RvK76njWlbz%4nb`<BjR9^5iCAXH!Rjsm}QCCq&K&o"
++    "N4R;LMSSVA_`+7Uv3m}huAno_39i`jXZaS=^s<HndLy(kSm2m_>j!@<(p`BIEBa=@_ZOSj#Ne^%NEpG?kCd=u7T{WHw7BE4<"
++    "?j=UZh{5ugt6Z|D8m!sKu5q@U<h|Y0nN|o!mc0Zv}&drffhig>pVbHXo2`<;L1-zzgv%l~D#tc_2%MT0XW9v1`FpX?07JngH"
++    "&1Ah=Eh_%p#pH&&M5`ebdSAX<Ye5zB3HXh@Y^}+do46-%lODq)U8H9>KW#Kqp0ok|mM8;m*r?F*wCd`XC=(yFjEr>emx)wQn"
++    "O<slmzBAUr*^GroOzn;sa3%OA+86n1FPzsq0+FzvC*Mf<d%dw<(jFD34kZPimn#~?ptdt!E9I^J2eb=<+rA8+E)oOPq<?oah"
++    "_wUa^K4GjW_^2Yohz=sz>e0B*K@!GYWJk*YK~;uN<OCbiDr}EvqQM)&kSV`6XTK(3g;(<E<YAx0vCs>O;4>t(fC=T41CSuM)"
++    "`QtQZwLDKGgo86eloe9R>>zy8YVA)gDPq_y#kZ2-7HGhM4IfoM0Mf|k&UI~c2H-B9GkrFYQ)Eu?!Z`WHModOni(;Y4%~NE8K"
++    "ammdjQ`B+o-Q4giZkDY!8_ym?dX9?(WbZ~gGbFja)8|~~J9vq!SgQKH^Blm?c%%^_@>NF_V;u?&DDT=mu40Okx8Nl-nCP`W1"
++    ")*#O9<QCW#i}bvEcVptp8@y|K(twcc&_xH@r(F7nchyy%dH3aA*#$kOgeD$3jf7D3_I7`zOJ1Xh*NUQ+dUFYgWMXqP<*P0ZQ"
++    "|-=_{k+;iTVjG&67pM9I!y7noL13feA}Jgd3iRz^UB$Dn&Yh&0CD6gkR3;x#^pg>pg+GCu1nV@={LhUZZJ7H_<69u^Y_6KUa"
++    "R{P--OBWUbHIrV$Zle(PI#aXJI5At&8~fa!R+^HQm0*Zh9mR?>nH#KDzEx#LGX}7LU5Xalsv@i_R|x+gm>x`$Q7RgEz{PlHY"
++    "U&HmP=VlPc7|ccE0<02259EO+M*^M|zFb4NJK3+Y0yk$5-y!NP`ngycpU$Ej(z!3cPlmt5l8bR<sBsBrmy+od&HQWEoKnA%M"
++    "=Z>6I}ri1#DTLdLqj_X3pX=rm)AY2Wgj*Rk2w@mmY2=o-xQV!vQqH+%DkxiVoDv3#Ga7SPN5vcoH0pN$j6JO&z3&W5ydXM8f"
++    "kYDVZ`i&`yChR4fXz-JjzXEb;#px&ea(!ce6mP)#98b{%s5nUei#nB7k)B<Pm8icLWy}1c8pcz-7=HyeEUcjsjxqZxe}*Ijx"
++    "iOPwSfv{Eg}AjpfEjj8x)Hr$#q>9Z_loJ4eOtX^uY<<hk0mp?KKix6Xak>5ku{I;?kHSDCv*`X6OXK7VCSeJFTYT<rBd#0qg"
++    "hio_O%!w{>mT6lk-vRF^69P`V+gBSMvfEmjRx{nZo4hYj^gBsI1v9t>!eBVoR$Ny<vwJ@{3R~a%!1KWEt~~sgzrMBo?B{vKW"
++    "EL>wqE>4YoeO@;mrtYqvwo4`}{*3G4VxTIAYpz9T;ynp#2)n3Z@PZ+3}}OqJXZR|IaU3bVMmAo*un)4-87^w+JU{hj>}=;_4"
++    "0F|JQ(-SF@_G<OShDezU1&n~ZkC|U*uckh%3imyvxR@VlwA!nSoK!<68aVCRgm!n5y>4<AUaODHj6>P1MKV|p82h0~3h3rN>"
++    "$92}atrY0GD6?aFhEdbe3m`SPdfKZgt9n5r`5nLbkYBfF#H;Z83iYb&s9$qMsUAG=OX_;}jvd>F`BzJtR)hm@z7Y2A^%e0!j"
++    "631hb6wmhuE`v`Z=C#L&W)1{6UovhDQD+^i1%2`p1bdh^s?l$mrV2FRS7oac#Kz}r#FdL=0Ku?-B?*&CEmphzVRkyC(Exx#0"
++    "FGNE;H{`Zd3m`|MFW~aR&A7#aw#OZ(gq};cU_5AJi)PfGQ1tD|MO&j}#QGF#Ue;gzBPw5w9NP-D$2!F3&RH?j2U0*-7Qt<Av"
++    "1=L3cg!%V<^q@Zi~@XuXCAHLsStRnWzLZxmJ0a81SC5l0W68B5o52H08K1Kf`;T5^8tzPPB%J7;cM0jBA@2__eMRBtlNv(<P"
++    "MPdt1Q{%*mLc;7aZ?ef>x$z2&dc--l27visZA>mk8{4tWwb|eM&tIO{5-x9j~B!53}6m#?q%p|Al?|2cNH|WKAJOm<)ICs>f"
++    "`}y>|mt+{jGSV(-zD~1I->`+OJJb7Z^P6<g3G-HU^rO>J2}U1GlFrkeu4Zd=hqBq0u)fBVj@CnoN$*}hKA7ji@AY4do1u9iA"
++    "^G(UOb8366X0d+^0=)@RV}QEkAwEcEQ*Td49$5|!h84I2YZJfPX^JulfNAf9)wETLtms(jf&IV(a2V?_>(5Ve|A47>E%_`r9"
++    "vPu(<}iNVlPEerv9I<pLJn1&$`3tlU1v{PN%$1DJtpjcsViNJg7+Qr7=>YTGX5rVCftH+PQzzIS{(dAF(57@A6s4waqO*4S!"
++    "x!?)j;ETN`@Y0)jS}SDV{{Vre{1e`o#>qeXq(wHoKM(IqV8lD;U68W8Js*DoFfA*f(|JD7^tv0<EhTcXEIZq_yjd&Yh#2h_N"
++    "q+UssW^R$)gC`#`EJKTtNe5Ut}i16*n9*JL9ZEX)!h-ODIV=q+5X-7F@PqY~+FcE%(b?Uaq_7&@Jr~rL@U|Xe)MUv?Qp8szu"
++    "0G}*{1bq@f{j8kkX!y)7F49{Z>u<tuy1(UV=I`vEyopYZw)T$?4~_@X@yGY?cYYlllMk-p8xxA(WFQ~EaWp4gAU$@w9W9$K="
++    "LoEwG?!7g6&u3$)aLs`D0s59vm3qtxVszuxO=eu^D!??9c?Imcy#dJqO^vXij(Uo;n5Q?+}@H0kB=4?x5nNe4pc{j$~WiPB2"
++    "uex8CQw5qPWX2D-r}X_aPgrK!V#k&^pRxkRF#ADgr$NNuvx$laGNzsLRGcGevcpHZh;72LVfNv2LuE8ug>RKoh0F`CP(!_kF"
++    "Fv5G<j)p6C+un}A_HyvhsH649#6z<3(Y#-K8ZP0{-BiZ37})n5O7^A<TTr)HgFkNu$uBixV0gI1UEv|d~8OFz)n+D!%UTb+u"
++    "@Bu3)IAS8R;%?mOwhPaZFXAfrCwCaJDEnhPMBIZAQ>2xph0wkSJlV-5D6}=m5Z~ZOM{n>m8*TTnYp*4MLopY-9>P7+Q*S9tA"
++    "ep%(f<rft)vxpsW+zC;ww?r*d)P*>UIF8FIGGuoPSeNh?Tk~$YEoerh#-Um8QVXpL2}T}bvgVnCveI;(nYzV0%KmUPwK%H0@"
++    "O+D&HAP#*VOiyj;7rvPLX>tNIm}qxm=V?WC(l&`LuRe`Vw2TY=f`YT>p?BKy^)~`RZ(#Rg7Y@4&~ZjxS5KQiH)hyx%d+2+X@"
++    "CCtaHqQK0Me3rf5G(o3#Q;V)9|<5$t5DCWac#F9LYw`q`U4@+7}(B7Lfw<yzW{N9KigM^wfQM@gVqty~YQ6+i7S+F=FrDU`k"
++    "S$fj7zF9N%18pG9aee8qS!633IWGv~N`tL(C;T(3^o1t#<lwk&Xy9I2a6r^p##JdW>ro)Xc+c<L=gm&U>A1S`!4mf|VM(A&s"
++    "fZ7h+nltf_KxDeOu7ato}YpP;B+S0QVU^-V3o%Tj)OxZOj_Lqf5x-qK<`Z_{;14k|{Gt$!v>@;i^=wMSwt1E(4kAj1lFqeaQ"
++    "?@?G#&&)Fw_}W}IOk#5u-dN`=82nnrQ&E3%0}=A2Wo9^NWuIQa9yP?Z%CTzM!PO&9n|GRA>z{eqRMQ3*M?`n?hfVhxwOmTI="
++    "p|43k&POfCOCObmg6i$s2wDy?-*&X@vE_sL1JN<i^1x2T<{Ju<IXH`ECAK7c^Mf+lxn2KsJbdR^UD8&hgp)d@jfu~DlkQiIv"
++    "j(-+K;yD$rL<SdW?lQu!#$`o5pM|bX_xM-!S$>+)En*FoLG=Vxa={Ho}^S>yuP5ml=}7eJ-+%Pr7XH8-m_Ce5MKgzPSWgN8Y"
++    "sMpl|$grFmp|&NO>NKMMX87V}X$GS=GybyMif)CdO<I?>$4R-*qUE3RXyYSarzR)M5YbX#jE{I=h48mB4SFmzyi$FY)R0i8X"
++    "fpb`<Q;_|yeH`Cj`%g7BD=v7~J#wgujG-G(Y^V6!=?Boo+M*pUXVjF*;rCd{{+mttxz9b=K#7F(GU1LCpo(xl&_w}#`O{&U5"
++    "eed3#Z4w&kVQc^%MCZp|*l}Zc*N{XK*^Y&rLN$Igjdw^$!KO4#c#O0xXXmtTViRl!h}L0}?V#4MdBEo!^?|$?KpKqcl`Xqju"
++    "-@{6DduV_f!-w+T%(*V&TeQ0PO;J%6Ghg$RnOPx!e6e{3*u5{J8Kq5yMQbEg6B|4p$@*LFvTrH>s+(B<Il8gX3;XhW>=hZAG"
++    "b}LW??Nqy0tT+3Th@~CvXULX+t#W&hpw+c4Ae15DDs6=6V|Dc^MQ;VF#;*n>-7qSHU%?b?1U}=$|tyoB0;lPy!b82LUvtz6J"
++    "_fiizXorqg<5UWA%0<t*pKc!|T9{D@`4N@ruiRF9QK#X4c=F7;mwRBz?W7u8_CG+2=TJ=Xjbk&JH=6;0<9d2AV)P4S?B?^1i"
++    "UT1xp1o~*}sB#WXaTTW+16s$vtX4Bt0@(?>~0~fvPo_8b8QQtJgPO@Ox2YK!vX!AP=til&41flornS!ft$zb6TL!oys%0IBH"
++    "PSgu(!VkLWbi+6%PI@+C`T1|cCxXRF;X8qXti1?z1d0Op6%uWvW59~|Gk}_=!|QR<9nB`w($^Y<c~#}ZeB9>+e%kr))8P07c"
++    "REiFwhwl7Nay1mUEjZt({l=9#v_2fY$Wu?pihqb-|1CEC;|{i+(m@DwX%|4c8O8OK6j@TA8I-qr(p2oai7m?r{ONTp9^47Uv"
++    ")=spN_x@EH!ZEps_d*6xp&A4cBQ0J>(c4!&MXps&mG@w?<JKvuS)sXJvRfc~sZhQPxPvViBn_4nptVMx1k;v3KnAc0_50!Z&"
++    "pkzBzlKTqukaWN~W*A3RZsh|s%de{kKn4fJhg_ox*0QBk7-<4(y$F6bDdZwwC4Ns%<p3C_TXTImyy;@+;orLqknpymoU)wnI"
++    "&KDE0iKSgTSh&?y$8=3n>4f{mx`$MjMA;*4@dmm`d{!i1s&z$|9Ir}{J{*EA;iuIbOcz%-FEWc-l=?3By8ZE!inp9D3#nTlE"
++    "GkFN#Y?tQ;dZ0W-QZcHviD^D8jf(5IeE(d#4#x$++~a2prkv`U;i>kb6pvZEQIg@<dl@Z<U-U4pNx4{?QF0p(tA>`}G_?GN0"
++    "&elZFRe*YgdX%x6yb62DC+e1c0Zo|Uitr)6Za+"
+ )
+-BLOCK_FP16_MATRIX_SUFFIXES = (
+-    "attn.c_q.weight",
+-    "attn.c_k.weight",
+-    "attn.c_v.weight",
+-    "attn.proj.weight",
+-    "mlp.fc.weight",
+-    "mlp.proj.weight",
+-)
+-BLOCK_FP16_PROJ_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
+-def _np_float32(arr: mx.array) -> np.ndarray:
+-    return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
+-def int8_clip_q(name: str) -> float:
+-    return INT8_PROJ_CLIP_Q if name.endswith(BLOCK_FP16_PROJ_SUFFIXES) else INT8_CLIP_Q
+-def should_transpose_quantize(name: str, arr_ndim: int) -> bool: return arr_ndim == 2 and any(name.endswith(suffix) for suffix in INT8_TRANSPOSE_SUFFIXES)
+-def build_int8_fp16_keep_names(num_layers: int, tail_recur_blocks: int) -> set[str]:
+-    keep = set(INT8_FP16_KEEP_NAMES)
+-    for block_idx in range(max(num_layers - INT8_FP16_TAIL_FULL_BLOCKS, 0), num_layers):
+-        prefix = f"blocks.{block_idx}."
+-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES)
+-    for block_idx in range(max(num_layers - INT8_FP16_TAIL_PROJ_BLOCKS, 0), num_layers):
+-        prefix = f"blocks.{block_idx}."
+-        keep.update(prefix + suffix for suffix in BLOCK_FP16_PROJ_SUFFIXES)
+-    for block_idx in range(max(num_layers - tail_recur_blocks, 0), num_layers):
+-        prefix = f"blocks.{block_idx}."
+-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:2])
+-    if num_layers > 0:
+-        prefix = f"blocks.{num_layers - 1}."
+-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
+-    return keep
+-def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
+-    return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL
+-def should_track_ema_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
+-    return name.endswith(BLOCK_FP16_PROJ_SUFFIXES) or should_keep_float_tensor(name, arr, int8_fp16_keep_names)
+-def keep_float_array(name: str, arr: mx.array, passthrough_orig_dtypes: dict[str, str]) -> np.ndarray:
+-    if any(pattern in name for pattern in INT8_KEEP_FLOAT_FP32_NAME_PATTERNS):
+-        return np.ascontiguousarray(_np_float32(arr))
+-    if arr.dtype in {mx.float32, mx.bfloat16}:
+-        passthrough_orig_dtypes[name] = str(arr.dtype).split(".")[-1]
+-        return np.ascontiguousarray(np.array(arr.astype(mx.float16), dtype=INT8_KEEP_FLOAT_STORE_DTYPE, copy=False))
+-    return np.ascontiguousarray(np.array(arr, copy=True))
+-def quantize_float_array(name: str, arr: mx.array) -> tuple[np.ndarray, np.ndarray, np.ndarray | None, bool]:
+-    f32 = _np_float32(arr)
+-    transposed = should_transpose_quantize(name, f32.ndim)
+-    if transposed:
+-        f32 = np.ascontiguousarray(f32.T)
+-    clip_q = int8_clip_q(name)
+-    if f32.ndim == 2:
+-        row_offset = np.mean(f32, axis=1, dtype=np.float32) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
+-        centered = f32 - row_offset[:, None]
+-        mean_abs = float(np.mean(np.abs(row_offset), dtype=np.float64)) if row_offset.size else 0.0
+-        resid_abs = float(np.mean(np.abs(centered), dtype=np.float64)) if centered.size else 0.0
+-        if mean_abs >= INT8_ROW_OFFSET_MIN_RATIO * max(resid_abs, 1e-12):
+-            clip_abs = np.quantile(np.abs(centered), clip_q, axis=1) if centered.size else np.empty((centered.shape[0],), dtype=np.float32)
+-            clipped = np.clip(centered, -clip_abs[:, None], clip_abs[:, None])
+-            scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
+-            q = np.clip(np.round(clipped / scale[:, None]), -127, 127).astype(np.int8, copy=False)
+-            return (
+-                np.ascontiguousarray(q),
+-                np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False)),
+-                np.ascontiguousarray(row_offset.astype(INT8_PER_ROW_OFFSET_DTYPE, copy=False)),
+-                transposed,
+-            )
+-        clip_abs = np.quantile(np.abs(f32), clip_q, axis=1) if f32.size else np.empty((f32.shape[0],), dtype=np.float32)
+-        clipped = np.clip(f32, -clip_abs[:, None], clip_abs[:, None])
+-        scale = np.maximum(clip_abs / 127.0, 1.0 / 127.0).astype(np.float32, copy=False)
+-        q = np.clip(np.round(clipped / scale[:, None]), -127, 127).astype(np.int8, copy=False)
+-        return np.ascontiguousarray(q), np.ascontiguousarray(scale.astype(INT8_PER_ROW_SCALE_DTYPE, copy=False)), None, transposed
+-    clip_abs = float(np.quantile(np.abs(f32).reshape(-1), clip_q)) if f32.size else 0.0
+-    scale = np.array(clip_abs / 127.0 if clip_abs > 0.0 else 1.0, dtype=np.float32)
+-    q = np.clip(np.round(np.clip(f32, -clip_abs, clip_abs) / scale), -127, 127).astype(np.int8, copy=False)
+-    return np.ascontiguousarray(q), scale, None, transposed
+-def quantize_state_dict_int8(
+-    flat_state: dict[str, mx.array],
+-    int8_fp16_keep_names: set[str],
+-) -> tuple[dict[str, object], dict[str, int]]:
+-    quantized: dict[str, np.ndarray] = {}
+-    scales: dict[str, np.ndarray] = {}
+-    offsets: dict[str, np.ndarray] = {}
+-    dtypes: dict[str, str] = {}
+-    transposed_names: list[str] = []
+-    passthrough: dict[str, np.ndarray] = {}
+-    passthrough_orig_dtypes: dict[str, str] = {}
+-    stats = dict.fromkeys(
+-        ("param_count", "num_tensors", "num_float_tensors", "num_nonfloat_tensors", "baseline_tensor_bytes", "int8_payload_bytes"),
+-        0,
+-    )
+-    for name, arr in flat_state.items():
+-        stats["param_count"] += int(arr.size)
+-        stats["num_tensors"] += 1
+-        stats["baseline_tensor_bytes"] += int(arr.nbytes)
+-        if not mx.issubdtype(arr.dtype, mx.floating):
+-            stats["num_nonfloat_tensors"] += 1
+-            passthrough[name] = np.ascontiguousarray(np.array(arr))
+-            stats["int8_payload_bytes"] += int(passthrough[name].nbytes)
+-            continue
+-        if should_keep_float_tensor(name, arr, int8_fp16_keep_names):
+-            kept = keep_float_array(name, arr, passthrough_orig_dtypes)
+-            passthrough[name] = kept
+-            stats["int8_payload_bytes"] += int(kept.nbytes)
+-            continue
+-        stats["num_float_tensors"] += 1
+-        q, s, o, transposed = quantize_float_array(name, arr)
+-        quantized[name] = q
+-        scales[name] = s
+-        if o is not None:
+-            offsets[name] = o
+-        if transposed:
+-            transposed_names.append(name)
+-        dtypes[name] = str(arr.dtype).split(".")[-1]
+-        stats["int8_payload_bytes"] += int(q.nbytes + s.nbytes + (0 if o is None else o.nbytes))
+-    obj: dict[str, object] = {
+-        "__quant_format__": "int8_clean_per_row_offset_v3",
+-        "quantized": quantized,
+-        "scales": scales,
+-        "dtypes": dtypes,
+-        "passthrough": passthrough,
+-    }
+-    if offsets:
+-        obj["offsets"] = offsets
+-    if transposed_names:
+-        obj["transposed_names"] = tuple(transposed_names)
+-    if passthrough_orig_dtypes:
+-        obj["passthrough_orig_dtypes"] = passthrough_orig_dtypes
+-    return obj, stats
+-def dequantize_state_dict_int8(quant_obj: dict[str, object]) -> dict[str, mx.array]:
+-    out: dict[str, mx.array] = {}
+-    offsets = quant_obj.get("offsets", {})
+-    passthrough_orig_dtypes = quant_obj.get("passthrough_orig_dtypes", {})
+-    transposed_names = frozenset(quant_obj.get("transposed_names", ()))
+-    for name, q in quant_obj["quantized"].items():
+-        q_np = np.asarray(q, dtype=np.int8)
+-        dtype_name = quant_obj["dtypes"][name]
+-        scale = np.asarray(quant_obj["scales"][name], dtype=np.float32)
+-        if scale.ndim > 0:
+-            out_arr = q_np.astype(np.float32) * scale.reshape((q_np.shape[0],) + (1,) * (q_np.ndim - 1))
+-            if name in offsets:
+-                out_arr = out_arr + np.asarray(offsets[name], dtype=np.float32).reshape((q_np.shape[0],) + (1,) * (q_np.ndim - 1))
+-        else:
+-            out_arr = q_np.astype(np.float32) * float(scale)
+-        if name in transposed_names:
+-            out_arr = np.ascontiguousarray(out_arr.T)
+-        out[name] = mx.array(out_arr, dtype=MX_DTYPE_FROM_NAME[dtype_name])
+-    for name, arr in quant_obj["passthrough"].items():
+-        out_arr = np.array(arr, copy=True)
+-        orig_dtype = passthrough_orig_dtypes.get(name)
+-        out[name] = mx.array(out_arr, dtype=MX_DTYPE_FROM_NAME[orig_dtype]) if isinstance(orig_dtype, str) else mx.array(out_arr)
+-    return out
+-def roundtrip_tensor_like_final(
+-    name: str,
+-    arr: mx.array,
+-    int8_fp16_keep_names: set[str],
+-) -> mx.array:
+-    if not mx.issubdtype(arr.dtype, mx.floating):
+-        return arr
+-    if should_keep_float_tensor(name, arr, int8_fp16_keep_names):
+-        if any(pattern in name for pattern in INT8_KEEP_FLOAT_FP32_NAME_PATTERNS):
+-            return mx.array(_np_float32(arr), dtype=arr.dtype)
+-        if arr.dtype in {mx.float32, mx.bfloat16}:
+-            return mx.array(np.array(arr.astype(mx.float16), dtype=INT8_KEEP_FLOAT_STORE_DTYPE, copy=False), dtype=arr.dtype)
+-        return mx.array(np.array(arr, copy=True), dtype=arr.dtype)
+-    q, s, o, transposed = quantize_float_array(name, arr)
+-    scale = np.asarray(s, dtype=np.float32)
+-    out_arr = q.astype(np.float32) * (scale.reshape((q.shape[0],) + (1,) * (q.ndim - 1)) if scale.ndim > 0 else float(scale))
+-    if o is not None:
+-        out_arr = out_arr + np.asarray(o, dtype=np.float32).reshape((q.shape[0],) + (1,) * (q.ndim - 1))
+-    if transposed:
+-        out_arr = np.ascontiguousarray(out_arr.T)
+-    return mx.array(np.ascontiguousarray(out_arr), dtype=arr.dtype)
+-def blend_tensor_toward_final(
+-    name: str,
+-    arr: mx.array,
+-    int8_fp16_keep_names: set[str],
+-    mix: float,
+-) -> mx.array:
+-    target = roundtrip_tensor_like_final(name, arr, int8_fp16_keep_names)
+-    if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names):
+-        return target
+-    return arr + (target - arr) * mix
+-def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
+-    model.update(
+-        tree_unflatten(
+-            [
+-                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix))
+-                for name, arr in tree_flatten(model.state)
+-            ]
+-        )
+-    )
+-def build_sentencepiece_luts(
+-    sp: spm.SentencePieceProcessor, vocab_size: int
+-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+-    sp_vocab_size = int(sp.vocab_size())
+-    table_size = max(sp_vocab_size, vocab_size)
+-    base_bytes_lut = np.zeros((table_size,), dtype=np.int16)
+-    has_leading_space_lut = np.zeros((table_size,), dtype=np.bool_)
+-    is_boundary_token_lut = np.ones((table_size,), dtype=np.bool_)
+-    for token_id in range(sp_vocab_size):
+-        if sp.is_control(token_id) or sp.is_unknown(token_id) or sp.is_unused(token_id):
+-            continue
+-        is_boundary_token_lut[token_id] = False
+-        if sp.is_byte(token_id):
+-            base_bytes_lut[token_id] = 1
+-            continue
+-        piece = sp.id_to_piece(token_id)
+-        if piece.startswith("\x18"):
+-            has_leading_space_lut[token_id] = True
+-            piece = piece[1:]
+-        base_bytes_lut[token_id] = len(piece.encode("utf-8"))
+-    return base_bytes_lut, has_leading_space_lut, is_boundary_token_lut
+-def validate_dataset_tokenizer_pair(data_path: str, tokenizer_path: str) -> tuple[str, int, int | None]:
+-    dataset_dir = Path(data_path).resolve()
+-    actual_train_files = len(list(dataset_dir.glob("fineweb_train_*.bin")))
+-    if len(dataset_dir.parents) < 2:
+-        return dataset_dir.name, actual_train_files, None
+-    manifest_path = dataset_dir.parents[1] / "manifest.json"
+-    if not manifest_path.is_file():
+-        return dataset_dir.name, actual_train_files, None
+-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+-    dataset_entry = next((x for x in manifest.get("datasets", []) if x.get("name") == dataset_dir.name), None)
+-    if dataset_entry is None:
+-        return dataset_dir.name, actual_train_files, None
+-    tokenizer_name = dataset_entry.get("tokenizer_name")
+-    tokenizer_entry = (
+-        next((x for x in manifest.get("tokenizers", []) if x.get("name") == tokenizer_name), None)
+-        if tokenizer_name
+-        else None
+-    )
+-    expected_name = Path((tokenizer_entry or {}).get("model_path") or (tokenizer_entry or {}).get("path") or "").name
+-    if expected_name and Path(tokenizer_path).name != expected_name:
+-        raise ValueError(f"{dataset_dir.name} expects tokenizer {expected_name}, got {Path(tokenizer_path).name}")
+-    expected_train_files = (dataset_entry.get("stats") or {}).get("files_train")
+-    if expected_train_files is not None:
+-        expected_train_files = int(expected_train_files)
+-        if actual_train_files > expected_train_files:
+-            raise ValueError(
+-                f"{dataset_dir.name} has more train shards than expected: found {actual_train_files}, "
+-                f"manifest says {expected_train_files}"
+-            )
+-    return dataset_dir.name, actual_train_files, expected_train_files
+-def load_validation_tokens(pattern: str, seq_len: int) -> np.ndarray:
+-    files = [Path(p) for p in sorted(glob.glob(pattern))]
+-    if not files:
+-        raise FileNotFoundError(f"No files found for pattern: {pattern}")
+-    tokens = np.ascontiguousarray(np.concatenate([load_data_shard(file) for file in files], axis=0))
+-    usable = ((tokens.size - 1) // seq_len) * seq_len
+-    if usable <= 0:
+-        raise ValueError(f"Validation split is too short for TRAIN_SEQ_LEN={seq_len}")
+-    return tokens[: usable + 1]
+-def build_validation_doc_spans(tokens: np.ndarray, bos_token_id: int) -> list[tuple[int, int]]:
+-    if bos_token_id < 0:
+-        return [(0, int(tokens.size))]
+-    starts = np.flatnonzero(tokens == bos_token_id).astype(np.int64, copy=False)
+-    if starts.size == 0 or int(starts[0]) != 0:
+-        starts = np.concatenate((np.array([0], dtype=np.int64), starts))
+-    spans: list[tuple[int, int]] = []
+-    for idx, start in enumerate(starts):
+-        end = int(starts[idx + 1]) if idx + 1 < starts.size else int(tokens.size)
+-        start_i = int(start)
+-        if end - start_i >= 2:
+-            spans.append((start_i, end))
+-    return spans if spans else [(0, int(tokens.size))]
+-def count_doc_eval_windows(total_targets: int, seq_len: int, stride: int) -> int:
+-    if total_targets <= 0:
+-        return 0
+-    if stride <= 0 or stride >= seq_len:
+-        return max((total_targets + seq_len - 1) // seq_len, 1)
+-    remaining = max(total_targets - seq_len, 0)
+-    return 1 + (remaining + stride - 1) // stride
+-def fill_doc_window(doc_tokens: np.ndarray, seq_len: int, bos_token_id: int, score_end: int, score_tokens: int, x_row: np.ndarray, y_row: np.ndarray, mask_row: np.ndarray) -> None:
+-    raw_start = max(score_end - seq_len, 0)
+-    chunk = doc_tokens[raw_start : score_end + 1]
+-    pad = seq_len + 1 - int(chunk.size)
+-    if pad > 0:
+-        padded = np.empty((seq_len + 1,), dtype=np.int32)
+-        padded[:pad] = bos_token_id
+-        padded[pad:] = chunk
+-        x_row[:] = padded[:-1]
+-        y_row[:] = padded[1:]
+-    else:
+-        x_row[:] = chunk[:-1]
+-        y_row[:] = chunk[1:]
+-    mask_row.fill(0.0)
+-    mask_row[-score_tokens:] = 1.0
+-def eval_val_doc_isolated(args: Hyperparameters, compiled_masked_loss, val_tokens: np.ndarray, doc_spans: list[tuple[int, int]], bos_token_id: int, tail_recur_gains: mx.array, base_bytes_lut: np.ndarray, has_leading_space_lut: np.ndarray, is_boundary_token_lut: np.ndarray, log_fn: Callable[[str], None] | None = None) -> tuple[float, float]:
+-    val_batch_tokens = args.val_batch_size // args.grad_accum_steps
+-    if val_batch_tokens < args.train_seq_len:
+-        raise ValueError(
+-            "VAL_BATCH_SIZE must provide at least one sequence; "
+-            f"got VAL_BATCH_SIZE={args.val_batch_size}, GRAD_ACCUM_STEPS={args.grad_accum_steps}, "
+-            f"TRAIN_SEQ_LEN={args.train_seq_len}"
+-        )
+-    val_batch_seqs = val_batch_tokens // args.train_seq_len
+-    total_windows = sum(count_doc_eval_windows(end - start - 1, args.train_seq_len, args.eval_stride) for start, end in doc_spans)
+-    total_batches = max((total_windows + val_batch_seqs - 1) // val_batch_seqs, 1)
+-    total_loss_sum = 0.0
+-    total_tokens = 0.0
+-    total_bytes = 0.0
+-    batch_idx = 0
+-    x_np = np.empty((val_batch_seqs, args.train_seq_len), dtype=np.int32)
+-    y_np = np.empty_like(x_np)
+-    mask_np = np.zeros((val_batch_seqs, args.train_seq_len), dtype=np.float32)
+-    pending = 0
+-    batch_token_count = 0.0
+-    batch_bytes = 0.0
+-    def flush_batch(num_rows: int, token_count: float, byte_count: float) -> tuple[float, float]:
+-        nonlocal batch_idx, total_loss_sum, total_tokens, total_bytes
+-        if num_rows <= 0:
+-            return 0.0, 0.0
+-        batch_idx += 1
+-        x = mx.array(x_np[:num_rows], dtype=mx.int32)
+-        y = mx.array(y_np[:num_rows], dtype=mx.int32)
+-        mask = mx.array(mask_np[:num_rows], dtype=mx.float32)
+-        batch_loss = compiled_masked_loss(x, y, mask, tail_recur_gains).astype(mx.float32)
+-        mx.eval(batch_loss)
+-        total_loss_sum += float(batch_loss.item()) * token_count
+-        total_tokens += token_count
+-        total_bytes += byte_count
+-        if log_fn is not None and total_batches > 1 and (
+-            batch_idx == 1 or batch_idx == total_batches or batch_idx % 25 == 0
+-        ):
+-            log_fn(f"val_progress:{batch_idx}/{total_batches}")
+-        return 0.0, 0.0
+-    for start, end in doc_spans:
+-        doc_tokens = val_tokens[start:end]
+-        total_doc_targets = int(doc_tokens.size - 1)
+-        if total_doc_targets <= 0:
+-            continue
+-        if args.eval_stride <= 0 or args.eval_stride >= args.train_seq_len:
+-            score_end = 0
+-            while score_end < total_doc_targets:
+-                next_score_end = min(score_end + args.train_seq_len, total_doc_targets)
+-                score_tokens = next_score_end - score_end
+-                fill_doc_window(
+-                    doc_tokens,
+-                    args.train_seq_len,
+-                    bos_token_id,
+-                    next_score_end,
+-                    score_tokens,
+-                    x_np[pending],
+-                    y_np[pending],
+-                    mask_np[pending],
+-                )
+-                prev_ids = x_np[pending, -score_tokens:]
+-                tgt_ids = y_np[pending, -score_tokens:]
+-                bytes_np = base_bytes_lut[tgt_ids].astype(np.int16, copy=True)
+-                bytes_np += (
+-                    has_leading_space_lut[tgt_ids] & ~is_boundary_token_lut[prev_ids]
+-                ).astype(np.int16, copy=False)
+-                pending += 1
+-                batch_token_count += float(score_tokens)
+-                batch_bytes += float(bytes_np.astype(np.float64).sum())
+-                score_end = next_score_end
+-                if pending == val_batch_seqs:
+-                    batch_token_count, batch_bytes = flush_batch(pending, batch_token_count, batch_bytes)
+-                    pending = 0
+-            continue
+-        score_end = min(args.train_seq_len, total_doc_targets)
+-        prev_score_end = 0
+-        while True:
+-            score_tokens = score_end - prev_score_end
+-            fill_doc_window(
+-                doc_tokens,
+-                args.train_seq_len,
+-                bos_token_id,
+-                score_end,
+-                score_tokens,
+-                x_np[pending],
+-                y_np[pending],
+-                mask_np[pending],
+-            )
+-            prev_ids = x_np[pending, -score_tokens:]
+-            tgt_ids = y_np[pending, -score_tokens:]
+-            bytes_np = base_bytes_lut[tgt_ids].astype(np.int16, copy=True)
+-            bytes_np += (
+-                has_leading_space_lut[tgt_ids] & ~is_boundary_token_lut[prev_ids]
+-            ).astype(np.int16, copy=False)
+-            pending += 1
+-            batch_token_count += float(score_tokens)
+-            batch_bytes += float(bytes_np.astype(np.float64).sum())
+-            prev_score_end = score_end
+-            if pending == val_batch_seqs:
+-                batch_token_count, batch_bytes = flush_batch(pending, batch_token_count, batch_bytes)
+-                pending = 0
+-            if score_end >= total_doc_targets:
+-                break
+-            score_end = min(score_end + args.eval_stride, total_doc_targets)
+-    if pending:
+-        flush_batch(pending, batch_token_count, batch_bytes)
+-    val_loss = total_loss_sum / total_tokens
+-    bits_per_token = val_loss / math.log(2.0)
+-    val_bpb = bits_per_token * (total_tokens / total_bytes)
+-    return val_loss, val_bpb
+-def loss_and_grad_chunked(
+-    args: Hyperparameters,
+-    train_loader: TokenLoader,
+-    compiled_loss_and_grad,
+-    tail_recur_gains: mx.array,
+-) -> tuple[mx.array, dict]:
+-    chunk_sizes = token_chunks(args.microbatch_tokens, args.train_seq_len, args.mlx_max_microbatch_tokens)
+-    total_tokens = float(sum(chunk_sizes))
+-    loss_value = mx.array(0.0, dtype=mx.float32)
+-    grad_accum: dict[str, mx.array] | None = None
+-    for chunk_tokens in chunk_sizes:
+-        x, y = train_loader.next_batch(chunk_tokens, args.train_seq_len)
+-        loss, grads = compiled_loss_and_grad(x, y, tail_recur_gains)
+-        scale = float(y.size) / total_tokens
+-        loss_value = loss_value + loss.astype(mx.float32) * scale
+-        grad_accum = accumulate_flat_grads(grad_accum, grads, scale)
+-        if args.mlx_eager_eval:
+-            mx.eval(loss_value, grad_accum)
+-    return loss_value, tree_unflatten(list(grad_accum.items()))
+-def loss_and_grad_one_batch(
+-    args: Hyperparameters,
+-    train_loader: TokenLoader,
+-    compiled_loss_and_grad,
+-    tail_recur_gains: mx.array,
+-) -> tuple[mx.array, dict]:
+-    x, y = train_loader.next_batch(args.train_batch_tokens, args.train_seq_len)
+-    return compiled_loss_and_grad(x, y, tail_recur_gains)
+-def eval_val(args: Hyperparameters, compiled_loss, compiled_masked_loss, val_tokens: np.ndarray, doc_spans: list[tuple[int, int]] | None, bos_token_id: int, tail_recur_gains: mx.array, base_bytes_lut: np.ndarray, has_leading_space_lut: np.ndarray, is_boundary_token_lut: np.ndarray, log_fn: Callable[[str], None] | None = None) -> tuple[float, float]:
+-    if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0:
+-        return eval_val_doc_isolated(
+-            args,
+-            compiled_masked_loss,
+-            val_tokens,
+-            doc_spans,
+-            bos_token_id,
+-            tail_recur_gains,
+-            base_bytes_lut,
+-            has_leading_space_lut,
+-            is_boundary_token_lut,
+-            log_fn=log_fn,
+-        )
+-    val_batch_tokens = args.val_batch_size // args.grad_accum_steps
+-    if val_batch_tokens < args.train_seq_len:
+-        raise ValueError(
+-            "VAL_BATCH_SIZE must provide at least one sequence; "
+-            f"got VAL_BATCH_SIZE={args.val_batch_size}, GRAD_ACCUM_STEPS={args.grad_accum_steps}, "
+-            f"TRAIN_SEQ_LEN={args.train_seq_len}"
+-        )
+-    val_batch_seqs = val_batch_tokens // args.train_seq_len
+-    if args.eval_stride <= 0 or args.eval_stride >= args.train_seq_len:
+-        total_seqs = (val_tokens.size - 1) // args.train_seq_len
+-        total_batches = max((total_seqs + val_batch_seqs - 1) // val_batch_seqs, 1)
+-        total_loss_sum = 0.0
+-        total_tokens = 0.0
+-        total_bytes = 0.0
+-        for batch_idx, batch_seq_start in enumerate(range(0, total_seqs, val_batch_seqs), start=1):
+-            batch_seq_end = min(batch_seq_start + val_batch_seqs, total_seqs)
+-            raw_start = batch_seq_start * args.train_seq_len
+-            raw_end = batch_seq_end * args.train_seq_len + 1
+-            chunk = val_tokens[raw_start:raw_end]
+-            x_np = chunk[:-1].reshape(-1, args.train_seq_len)
+-            y_np = chunk[1:].reshape(-1, args.train_seq_len)
+-            x = mx.array(x_np, dtype=mx.int32)
+-            y = mx.array(y_np, dtype=mx.int32)
+-            chunk_token_count = float(y.size)
+-            batch_loss = compiled_loss(x, y, tail_recur_gains).astype(mx.float32)
+-            mx.eval(batch_loss)
+-            total_loss_sum += float(batch_loss.item()) * chunk_token_count
+-            prev_ids = x_np.reshape(-1)
+-            tgt_ids = y_np.reshape(-1)
+-            bytes_np = base_bytes_lut[tgt_ids].astype(np.int16, copy=True)
+-            bytes_np += (
+-                has_leading_space_lut[tgt_ids] & ~is_boundary_token_lut[prev_ids]
+-            ).astype(np.int16, copy=False)
+-            total_tokens += chunk_token_count
+-            total_bytes += float(bytes_np.astype(np.float64).sum())
+-            if log_fn is not None and total_batches > 1 and (
+-                batch_idx == 1 or batch_idx == total_batches or batch_idx % 25 == 0
+-            ):
+-                log_fn(f"val_progress:{batch_idx}/{total_batches}")
+-        val_loss = total_loss_sum / total_tokens
+-        bits_per_token = val_loss / math.log(2.0)
+-        val_bpb = bits_per_token * (total_tokens / total_bytes)
+-        return val_loss, val_bpb
+-    stride = args.eval_stride
+-    available_targets = val_tokens.size - 1
+-    usable_targets = args.train_seq_len + max(((available_targets - args.train_seq_len) // stride), 0) * stride
+-    total_windows = 1 + max((usable_targets - args.train_seq_len) // stride, 0)
+-    total_batches = max((total_windows + val_batch_seqs - 1) // val_batch_seqs, 1)
+-    total_loss_sum = 0.0
+-    total_tokens = 0.0
+-    total_bytes = 0.0
+-    for batch_idx, window_idx_start in enumerate(range(0, total_windows, val_batch_seqs), start=1):
+-        window_idx_end = min(window_idx_start + val_batch_seqs, total_windows)
+-        x_np = np.empty((window_idx_end - window_idx_start, args.train_seq_len), dtype=np.int32)
+-        y_np = np.empty_like(x_np)
+-        mask_np = np.zeros((window_idx_end - window_idx_start, args.train_seq_len), dtype=np.float32)
+-        batch_token_count = 0.0
+-        batch_bytes = 0.0
+-        for local_idx, window_idx in enumerate(range(window_idx_start, window_idx_end)):
+-            raw_start = window_idx * stride
+-            raw_end = raw_start + args.train_seq_len
+-            chunk = val_tokens[raw_start : raw_end + 1]
+-            x_np[local_idx] = chunk[:-1]
+-            y_np[local_idx] = chunk[1:]
+-            score_tokens = args.train_seq_len if window_idx == 0 else stride
+-            mask_np[local_idx, -score_tokens:] = 1.0
+-            prev_ids = x_np[local_idx, -score_tokens:]
+-            tgt_ids = y_np[local_idx, -score_tokens:]
+-            bytes_np = base_bytes_lut[tgt_ids].astype(np.int16, copy=True)
+-            bytes_np += (
+-                has_leading_space_lut[tgt_ids] & ~is_boundary_token_lut[prev_ids]
+-            ).astype(np.int16, copy=False)
+-            batch_token_count += float(score_tokens)
+-            batch_bytes += float(bytes_np.astype(np.float64).sum())
+-        x = mx.array(x_np, dtype=mx.int32)
+-        y = mx.array(y_np, dtype=mx.int32)
+-        mask = mx.array(mask_np, dtype=mx.float32)
+-        batch_loss = compiled_masked_loss(x, y, mask, tail_recur_gains).astype(mx.float32)
+-        mx.eval(batch_loss)
+-        total_loss_sum += float(batch_loss.item()) * batch_token_count
+-        total_tokens += batch_token_count
+-        total_bytes += batch_bytes
+-        if log_fn is not None and total_batches > 1 and (
+-            batch_idx == 1 or batch_idx == total_batches or batch_idx % 25 == 0
+-        ):
+-            log_fn(f"val_progress:{batch_idx}/{total_batches}")
+-    val_loss = total_loss_sum / total_tokens
+-    bits_per_token = val_loss / math.log(2.0)
+-    val_bpb = bits_per_token * (total_tokens / total_bytes)
+-    return val_loss, val_bpb
+-def estimate_eval_time_ms(args: Hyperparameters, compiled_loss, compiled_masked_loss, val_tokens: np.ndarray, doc_spans: list[tuple[int, int]] | None, bos_token_id: int, tail_recur_gains: mx.array) -> float:
+-    if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0:
+-        val_batch_tokens = args.val_batch_size // args.grad_accum_steps
+-        if val_batch_tokens < args.train_seq_len:
+-            raise ValueError(
+-                "VAL_BATCH_SIZE must provide at least one sequence; "
+-                f"got VAL_BATCH_SIZE={args.val_batch_size}, GRAD_ACCUM_STEPS={args.grad_accum_steps}, "
+-                f"TRAIN_SEQ_LEN={args.train_seq_len}"
+-            )
+-        val_batch_seqs = val_batch_tokens // args.train_seq_len
+-        total_units = max(
+-            (
+-                sum(count_doc_eval_windows(end - start - 1, args.train_seq_len, args.eval_stride) for start, end in doc_spans)
+-                + val_batch_seqs
+-                - 1
+-            )
+-            // val_batch_seqs,
+-            1,
+-        )
+-        sample_units = min(max(args.final_eval_estimate_batches, 1), total_units)
+-        x_np = np.empty((val_batch_seqs, args.train_seq_len), dtype=np.int32)
+-        y_np = np.empty_like(x_np)
+-        mask_np = np.zeros((val_batch_seqs, args.train_seq_len), dtype=np.float32)
+-        start = time.perf_counter()
+-        pending = 0
+-        seen_units = 0
+-        for doc_start, doc_end in doc_spans:
+-            doc_tokens = val_tokens[doc_start:doc_end]
+-            total_doc_targets = int(doc_tokens.size - 1)
+-            if total_doc_targets <= 0:
+-                continue
+-            if args.eval_stride <= 0 or args.eval_stride >= args.train_seq_len:
+-                score_end = 0
+-                while score_end < total_doc_targets:
+-                    next_score_end = min(score_end + args.train_seq_len, total_doc_targets)
+-                    fill_doc_window(
+-                        doc_tokens,
+-                        args.train_seq_len,
+-                        bos_token_id,
+-                        next_score_end,
+-                        next_score_end - score_end,
+-                        x_np[pending],
+-                        y_np[pending],
+-                        mask_np[pending],
+-                    )
+-                    pending += 1
+-                    score_end = next_score_end
+-                    if pending == val_batch_seqs:
+-                        batch_loss = compiled_masked_loss(
+-                            mx.array(x_np, dtype=mx.int32),
+-                            mx.array(y_np, dtype=mx.int32),
+-                            mx.array(mask_np, dtype=mx.float32),
+-                            tail_recur_gains,
+-                        ).astype(mx.float32)
+-                        mx.eval(batch_loss)
+-                        seen_units += 1
+-                        pending = 0
+-                        if seen_units >= sample_units:
+-                            mx.synchronize()
+-                            sample_ms = 1000.0 * (time.perf_counter() - start)
+-                            return sample_ms * total_units / max(sample_units, 1)
+-                continue
+-            score_end = min(args.train_seq_len, total_doc_targets)
+-            prev_score_end = 0
+-            while True:
+-                fill_doc_window(
+-                    doc_tokens,
+-                    args.train_seq_len,
+-                    bos_token_id,
+-                    score_end,
+-                    score_end - prev_score_end,
+-                    x_np[pending],
+-                    y_np[pending],
+-                    mask_np[pending],
+-                )
+-                pending += 1
+-                prev_score_end = score_end
+-                if pending == val_batch_seqs:
+-                    batch_loss = compiled_masked_loss(
+-                        mx.array(x_np, dtype=mx.int32),
+-                        mx.array(y_np, dtype=mx.int32),
+-                        mx.array(mask_np, dtype=mx.float32),
+-                        tail_recur_gains,
+-                    ).astype(mx.float32)
+-                    mx.eval(batch_loss)
+-                    seen_units += 1
+-                    pending = 0
+-                    if seen_units >= sample_units:
+-                        mx.synchronize()
+-                        sample_ms = 1000.0 * (time.perf_counter() - start)
+-                        return sample_ms * total_units / max(sample_units, 1)
+-                if score_end >= total_doc_targets:
+-                    break
+-                score_end = min(score_end + args.eval_stride, total_doc_targets)
+-        if pending:
+-            batch_loss = compiled_masked_loss(
+-                mx.array(x_np[:pending], dtype=mx.int32),
+-                mx.array(y_np[:pending], dtype=mx.int32),
+-                mx.array(mask_np[:pending], dtype=mx.float32),
+-                tail_recur_gains,
+-            ).astype(mx.float32)
+-            mx.eval(batch_loss)
+-            seen_units += 1
+-        mx.synchronize()
+-        sample_ms = 1000.0 * (time.perf_counter() - start)
+-        return sample_ms * total_units / max(seen_units, 1)
+-    val_batch_tokens = args.val_batch_size // args.grad_accum_steps
+-    if val_batch_tokens < args.train_seq_len:
+-        raise ValueError(
+-            "VAL_BATCH_SIZE must provide at least one sequence; "
+-            f"got VAL_BATCH_SIZE={args.val_batch_size}, GRAD_ACCUM_STEPS={args.grad_accum_steps}, "
+-            f"TRAIN_SEQ_LEN={args.train_seq_len}"
+-        )
+-    val_batch_seqs = val_batch_tokens // args.train_seq_len
+-    if args.eval_stride <= 0 or args.eval_stride >= args.train_seq_len:
+-        total_units = max(((val_tokens.size - 1) // args.train_seq_len + val_batch_seqs - 1) // val_batch_seqs, 1)
+-        sample_units = min(max(args.final_eval_estimate_batches, 1), total_units)
+-        start = time.perf_counter()
+-        for batch_idx, batch_seq_start in enumerate(range(0, (val_tokens.size - 1) // args.train_seq_len, val_batch_seqs), start=1):
+-            batch_seq_end = min(batch_seq_start + val_batch_seqs, (val_tokens.size - 1) // args.train_seq_len)
+-            raw_start = batch_seq_start * args.train_seq_len
+-            raw_end = batch_seq_end * args.train_seq_len + 1
+-            chunk = val_tokens[raw_start:raw_end]
+-            x = mx.array(chunk[:-1].reshape(-1, args.train_seq_len), dtype=mx.int32)
+-            y = mx.array(chunk[1:].reshape(-1, args.train_seq_len), dtype=mx.int32)
+-            batch_loss = compiled_loss(x, y, tail_recur_gains).astype(mx.float32)
+-            mx.eval(batch_loss)
+-            if batch_idx >= sample_units:
+-                break
+-        mx.synchronize()
+-        sample_ms = 1000.0 * (time.perf_counter() - start)
+-        return sample_ms * total_units / max(sample_units, 1)
+-    stride = args.eval_stride
+-    available_targets = val_tokens.size - 1
+-    usable_targets = args.train_seq_len + max(((available_targets - args.train_seq_len) // stride), 0) * stride
+-    total_windows = 1 + max((usable_targets - args.train_seq_len) // stride, 0)
+-    total_units = max((total_windows + val_batch_seqs - 1) // val_batch_seqs, 1)
+-    sample_units = min(max(args.final_eval_estimate_batches, 1), total_units)
+-    start = time.perf_counter()
+-    for batch_idx, window_idx_start in enumerate(range(0, total_windows, val_batch_seqs), start=1):
+-        window_idx_end = min(window_idx_start + val_batch_seqs, total_windows)
+-        x_np = np.empty((window_idx_end - window_idx_start, args.train_seq_len), dtype=np.int32)
+-        y_np = np.empty_like(x_np)
+-        mask_np = np.zeros((window_idx_end - window_idx_start, args.train_seq_len), dtype=np.float32)
+-        for local_idx, window_idx in enumerate(range(window_idx_start, window_idx_end)):
+-            raw_start = window_idx * stride
+-            raw_end = raw_start + args.train_seq_len
+-            chunk = val_tokens[raw_start : raw_end + 1]
+-            x_np[local_idx] = chunk[:-1]
+-            y_np[local_idx] = chunk[1:]
+-            score_tokens = args.train_seq_len if window_idx == 0 else stride
+-            mask_np[local_idx, -score_tokens:] = 1.0
+-        x = mx.array(x_np, dtype=mx.int32)
+-        y = mx.array(y_np, dtype=mx.int32)
+-        mask = mx.array(mask_np, dtype=mx.float32)
+-        batch_loss = compiled_masked_loss(x, y, mask, tail_recur_gains).astype(mx.float32)
+-        mx.eval(batch_loss)
+-        if batch_idx >= sample_units:
+-            break
+-    mx.synchronize()
+-    sample_ms = 1000.0 * (time.perf_counter() - start)
+-    return sample_ms * total_units / max(sample_units, 1)
+-def clip_grad_tree(grads_tree: dict, max_norm: float) -> dict:
+-    if max_norm <= 0:
+-        return grads_tree
+-    flat = dict(tree_flatten(grads_tree))
+-    total_sq = 0.0
+-    for grad in flat.values():
+-        total_sq += float(np.sum(np.square(_np_float32(grad)), dtype=np.float64))
+-    if total_sq <= 0.0:
+-        return grads_tree
+-    total_norm = math.sqrt(total_sq)
+-    if total_norm <= max_norm:
+-        return grads_tree
+-    scale = max_norm / (total_norm + 1e-12)
+-    return tree_unflatten([(k, g * scale) for k, g in flat.items()])
+-def should_activate_quant_aware(args: Hyperparameters, step: int, elapsed_ms: float, max_wallclock_ms: float | None, reserved_final_ms: float) -> bool:
+-    if args.quant_aware_every <= 0:
+-        return False
+-    if max_wallclock_ms is None:
+-        return args.quant_aware_iters > 0 and step >= max(args.iterations - args.quant_aware_iters, 0)
+-    return elapsed_ms >= max(max_wallclock_ms - reserved_final_ms - 1000.0 * args.quant_aware_train_seconds, 0.0)
+-def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tuple[float, float, float]:
+-    if not quant_aware_active:
+-        return 1.0, 1.0, 1.0
+-    return args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul
+-def tail_recur_schedule(args: Hyperparameters, step: int, active_blocks: int) -> mx.array:
+-    if active_blocks <= 0:
+-        return mx.zeros((0,), dtype=mx.float32)
+-    if args.tail_recur_ramp_end <= args.tail_recur_ramp_start:
+-        progress = 1.0 if step > 0 else 0.0
+-    else:
+-        progress = step / max(args.iterations, 1)
+-        progress = min(max((progress - args.tail_recur_ramp_start) / (args.tail_recur_ramp_end - args.tail_recur_ramp_start), 0.0), 1.0)
+-    if active_blocks == 1:
+-        return mx.ones((1,), dtype=mx.float32)
+-    gains = np.ones((active_blocks,), dtype=np.float32)
+-    for idx in range(active_blocks - 1):
+-        stage_start = idx * args.tail_recur_stage_gap
+-        stage_span = max(args.tail_recur_stage_span, 1e-6)
+-        stage_progress = min(max((progress - stage_start) / stage_span, 0.0), 1.0)
+-        gains[idx] = args.tail_recur_min_gain + (1.0 - args.tail_recur_min_gain) * stage_progress
+-    gains[-1] = 1.0
+-    return mx.array(gains, dtype=mx.float32)
+-def main() -> None:
+-    args = Hyperparameters()
+-    out_dir = Path(args.out_dir)
+-    out_dir.mkdir(parents=True, exist_ok=True)
+-    logfile = out_dir / f"{args.run_id}.txt"
+-    print(logfile)
+-    def log(msg: str, console: bool = True) -> None:
+-        if console:
+-            print(msg)
+-        with logfile.open("a", encoding="utf-8") as f:
+-            print(msg, file=f)
+-    code = Path(__file__).read_text(encoding="utf-8")
+-    log(code, console=False)
+-    log("=" * 100, console=False)
+-    if _OPTIONAL_IMPORT_ERROR is not None:
+-        raise RuntimeError(f"Optional dependency missing for execution: {_OPTIONAL_IMPORT_ERROR.name}") from _OPTIONAL_IMPORT_ERROR
+-    log(f"Running Python {sys.version}", console=False)
+-    log(f"Running MLX {mx.__version__}", console=False)
+-    log("=" * 100, console=False)
+-    if not args.tie_embeddings:
+-        raise NotImplementedError("train_gpt_mlx.py only supports tied embeddings")
+-    if not args.tokenizer_path.endswith(".model"):
+-        raise ValueError(f"TOKENIZER_PATH must point to a SentencePiece .model file: {args.tokenizer_path}")
+-    sp = spm.SentencePieceProcessor(model_file=args.tokenizer_path)
+-    if int(sp.vocab_size()) != args.vocab_size:
+-        raise ValueError(
+-            f"VOCAB_SIZE={args.vocab_size} does not match tokenizer vocab_size={int(sp.vocab_size())}"
+-        )
+-    dataset_name, actual_train_files, expected_train_files = validate_dataset_tokenizer_pair(args.data_path, args.tokenizer_path)
+-    val_tokens = load_validation_tokens(args.val_files, args.train_seq_len)
+-    bos_token_id = int(sp.bos_id())
+-    doc_spans = build_validation_doc_spans(val_tokens, bos_token_id) if bos_token_id >= 0 else None
+-    base_bytes_lut, has_leading_space_lut, is_boundary_token_lut = build_sentencepiece_luts(sp, args.vocab_size)
+-    mx.random.seed(args.seed)
+-    train_loader = TokenLoader(args.train_files, log_fn=log, dataset_name=dataset_name)
+-    model = GPT(vocab_size=args.vocab_size, num_layers=args.num_layers, dim=args.model_dim, num_heads=args.num_heads, num_kv_heads=args.num_kv_heads, mlp_mult=args.mlp_mult, logit_chunk_tokens=args.logit_chunk_tokens, logit_softcap=args.logit_softcap, rope_base=args.rope_base, tied_embed_init_std=args.tied_embed_init_std, qk_gain_init=args.qk_gain_init, tail_recur_blocks=args.tail_recur_blocks)
+-    int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
+-    opt = SplitOptimizers(model, args)
+-    tail_recur_eval_gains = mx.ones((args.tail_recur_blocks,), dtype=mx.float32)
+-    compiled_loss = mx.compile(lambda x, y, rg: model.loss(x, y, rg), inputs=model.state, outputs=model.state)
+-    compiled_masked_loss = mx.compile(lambda x, y, m, rg: model.masked_loss(x, y, m, rg), inputs=model.state, outputs=model.state)
+-    compiled_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y, rg: model.loss(x, y, rg)), inputs=model.state, outputs=model.state)
+-    if "MLX_EAGER_EVAL" not in os.environ:
+-        args.mlx_eager_eval = not args.use_single_microbatch_path
+-    elif args.use_single_microbatch_path and args.mlx_eager_eval:
+-        log("WARNING: disabling MLX_EAGER_EVAL on single_microbatch_path for throughput")
+-        args.mlx_eager_eval = False
+-    train_step_loss_and_grad = loss_and_grad_one_batch if args.use_single_microbatch_path else loss_and_grad_chunked
+-    n_params = sum(int(np.prod(p.shape)) for _, p in tree_flatten(model.parameters()))
+-    log(f"run_id:{args.run_id}")
+-    log(f"mlx_version:{mx.__version__}")
+-    log(f"train_loader:shards pattern={args.train_files}")
+-    log(f"val_loader:shards pattern={args.val_files} tokens:{val_tokens.size - 1}")
+-    if expected_train_files is None:
+-        log(f"train_loader:dataset:{dataset_name} train_shards:{actual_train_files}")
+-    elif actual_train_files < expected_train_files:
+-        log(f"WARNING: train_loader:subset dataset:{dataset_name} train_shards:{actual_train_files}/{expected_train_files} new epochs will arrive sooner than the full dataset")
+-    else:
+-        log(f"train_loader:dataset:{dataset_name} train_shards:{actual_train_files}/{expected_train_files}")
+-    log(f"tokenizer_path:{args.tokenizer_path}")
+-    log(f"model_params:{n_params} vocab_size:{args.vocab_size} layers:{args.num_layers} dim:{args.model_dim} heads:{args.num_heads} kv_heads:{args.num_kv_heads} seq_len:{args.train_seq_len} tie_embeddings:{args.tie_embeddings}")
+-    log(f"iterations:{args.iterations} train_batch_tokens:{args.train_batch_tokens} grad_accum_steps:{args.grad_accum_steps} microbatch_tokens:{args.microbatch_tokens} microbatch_batch_size:{args.microbatch_tokens // args.train_seq_len} val_batch_size:{args.val_batch_size} max_wallclock_seconds:{args.max_wallclock_seconds:.3f}")
+-    log(f"mlx_max_microbatch_tokens:{args.mlx_max_microbatch_tokens}")
+-    log(f"optimizer:muon+adam muon_matrix_params:{len(opt.matrix_keys)} scalar_params:{len(opt.scalar_keys)} embed_lr:{args.tied_embed_lr} matrix_lr:{args.matrix_lr} scalar_lr:{args.scalar_lr} muon_momentum:{args.muon_momentum} muon_steps:{args.muon_backend_steps}")
+-    log(f"val_bpb:enabled tokenizer_kind=sentencepiece tokenizer_path={args.tokenizer_path}")
+-    eval_mode = "doc_isolated_sliding" if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0 else "flat_stream"
+-    log(f"eval_mode:{eval_mode} bos_token_id:{bos_token_id} val_docs:{0 if doc_spans is None else len(doc_spans)}")
+-    log(f"eval_stride:{args.eval_stride}")
+-    log(f"compute_dtype:{COMPUTE_DTYPE} compile:True")
+-    log(f"dtypes tok_emb:{model.tok_emb.weight.dtype} linear_weight:{model.blocks[0].attn.c_q.weight.dtype} skip_weights:{model.skip_weights.dtype}")
+-    estimated_final_eval_ms = estimate_eval_time_ms(args, compiled_loss, compiled_masked_loss, val_tokens, doc_spans, bos_token_id, tail_recur_eval_gains)
+-    reserved_final_ms = max(
+-        1000.0 * args.final_eval_reserve_seconds,
+-        estimated_final_eval_ms * args.final_eval_reserve_scale + 1000.0 * args.final_eval_serialization_seconds,
+-    )
+-    log(f"final_eval_budget:estimate_ms:{estimated_final_eval_ms:.0f} reserve_ms:{reserved_final_ms:.0f} estimate_batches:{args.final_eval_estimate_batches}")
+-    log(f"quant_aware:train_seconds:{args.quant_aware_train_seconds:.1f} iters:{args.quant_aware_iters} every:{args.quant_aware_every}")
+-    log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
+-    log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
+-    log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
+-    log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
+-    log(
+-        f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} "
+-        f"active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}"
+-    )
+-    log(f"decoder_skip_alignment:start:{model.decoder_skip_start} count:{model.skip_weights.shape[0]} trim:{max((0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]) - 1, 0)}")
+-    log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
+-    log("tail_recur_anchor:learned_refresh")
+-    log(f"tail_recur_curriculum:min_gain:{args.tail_recur_min_gain} ramp_start:{args.tail_recur_ramp_start} ramp_end:{args.tail_recur_ramp_end}")
+-    log(f"tail_recur_staging:gap:{args.tail_recur_stage_gap} span:{args.tail_recur_stage_span}")
+-    log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
+-    train_time_ms = 0.0
+-    max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
+-    stop_after_step: int | None = None
+-    t0 = time.perf_counter()
+-    step = 0
+-    last_quant_aware_step: int | None = None
+-    quant_aware_proj_mix = args.quant_aware_proj_start
+-    tracked_ema: dict[str, mx.array] | None = None
+-    tracked_ema_keep = 1.0 - PROJ_EMA_DECAY
+-    while True:
+-        last_step = step == args.iterations or (stop_after_step is not None and step >= stop_after_step)
+-        if last_step or (args.val_loss_every > 0 and step % args.val_loss_every == 0):
+-            train_time_ms += 1000.0 * (time.perf_counter() - t0)
+-            val_loss, val_bpb = eval_val(
+-                args,
+-                compiled_loss,
+-                compiled_masked_loss,
+-                val_tokens,
+-                doc_spans,
+-                bos_token_id,
+-                tail_recur_eval_gains,
+-                base_bytes_lut,
+-                has_leading_space_lut,
+-                is_boundary_token_lut,
+-                log_fn=log,
+-            )
+-            if step % 25 == 0 or last_step:
+-                log(
+-                    f"step:{step}/{args.iterations} val_loss:{val_loss:.4f} val_bpb:{val_bpb:.4f} "
+-                    f"train_time:{train_time_ms:.0f}ms step_avg:{train_time_ms / max(step, 1):.2f}ms"
+-                )
+-            t0 = time.perf_counter()
+-        if last_step:
+-            if stop_after_step is not None and step < args.iterations:
+-                log(f"stopping_early: wallclock_cap train_time:{train_time_ms:.0f}ms step:{step}/{args.iterations}")
+-            break
+-        approx_train_time_ms = train_time_ms + 1000.0 * (time.perf_counter() - t0)
+-        lr_mul = args.lr_mul(step, approx_train_time_ms)
+-        quant_aware_active = (
+-            last_quant_aware_step is not None
+-            or should_activate_quant_aware(args, step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms)
+-        )
+-        embed_lr_mul, matrix_lr_mul, scalar_lr_mul = quant_aware_lr_muls(args, quant_aware_active)
+-        step_t0 = time.perf_counter()
+-        should_log_train = args.train_log_every > 0 and (
+-            step < 10 or (step + 1) % args.train_log_every == 0 or stop_after_step is not None
+-        )
+-        tail_recur_gains = tail_recur_schedule(args, step, args.tail_recur_blocks)
+-        if args.use_single_microbatch_path:
+-            train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
+-            if args.mlx_eager_eval:
+-                mx.eval(train_loss, grads)
+-            grads = clip_grad_tree(grads, args.grad_clip_norm)
+-        else:
+-            accum: dict[str, mx.array] | None = None
+-            train_loss = mx.array(0.0, dtype=mx.float32)
+-            grad_scale = 1.0 / args.grad_accum_steps
+-            for _ in range(args.grad_accum_steps):
+-                loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
+-                accum = accumulate_flat_grads(accum, grads, grad_scale)
+-                train_loss = train_loss + loss.astype(mx.float32) * grad_scale
+-                if args.mlx_eager_eval:
+-                    mx.eval(train_loss, accum)
+-            grads = tree_unflatten(list(accum.items()))
+-            grads = clip_grad_tree(grads, args.grad_clip_norm)
+-        opt.step(
+-            model,
+-            grads,
+-            step=step,
+-            lr_mul=lr_mul,
+-            embed_lr_mul=embed_lr_mul,
+-            matrix_lr_mul=matrix_lr_mul,
+-            scalar_lr_mul=scalar_lr_mul,
+-        )
+-        next_step = step + 1
+-        approx_train_time_ms = train_time_ms + 1000.0 * (time.perf_counter() - t0)
+-        did_quant_aware_roundtrip = False
+-        if should_activate_quant_aware(args, next_step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms) and (
+-            last_quant_aware_step is None or next_step - last_quant_aware_step >= args.quant_aware_every
+-        ):
+-            apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix)
+-            last_quant_aware_step = next_step
+-            quant_aware_proj_mix = min(quant_aware_proj_mix + args.quant_aware_proj_step, args.quant_aware_proj_end)
+-            did_quant_aware_roundtrip = True
+-        if last_quant_aware_step is not None:
+-            flat_params = dict(tree_flatten(model.parameters()))
+-            if tracked_ema is None:
+-                tracked_ema = {
+-                    name: arr + mx.zeros_like(arr)
+-                    for name, arr in flat_params.items()
+-                    if mx.issubdtype(arr.dtype, mx.floating) and should_track_ema_tensor(name, arr, int8_fp16_keep_names)
+-                }
+-            else:
+-                for name in tracked_ema:
+-                    tracked_ema[name] = tracked_ema[name] + (flat_params[name] - tracked_ema[name]) * tracked_ema_keep
+-        mx.synchronize()
+-        step_ms = 1000.0 * (time.perf_counter() - step_t0)
+-        approx_train_time_ms = train_time_ms + 1000.0 * (time.perf_counter() - t0)
+-        tok_s = args.train_batch_tokens / (step_ms / 1000.0)
+-        step = next_step
+-        if did_quant_aware_roundtrip:
+-            log(f"quant_aware_roundtrip:step:{step}")
+-        if should_log_train:
+-            train_loss_value = float(train_loss.item())
+-            log(
+-                f"step:{step}/{args.iterations} train_loss:{train_loss_value:.4f} "
+-                f"train_time:{approx_train_time_ms:.0f}ms step_avg:{approx_train_time_ms / step:.2f}ms tok_s:{tok_s:.0f}"
+-            )
+-        if (
+-            max_wallclock_ms is not None
+-            and stop_after_step is None
+-            and approx_train_time_ms >= max(max_wallclock_ms - reserved_final_ms, 0.0)
+-        ):
+-            stop_after_step = step
+-    if last_quant_aware_step is not None and last_quant_aware_step != step:
+-        apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
+-        mx.synchronize()
+-        log(f"quant_aware_roundtrip:step:{step} final_pre_save")
+-    if tracked_ema:
+-        model.update(tree_unflatten(list(tracked_ema.items())))
+-        apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
+-    out_path = out_dir / f"{args.run_id}_mlx_model.npz"
+-    flat_state = {k: v for k, v in tree_flatten(model.state)}
+-    mx.savez(str(out_path), **flat_state)
+-    log(f"saved_model:{out_path} bytes:{out_path.stat().st_size}")
+-    quant_obj, quant_stats = quantize_state_dict_int8(flat_state, int8_fp16_keep_names)
+-    quant_raw = pickle.dumps(quant_obj, protocol=pickle.HIGHEST_PROTOCOL)
+-    quant_blob = zlib.compress(quant_raw, level=9)
+-    quant_serialized_bytes = len(quant_raw)
+-    quant_path = out_dir / f"{args.run_id}_mlx_model.int8.ptz"
+-    with quant_path.open("wb") as f:
+-        f.write(quant_blob)
+-    quant_file_bytes = quant_path.stat().st_size
+-    ratio = quant_stats["baseline_tensor_bytes"] / max(quant_stats["int8_payload_bytes"], 1)
+-    log(
+-        f"serialized_model_int8_zlib:{quant_file_bytes} bytes "
+-        f"(payload:{quant_stats['int8_payload_bytes']} raw_pickle:{quant_serialized_bytes} payload_ratio:{ratio:.2f}x)"
+-    )
+-    with quant_path.open("rb") as f:
+-        quant_blob_disk = f.read()
+-    quant_flat = dequantize_state_dict_int8(pickle.loads(zlib.decompress(quant_blob_disk)))
+-    model.update(tree_unflatten(list(quant_flat.items())))
+-    q_t0 = time.perf_counter()
+-    q_val_loss, q_val_bpb = eval_val(
+-        args,
+-        compiled_loss,
+-        compiled_masked_loss,
+-        val_tokens,
+-        doc_spans,
+-        bos_token_id,
+-        tail_recur_eval_gains,
+-        base_bytes_lut,
+-        has_leading_space_lut,
+-        is_boundary_token_lut,
+-        log_fn=log,
+-    )
+-    q_eval_ms = 1000.0 * (time.perf_counter() - q_t0)
+-    total_train_tokens = step * args.train_batch_tokens
+-    if train_time_ms > 0.0:
+-        log(f"throughput:avg_tok_s:{total_train_tokens / (train_time_ms / 1000.0):.2f} total_tokens:{total_train_tokens}")
+-    log(f"final_int8_zlib_roundtrip val_loss:{q_val_loss:.4f} val_bpb:{q_val_bpb:.4f} eval_time:{q_eval_ms:.0f}ms")
+-    log(f"final_int8_zlib_roundtrip_exact val_loss:{q_val_loss:.8f} val_bpb:{q_val_bpb:.8f}")
+-if __name__ == "__main__":
+-    main()+_CODE = zlib.decompress(base64.b85decode(_PAYLOAD.encode())).decode()
++if "MAX_WALLCLOCK_SECONDS" not in _CODE or "final_int8_zlib_roundtrip_exact" not in _CODE:
++    raise RuntimeError("embedded training script is missing required launcher markers")
++exec(compile(_CODE, __file__, "exec"), {"__name__": "__main__", "__file__": __file__})

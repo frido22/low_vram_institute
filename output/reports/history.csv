@@ -920,3 +920,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0077,2.052121,False,False,Additive Recurrent-Tail QKV FP16 Rescue
 2026_04_29_run_0078,2.056727,True,False,Train-Budget Quant-Aware Warmdown
 2026_04_29_run_0079,2.056493,True,False,Entry-Anchored Reverse Tail Carry
+2026_04_29_run_0080,2.052094,True,False,Final Recurrent Block MLP FP16 Reallocation
