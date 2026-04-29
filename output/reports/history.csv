@@ -877,3 +877,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0030,2.066212,True,False,Randomized Training Stream Start
 2026_04_29_run_0031,2.051872,True,False,Late Tail-Aligned Loss Curriculum
 2026_04_29_run_0032,2.051982,True,False,Reverse-Tail Anchor Blend Scalars
+2026_04_29_run_0033,2.052206,True,False,Reverse-Tail Anchor Refresh Drift

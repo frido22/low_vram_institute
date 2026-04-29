@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12745568,
+  "code_bytes": 80382,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665186,
+  "rationale": "Builds on the recurrent-tail baseline with a compact behavioral change: after each reverse tail recurrence pass, the tail anchor is nudged toward the refreshed state so shallower recurrent passes see a progressively updated anchor instead of a frozen decoder-output anchor. This targets the locally promising anchor-refresh category without adding export-heavy structure. I also fixed the chunked masked-loss accumulator so chunked eval/training paths sum all chunks correctly.",
+  "run_id": "2026_04_29_run_0033",
+  "runtime_seconds": 638.927491,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor Refresh Drift",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 550006,
+  "under_16mb": true,
+  "val_bpb": 2.05220621,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
