@@ -879,3 +879,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0032,2.051982,True,False,Reverse-Tail Anchor Blend Scalars
 2026_04_29_run_0033,2.052206,True,False,Reverse-Tail Anchor Refresh Drift
 2026_04_29_run_0034,2.052261,True,False,Quant-Aware Full-Tail Endgame
+2026_04_29_run_0035,2.050704,True,False,Lagged Tail-Carry Curriculum

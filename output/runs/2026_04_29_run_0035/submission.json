@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12744753,
+  "code_bytes": 81489,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12663264,
+  "rationale": "The current best family already relies on reverse-tail recurrence and anchor carry. Recent anchor-refresh and float-budget variants missed, so this run keeps the winning topology but changes when the anchor path comes online. Recurrent block refinement still ramps as before, while anchor carry is delayed and starts from zero. That should let the repeated tail blocks learn local reuse first, then fold in decoder-output anchoring later, with no new parameter bulk and stable compile shapes.",
+  "run_id": "2026_04_29_run_0035",
+  "runtime_seconds": 663.97229,
+  "submitter": "frido22",
+  "title": "Lagged Tail-Carry Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 575617,
+  "under_16mb": true,
+  "val_bpb": 2.05070365,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
