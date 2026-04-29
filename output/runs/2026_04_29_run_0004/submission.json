@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12153430,
+  "code_bytes": 80573,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12072857,
+  "rationale": "Reallocates the export fp16 budget toward the recurrent tail value path instead of spending the same bytes on extra tail MLP projection preservation. The script now keeps tail attention projections for the last two blocks, keeps tail MLP projection only on the very last block, and uses the recovered budget to keep `c_v` weights fp16 across the recurrent tail. This is a compact structural change aimed directly at the final int8+zlib roundtrip metric, where preserving recurrent-tail value transport is more likely to survive export than another extra MLP proj keep.",
+  "run_id": "2026_04_29_run_0004",
+  "runtime_seconds": 669.684444,
+  "submitter": "frido22",
+  "title": "Tail Value-Path FP16 Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 579956,
+  "under_16mb": true,
+  "val_bpb": 2.05226381,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

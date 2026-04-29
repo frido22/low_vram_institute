@@ -362,7 +362,7 @@ class GPT(nn.Module):
             logits = self.project_logits(x[s:e], prev_ids[s:e])
             logits_f = logits.astype(mx.float32)
             token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[s:e, None], axis=-1).reshape(-1)
-            loss_sum = mx.sum(token_loss.astype(mx.float32) * mask[s:e])
+            loss_sum = loss_sum + mx.sum(token_loss.astype(mx.float32) * mask[s:e])
         return loss_sum / denom
 class Muon:
     def __init__(self, keys: list[str], params: dict[str, mx.array], args: Hyperparameters):
@@ -455,6 +455,7 @@ INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99
 INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
 INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
 INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
+INT8_FP16_TAIL_VALUE_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_VALUE_BLOCKS", 2))
 PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
 INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
 INT8_FP16_KEEP_NAMES = tuple(
@@ -471,6 +472,8 @@ BLOCK_FP16_MATRIX_SUFFIXES = (
     "mlp.proj.weight",
 )
 BLOCK_FP16_PROJ_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
+BLOCK_FP16_ATTN_PROJ_SUFFIXES = ("attn.proj.weight",)
+BLOCK_FP16_MLP_PROJ_SUFFIXES = ("mlp.proj.weight",)
 def _np_float32(arr: mx.array) -> np.ndarray:
     return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
 def int8_clip_q(name: str) -> float:
@@ -483,12 +486,17 @@ def build_int8_fp16_keep_names(num_layers: int, tail_recur_blocks: int) -> set[s
         keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES)
     for block_idx in range(max(num_layers - INT8_FP16_TAIL_PROJ_BLOCKS, 0), num_layers):
         prefix = f"blocks.{block_idx}."
-        keep.update(prefix + suffix for suffix in BLOCK_FP16_PROJ_SUFFIXES)
-    for block_idx in range(max(num_layers - tail_recur_blocks, 0), num_layers):
+        keep.update(prefix + suffix for suffix in BLOCK_FP16_ATTN_PROJ_SUFFIXES)
+    for block_idx in range(max(num_layers - max(INT8_FP16_TAIL_PROJ_BLOCKS - 1, 0), 0), num_layers):
+        prefix = f"blocks.{block_idx}."
+        keep.update(prefix + suffix for suffix in BLOCK_FP16_MLP_PROJ_SUFFIXES)
+    tail_keep_start = max(num_layers - tail_recur_blocks, 0)
+    value_keep_start = max(num_layers - max(tail_recur_blocks, INT8_FP16_TAIL_VALUE_BLOCKS), 0)
+    for block_idx in range(tail_keep_start, num_layers):
         prefix = f"blocks.{block_idx}."
         keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:2])
-    if num_layers > 0:
-        prefix = f"blocks.{num_layers - 1}."
+    for block_idx in range(value_keep_start, num_layers):
+        prefix = f"blocks.{block_idx}."
         keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
     return keep
 def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
@@ -1268,7 +1276,10 @@ def main() -> None:
     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
     log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
-    log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
+    log(
+        f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} "
+        f"tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS} tail_value_blocks:{INT8_FP16_TAIL_VALUE_BLOCKS}"
+    )
     log(
         f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} "
         f"active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}"
