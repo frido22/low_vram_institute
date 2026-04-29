@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12916329,
+  "code_bytes": 81027,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12835302,
+  "rationale": "Builds on the current recurrent-tail baseline with one coherent export-aligned change: keep `attn.c_v.weight` in fp16 for recurrent tail blocks and bias quant-aware roundtrip mixing toward tail value/projection tensors while reducing pressure on earlier blocks. This targets the strongest remaining local signal around recurrent-tail float rescue and value-path export sensitivity without changing evaluation, data paths, or wallclock behavior.",
+  "run_id": "2026_04_29_run_0053",
+  "runtime_seconds": 674.917721,
+  "submitter": "frido22",
+  "title": "Tail Value-Path Quant-Aware Export Focus",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 586246,
+  "under_16mb": true,
+  "val_bpb": 2.05217814,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

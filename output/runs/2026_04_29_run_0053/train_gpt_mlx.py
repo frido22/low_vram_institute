@@ -454,8 +454,7 @@ INT8_CLIP_PERCENTILE = 99.99984; INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
 INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99.9)); INT8_PROJ_CLIP_Q = INT8_PROJ_CLIP_PERCENTILE / 100.0
 INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
 INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
-INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 1))
-INT8_FP16_TAIL_VALUE_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_VALUE_BLOCKS", 2))
+INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
 PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
 INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
 INT8_FP16_KEEP_NAMES = tuple(
@@ -472,7 +471,7 @@ BLOCK_FP16_MATRIX_SUFFIXES = (
     "mlp.proj.weight",
 )
 BLOCK_FP16_PROJ_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
-BLOCK_FP16_VALUE_SUFFIXES = ("attn.c_v.weight",)
+ROUNDTRIP_TAIL_FULL_MIX_SUFFIXES = ("attn.c_v.weight",) + BLOCK_FP16_PROJ_SUFFIXES
 def _np_float32(arr: mx.array) -> np.ndarray:
     return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
 def int8_clip_q(name: str) -> float:
@@ -488,10 +487,10 @@ def build_int8_fp16_keep_names(num_layers: int, tail_recur_blocks: int) -> set[s
         keep.update(prefix + suffix for suffix in BLOCK_FP16_PROJ_SUFFIXES)
     for block_idx in range(max(num_layers - tail_recur_blocks, 0), num_layers):
         prefix = f"blocks.{block_idx}."
-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:2])
-    for block_idx in range(max(num_layers - min(tail_recur_blocks, INT8_FP16_TAIL_VALUE_BLOCKS), 0), num_layers):
-        prefix = f"blocks.{block_idx}."
-        keep.update(prefix + suffix for suffix in BLOCK_FP16_VALUE_SUFFIXES)
+        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:3])
+    if num_layers > 0 and tail_recur_blocks <= 0:
+        prefix = f"blocks.{num_layers - 1}."
+        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
     return keep
 def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
     return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL
@@ -632,21 +631,44 @@ def roundtrip_tensor_like_final(
     if transposed:
         out_arr = np.ascontiguousarray(out_arr.T)
     return mx.array(np.ascontiguousarray(out_arr), dtype=arr.dtype)
+def block_idx_from_name(name: str) -> int:
+    if not name.startswith("blocks."):
+        return -1
+    parts = name.split(".", 2)
+    return int(parts[1]) if len(parts) > 2 and parts[1].isdigit() else -1
+def roundtrip_mix_for_name(name: str, mix: float, tail_recur_start: int, num_layers: int) -> float:
+    if mix >= 1.0:
+        return 1.0
+    block_idx = block_idx_from_name(name)
+    if block_idx >= 0:
+        if block_idx >= tail_recur_start:
+            if name.endswith(ROUNDTRIP_TAIL_FULL_MIX_SUFFIXES):
+                return 1.0
+            return min(1.0, mix + 0.2)
+        if block_idx >= max(num_layers - INT8_FP16_TAIL_PROJ_BLOCKS, 0):
+            return min(1.0, mix + 0.1)
+        return mix * 0.3
+    if name.startswith("bigram_") or name in {"logit_bias", "logit_gain"}:
+        return mix * 0.5
+    return mix
 def blend_tensor_toward_final(
     name: str,
     arr: mx.array,
     int8_fp16_keep_names: set[str],
     mix: float,
+    tail_recur_start: int,
+    num_layers: int,
 ) -> mx.array:
     target = roundtrip_tensor_like_final(name, arr, int8_fp16_keep_names)
     if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names):
         return target
-    return arr + (target - arr) * mix
+    local_mix = roundtrip_mix_for_name(name, mix, tail_recur_start, num_layers)
+    return arr + (target - arr) * local_mix
 def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
     model.update(
         tree_unflatten(
             [
-                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix))
+                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix, model.tail_recur_start, len(model.blocks)))
                 for name, arr in tree_flatten(model.state)
             ]
         )
@@ -1270,10 +1292,7 @@ def main() -> None:
     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
     log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
-    log(
-        f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} "
-        f"tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS} tail_value_blocks:{INT8_FP16_TAIL_VALUE_BLOCKS}"
-    )
+    log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
     log(
         f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} "
         f"active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}"
