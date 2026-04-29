@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746670,
+  "code_bytes": 80228,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666442,
+  "rationale": "Build on the recurrent-tail baseline with a compact structural change: each reverse-tail recurrence step now learns how much to refresh the shared tail anchor. This keeps compile-stable shapes, adds negligible bytes, preserves the exact eval/export path, and specifically targets a still-promising local category: reverse-tail anchor variants plus recurrence curriculum rather than another scalar sweep.",
+  "run_id": "2026_04_29_run_0022",
+  "runtime_seconds": 652.298012,
+  "submitter": "frido22",
+  "title": "Learned Reverse-Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 563099,
+  "under_16mb": true,
+  "val_bpb": 2.05230399,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
