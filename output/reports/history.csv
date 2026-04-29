@@ -906,3 +906,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0060,2.052747,True,False,Late Tail-Loss Curriculum
 2026_04_29_run_0061,2.052537,True,False,Late Tail-Aligned Training Mask Curriculum
 2026_04_29_run_0062,2.052269,True,False,Quant-Aware Full Tail Recurrence Endgame
+2026_04_29_run_0063,2.052790,True,False,Wallclock-Aligned Reverse-Tail Curriculum

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746852,
+  "code_bytes": 80342,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666510,
+  "rationale": "The current recurrent-tail schedule is step-based even though runs are wallclock-capped, so late-stage recurrence can stay under-activated if the launcher stops well before `ITERATIONS`. This edit preserves the current recurrent-tail and quant-aware/export family, but makes the tail curriculum follow actual train-time budget whenever `MAX_WALLCLOCK_SECONDS` is active, so the staged reverse-tail gains reliably reach their intended late-run regime on the Mac mini.",
+  "run_id": "2026_04_29_run_0063",
+  "runtime_seconds": 666.522684,
+  "submitter": "frido22",
+  "title": "Wallclock-Aligned Reverse-Tail Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 576998,
+  "under_16mb": true,
+  "val_bpb": 2.05278952,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

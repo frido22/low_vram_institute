@@ -455,8 +455,6 @@ INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99
 INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
 INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
 INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
-INT8_FP16_TAIL_RECUR_VALUE_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_RECUR_VALUE_BLOCKS", 2))
-INT8_FP16_TAIL_RECUR_QK_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_RECUR_QK_BLOCKS", 1))
 PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
 INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
 INT8_FP16_KEEP_NAMES = tuple(
@@ -486,13 +484,12 @@ def build_int8_fp16_keep_names(num_layers: int, tail_recur_blocks: int) -> set[s
     for block_idx in range(max(num_layers - INT8_FP16_TAIL_PROJ_BLOCKS, 0), num_layers):
         prefix = f"blocks.{block_idx}."
         keep.update(prefix + suffix for suffix in BLOCK_FP16_PROJ_SUFFIXES)
-    tail_start = max(num_layers - tail_recur_blocks, 0)
-    for block_idx in range(max(num_layers - INT8_FP16_TAIL_RECUR_VALUE_BLOCKS, tail_start), num_layers):
-        prefix = f"blocks.{block_idx}."
-        keep.add(prefix + "attn.c_v.weight")
-    for block_idx in range(max(num_layers - INT8_FP16_TAIL_RECUR_QK_BLOCKS, tail_start), num_layers):
+    for block_idx in range(max(num_layers - tail_recur_blocks, 0), num_layers):
         prefix = f"blocks.{block_idx}."
         keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:2])
+    if num_layers > 0:
+        prefix = f"blocks.{num_layers - 1}."
+        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
     return keep
 def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
     return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL
@@ -1173,13 +1170,24 @@ def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tupl
     if not quant_aware_active:
         return 1.0, 1.0, 1.0
     return args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul
-def tail_recur_schedule(args: Hyperparameters, step: int, active_blocks: int) -> mx.array:
+def tail_recur_schedule(
+    args: Hyperparameters,
+    step: int,
+    active_blocks: int,
+    elapsed_ms: float,
+    max_wallclock_ms: float | None,
+    reserved_final_ms: float,
+) -> mx.array:
     if active_blocks <= 0:
         return mx.zeros((0,), dtype=mx.float32)
     if args.tail_recur_ramp_end <= args.tail_recur_ramp_start:
         progress = 1.0 if step > 0 else 0.0
     else:
-        progress = step / max(args.iterations, 1)
+        if max_wallclock_ms is not None:
+            train_budget_ms = max(max_wallclock_ms - reserved_final_ms, 1.0)
+            progress = elapsed_ms / train_budget_ms
+        else:
+            progress = step / max(args.iterations, 1)
         progress = min(max((progress - args.tail_recur_ramp_start) / (args.tail_recur_ramp_end - args.tail_recur_ramp_start), 0.0), 1.0)
     if active_blocks == 1:
         return mx.ones((1,), dtype=mx.float32)
@@ -1328,7 +1336,14 @@ def main() -> None:
         should_log_train = args.train_log_every > 0 and (
             step < 10 or (step + 1) % args.train_log_every == 0 or stop_after_step is not None
         )
-        tail_recur_gains = tail_recur_schedule(args, step, args.tail_recur_blocks)
+        tail_recur_gains = tail_recur_schedule(
+            args,
+            step,
+            args.tail_recur_blocks,
+            approx_train_time_ms,
+            max_wallclock_ms,
+            reserved_final_ms,
+        )
         if args.use_single_microbatch_path:
             train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
             if args.mlx_eager_eval:
