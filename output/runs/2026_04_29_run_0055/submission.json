@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12748986,
+  "code_bytes": 80213,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12668773,
+  "rationale": "Build on the current reverse-tail recurrent baseline with a minimal structural change: add a learned gated anchor-refresh path inside the reversed tail recurrence. This keeps shapes and compile behavior stable, preserves the proven quant-aware/export path, and directly tests a nearby anchor-variant idea from local close misses without spending bytes on a broader rewrite.",
+  "run_id": "2026_04_29_run_0055",
+  "runtime_seconds": 627.507245,
+  "submitter": "frido22",
+  "title": "Gated Reverse-Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 539206,
+  "under_16mb": true,
+  "val_bpb": 2.05341821,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
