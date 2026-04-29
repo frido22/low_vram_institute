@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12749097,
+  "code_bytes": 80153,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12668944,
+  "rationale": "Replaces the recurrent tail carry target from one shared final decoder anchor to per-block first-pass tail outputs. The hypothesis is that reverse recurrence should revisit each late block against its own local post-block state, reducing drift while preserving the proven recurrent-tail/export regime and keeping shapes, compile behavior, and byte budget unchanged.",
+  "run_id": "2026_04_29_run_0049",
+  "runtime_seconds": 678.627502,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Local Output Anchors",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 588873,
+  "under_16mb": true,
+  "val_bpb": 2.05573295,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
