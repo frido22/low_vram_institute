@@ -911,3 +911,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0065,2.054323,True,False,Block-Local Reverse Tail Anchor Refresh
 2026_04_29_run_0066,2.052448,True,False,Tail Value-Path Float Reallocation
 2026_04_29_run_0067,2.051353,False,False,Staged Reverse-Tail Anchor Refresh
+2026_04_29_run_0070,2.051909,False,False,Step-Budgeted Reverse-Tail Recurrence Ramp

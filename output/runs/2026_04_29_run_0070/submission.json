@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746311,
+  "code_bytes": 80309,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12666002,
+  "rationale": "The winning script already has staged reverse-tail recurrence, but its ramp is normalized by ITERATIONS=20000, so a 600s Mac-mini run stops around the 700-800 step region before the penultimate recurrent block ever ramps above its minimum gain. This keeps the same architecture, final exact int8+zlib evaluation, quant-aware endgame, and fixed shapes, but normalizes the existing recurrence curriculum to a 900-step local budget so the second recurrent tail block is mostly awake by the quant-aware phase. It directly reduces the train/eval recurrence-gain mismatch without adding validation or spending artifact bytes.",
+  "run_id": "2026_04_29_run_0070",
+  "runtime_seconds": 698.492397,
+  "submitter": "frido22",
+  "title": "Step-Budgeted Reverse-Tail Recurrence Ramp",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 609755,
+  "under_16mb": true,
+  "val_bpb": 2.05190856,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
