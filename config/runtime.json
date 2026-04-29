@@ -6,8 +6,8 @@
   },
   "codex": {
     "enabled": true,
-    "model": "gpt-5.4",
-    "reasoning_effort": "medium",
+    "model": "gpt-5.5",
+    "reasoning_effort": "xhigh",
     "service_tier": null,
     "manual_service_tier": null,
     "daemon_service_tier": null,
