@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747570,
+  "code_bytes": 82574,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664996,
+  "rationale": "Build on the staged reverse-tail recurrence baseline, but shift late training signal toward the last tokens of each sequence so optimization better matches the exact stride/window-heavy validation objective. This is a compact structural change, not another scalar sweep: it keeps shapes stable, reuses the existing masked-loss path, and only activates a smooth late curriculum down to a 128-token tail.",
+  "run_id": "2026_04_29_run_0010",
+  "runtime_seconds": 678.573593,
+  "submitter": "frido22",
+  "title": "Late Tail-Aligned Training Loss Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 588299,
+  "under_16mb": true,
+  "val_bpb": 2.05207942,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
