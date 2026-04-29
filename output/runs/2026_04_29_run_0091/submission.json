@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12915376,
+  "code_bytes": 80117,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12835259,
+  "rationale": "Builds on the 1.5111 staged reverse-tail baseline by spending a small amount of remaining int8+zlib budget on the penultimate recurrent-tail value matrix. The current export path already protects tail Q/K, both tail projections, and the final block V; extending the same FP16 rescue to the adjacent repeated V tensor should reduce quantization error where the reverse recurrent pass reuses value-path information, without changing the training loop, data order, recurrence topology, or final exact evaluation.",
+  "run_id": "2026_04_29_run_0091",
+  "runtime_seconds": 708.547973,
+  "submitter": "frido22",
+  "title": "Penultimate Tail Value FP16 Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 619162,
+  "under_16mb": true,
+  "val_bpb": 2.05299513,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
