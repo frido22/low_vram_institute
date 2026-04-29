@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12749962,
+  "code_bytes": 80159,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12669803,
+  "rationale": "Adds one trainable recurrent-tail exit gate that blends the final recurrent state back toward the decoder-output anchor. This preserves VAL_LOSS_EVERY=0, MAX_WALLCLOCK_SECONDS=600, and final_int8_zlib_roundtrip_exact while testing a compact anchor-control variant of the current reverse-tail best.",
+  "run_id": "2026_04_29_run_0083",
+  "runtime_seconds": 653.89039,
+  "submitter": "frido22",
+  "title": "Learned Tail Exit Anchor Gate",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 565963,
+  "under_16mb": true,
+  "val_bpb": 2.05612293,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
