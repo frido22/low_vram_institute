@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12684933,
+  "code_bytes": 22670,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12662263,
+  "rationale": "Current best only reaches about 773 of 20000 nominal iterations, so the staged tail recurrence ramp stays at the minimum gain while final evaluation uses full recurrence. This self-contained script embeds the current best plus a compact schedule horizon: TAIL_RECUR_SCHEDULE_STEPS defaults to 1200, making the first recurrent tail block ramp to full strength during the late quant-aware phase without changing shapes, validation, export, or metric print formats.",
+  "run_id": "2026_04_29_run_0087",
+  "runtime_seconds": 715.37871,
+  "submitter": "frido22",
+  "title": "Wallclock-Horizon Tail Recurrence Ramp",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 625755,
+  "under_16mb": true,
+  "val_bpb": 2.05302023,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
