@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12744869,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12665446,
+  "rationale": "Keeps the recurrent-tail training path intact while shifting this run toward export sensitivity: int8 now transposes value matrices by default, tracks tail value weights in the late EMA, and greedily spends a small fp16 rescue budget on the most quantization-sensitive late tail tensors per added byte before final serialization.",
+  "run_id": "2026_04_29_run_0056",
+  "runtime_seconds": 641.33418,
+  "submitter": "frido22",
+  "title": "Adaptive Tail Export Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 553153,
+  "under_16mb": true,
+  "val_bpb": 2.05255832,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

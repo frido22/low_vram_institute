@@ -71,8 +71,6 @@ class Hyperparameters:
     tail_recur_ramp_start: float = float(os.environ.get("TAIL_RECUR_RAMP_START", 0.55))
     tail_recur_ramp_end: float = float(os.environ.get("TAIL_RECUR_RAMP_END", 0.9))
     tail_recur_min_gain: float = float(os.environ.get("TAIL_RECUR_MIN_GAIN", 0.35))
-    tail_recur_stage_gap: float = float(os.environ.get("TAIL_RECUR_STAGE_GAP", 0.16))
-    tail_recur_stage_span: float = float(os.environ.get("TAIL_RECUR_STAGE_SPAN", 0.12))
     beta1: float = float(os.environ.get("BETA1", 0.9))
     beta2: float = float(os.environ.get("BETA2", 0.95))
     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
@@ -455,10 +453,8 @@ INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99
 INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
 INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
 INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
-INT8_ADAPTIVE_KEEP_BUDGET_BYTES = int(os.environ.get("INT8_ADAPTIVE_KEEP_BUDGET_BYTES", 262144))
-INT8_ADAPTIVE_KEEP_TOPK = int(os.environ.get("INT8_ADAPTIVE_KEEP_TOPK", 1))
 PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
-INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight,attn.c_v.weight").split(",") if suffix)
+INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
 INT8_FP16_KEEP_NAMES = tuple(
     name
     for name in os.environ.get("INT8_FP16_KEEP_NAMES", "tok_emb.weight").split(",")
@@ -493,49 +489,10 @@ def build_int8_fp16_keep_names(num_layers: int, tail_recur_blocks: int) -> set[s
         prefix = f"blocks.{num_layers - 1}."
         keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
     return keep
-def adaptive_int8_keep_names(
-    flat_state: dict[str, mx.array],
-    keep_names: set[str],
-    num_layers: int,
-    tail_recur_blocks: int,
-) -> set[str]:
-    if INT8_ADAPTIVE_KEEP_BUDGET_BYTES <= 0 or INT8_ADAPTIVE_KEEP_TOPK <= 0:
-        return keep_names
-    suffixes = ("attn.c_v.weight", "attn.proj.weight")
-    start = max(num_layers - max(tail_recur_blocks + 1, 2), 0)
-    candidates = [f"blocks.{block_idx}.{suffix}" for block_idx in range(start, num_layers) for suffix in suffixes]
-    scored: list[tuple[float, int, str]] = []
-    for name in candidates:
-        arr = flat_state.get(name)
-        if arr is None or name in keep_names or not mx.issubdtype(arr.dtype, mx.floating):
-            continue
-        q, s, o, _ = quantize_float_array(name, arr)
-        quant_bytes = int(q.nbytes + s.nbytes + (0 if o is None else o.nbytes))
-        keep_bytes = int(keep_float_array(name, arr, {}).nbytes)
-        added_bytes = keep_bytes - quant_bytes
-        if added_bytes <= 0:
-            continue
-        deq = roundtrip_tensor_like_final(name, arr, keep_names)
-        base = float(np.mean(np.square(_np_float32(arr)), dtype=np.float64)) + 1e-12
-        err = float(np.mean(np.square(_np_float32(arr - deq)), dtype=np.float64)) / base
-        scored.append((err / added_bytes, added_bytes, name))
-    scored.sort(reverse=True)
-    chosen = set(keep_names)
-    budget_left = INT8_ADAPTIVE_KEEP_BUDGET_BYTES
-    picks = 0
-    for _, added_bytes, name in scored:
-        if added_bytes > budget_left:
-            continue
-        chosen.add(name)
-        budget_left -= added_bytes
-        picks += 1
-        if picks >= INT8_ADAPTIVE_KEEP_TOPK:
-            break
-    return chosen
 def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
     return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL
 def should_track_ema_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
-    return name.endswith(BLOCK_FP16_PROJ_SUFFIXES + ("attn.c_v.weight",)) or should_keep_float_tensor(name, arr, int8_fp16_keep_names)
+    return name.endswith(BLOCK_FP16_PROJ_SUFFIXES) or should_keep_float_tensor(name, arr, int8_fp16_keep_names)
 def keep_float_array(name: str, arr: mx.array, passthrough_orig_dtypes: dict[str, str]) -> np.ndarray:
     if any(pattern in name for pattern in INT8_KEEP_FLOAT_FP32_NAME_PATTERNS):
         return np.ascontiguousarray(_np_float32(arr))
@@ -682,7 +639,14 @@ def blend_tensor_toward_final(
         return target
     return arr + (target - arr) * mix
 def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
-    model.update(tree_unflatten([(name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix)) for name, arr in tree_flatten(model.state)]))
+    model.update(
+        tree_unflatten(
+            [
+                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix))
+                for name, arr in tree_flatten(model.state)
+            ]
+        )
+    )
 def build_sentencepiece_luts(
     sp: spm.SentencePieceProcessor, vocab_size: int
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -1195,25 +1159,27 @@ def clip_grad_tree(grads_tree: dict, max_norm: float) -> dict:
     scale = max_norm / (total_norm + 1e-12)
     return tree_unflatten([(k, g * scale) for k, g in flat.items()])
 def should_activate_quant_aware(args: Hyperparameters, step: int, elapsed_ms: float, max_wallclock_ms: float | None, reserved_final_ms: float) -> bool:
-    if args.quant_aware_every <= 0: return False
-    if max_wallclock_ms is None: return args.quant_aware_iters > 0 and step >= max(args.iterations - args.quant_aware_iters, 0)
+    if args.quant_aware_every <= 0:
+        return False
+    if max_wallclock_ms is None:
+        return args.quant_aware_iters > 0 and step >= max(args.iterations - args.quant_aware_iters, 0)
     return elapsed_ms >= max(max_wallclock_ms - reserved_final_ms - 1000.0 * args.quant_aware_train_seconds, 0.0)
 def quant_aware_lr_muls(args: Hyperparameters, quant_aware_active: bool) -> tuple[float, float, float]:
-    return (1.0, 1.0, 1.0) if not quant_aware_active else (args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul)
+    if not quant_aware_active:
+        return 1.0, 1.0, 1.0
+    return args.quant_aware_embed_lr_mul, args.quant_aware_matrix_lr_mul, args.quant_aware_scalar_lr_mul
 def tail_recur_schedule(args: Hyperparameters, step: int, active_blocks: int) -> mx.array:
-    if active_blocks <= 0: return mx.zeros((0,), dtype=mx.float32)
+    if active_blocks <= 0:
+        return mx.zeros((0,), dtype=mx.float32)
     if args.tail_recur_ramp_end <= args.tail_recur_ramp_start:
         progress = 1.0 if step > 0 else 0.0
     else:
         progress = step / max(args.iterations, 1)
         progress = min(max((progress - args.tail_recur_ramp_start) / (args.tail_recur_ramp_end - args.tail_recur_ramp_start), 0.0), 1.0)
-    if active_blocks == 1: return mx.ones((1,), dtype=mx.float32)
-    gains = np.ones((active_blocks,), dtype=np.float32)
-    for idx in range(active_blocks - 1):
-        stage_start = idx * args.tail_recur_stage_gap
-        stage_span = max(args.tail_recur_stage_span, 1e-6)
-        stage_progress = min(max((progress - stage_start) / stage_span, 0.0), 1.0)
-        gains[idx] = args.tail_recur_min_gain + (1.0 - args.tail_recur_min_gain) * stage_progress
+    if active_blocks == 1:
+        return mx.ones((1,), dtype=mx.float32)
+    gains = np.linspace(args.tail_recur_min_gain, 1.0, active_blocks, dtype=np.float32)
+    gains[:-1] = args.tail_recur_min_gain + (1.0 - args.tail_recur_min_gain) * progress
     gains[-1] = 1.0
     return mx.array(gains, dtype=mx.float32)
 def main() -> None:
@@ -1252,8 +1218,7 @@ def main() -> None:
     mx.random.seed(args.seed)
     train_loader = TokenLoader(args.train_files, log_fn=log, dataset_name=dataset_name)
     model = GPT(vocab_size=args.vocab_size, num_layers=args.num_layers, dim=args.model_dim, num_heads=args.num_heads, num_kv_heads=args.num_kv_heads, mlp_mult=args.mlp_mult, logit_chunk_tokens=args.logit_chunk_tokens, logit_softcap=args.logit_softcap, rope_base=args.rope_base, tied_embed_init_std=args.tied_embed_init_std, qk_gain_init=args.qk_gain_init, tail_recur_blocks=args.tail_recur_blocks)
-    base_int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
-    int8_fp16_keep_names = set(base_int8_fp16_keep_names)
+    int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
     opt = SplitOptimizers(model, args)
     tail_recur_eval_gains = mx.ones((args.tail_recur_blocks,), dtype=mx.float32)
     compiled_loss = mx.compile(lambda x, y, rg: model.loss(x, y, rg), inputs=model.state, outputs=model.state)
@@ -1297,12 +1262,14 @@ def main() -> None:
     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
     log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
-    log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS} adaptive_budget_bytes:{INT8_ADAPTIVE_KEEP_BUDGET_BYTES} adaptive_topk:{INT8_ADAPTIVE_KEEP_TOPK}")
-    log(f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}")
+    log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
+    log(
+        f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} "
+        f"active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}"
+    )
     log(f"decoder_skip_alignment:start:{model.decoder_skip_start} count:{model.skip_weights.shape[0]} trim:{max((0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]) - 1, 0)}")
     log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
     log(f"tail_recur_curriculum:min_gain:{args.tail_recur_min_gain} ramp_start:{args.tail_recur_ramp_start} ramp_end:{args.tail_recur_ramp_end}")
-    log(f"tail_recur_staging:gap:{args.tail_recur_stage_gap} span:{args.tail_recur_stage_span}")
     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
@@ -1384,12 +1351,6 @@ def main() -> None:
         if should_activate_quant_aware(args, next_step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms) and (
             last_quant_aware_step is None or next_step - last_quant_aware_step >= args.quant_aware_every
         ):
-            int8_fp16_keep_names = adaptive_int8_keep_names(
-                dict(tree_flatten(model.state)),
-                base_int8_fp16_keep_names,
-                args.num_layers,
-                args.tail_recur_blocks,
-            )
             apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix)
             last_quant_aware_step = next_step
             quant_aware_proj_mix = min(quant_aware_proj_mix + args.quant_aware_proj_step, args.quant_aware_proj_end)
@@ -1425,31 +1386,14 @@ def main() -> None:
         ):
             stop_after_step = step
     if last_quant_aware_step is not None and last_quant_aware_step != step:
-        int8_fp16_keep_names = adaptive_int8_keep_names(
-            dict(tree_flatten(model.state)),
-            base_int8_fp16_keep_names,
-            args.num_layers,
-            args.tail_recur_blocks,
-        )
         apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
         mx.synchronize()
         log(f"quant_aware_roundtrip:step:{step} final_pre_save")
     if tracked_ema:
         model.update(tree_unflatten(list(tracked_ema.items())))
-        int8_fp16_keep_names = adaptive_int8_keep_names(
-            dict(tree_flatten(model.state)),
-            base_int8_fp16_keep_names,
-            args.num_layers,
-            args.tail_recur_blocks,
-        )
         apply_final_roundtrip_to_state(model, int8_fp16_keep_names)
-    flat_state = {k: v for k, v in tree_flatten(model.state)}
-    int8_fp16_keep_names = adaptive_int8_keep_names(flat_state, base_int8_fp16_keep_names, args.num_layers, args.tail_recur_blocks)
-    if int8_fp16_keep_names != base_int8_fp16_keep_names:
-        log("int8_adaptive_keep:" + ",".join(sorted(int8_fp16_keep_names - base_int8_fp16_keep_names)))
-    else:
-        log("int8_adaptive_keep:none")
     out_path = out_dir / f"{args.run_id}_mlx_model.npz"
+    flat_state = {k: v for k, v in tree_flatten(model.state)}
     mx.savez(str(out_path), **flat_state)
     log(f"saved_model:{out_path} bytes:{out_path.stat().st_size}")
     quant_obj, quant_stats = quantize_state_dict_int8(flat_state, int8_fp16_keep_names)
