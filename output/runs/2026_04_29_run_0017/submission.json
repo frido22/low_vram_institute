@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12744372,
+  "code_bytes": 79423,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12664949,
+  "rationale": "The recent failures clustered around broad tail-loss and EMA interventions, so this stays on the 0031/0004 recurrent-tail path but narrows the EMA rescue to the tensors most likely to survive export sensitivity: recurrent-tail blocks, carry/control tensors, embeddings, and bigram/output scalars. The hypothesis is that broad quant-aware EMA was over-smoothing early/mid layers, while a tail-focused EMA can still stabilize the final int8 roundtrip without paying that training-quality tax.",
+  "run_id": "2026_04_29_run_0017",
+  "runtime_seconds": 636.890234,
+  "submitter": "frido22",
+  "title": "Selective Tail EMA Export Stabilization",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 547836,
+  "under_16mb": true,
+  "val_bpb": 2.05220187,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
