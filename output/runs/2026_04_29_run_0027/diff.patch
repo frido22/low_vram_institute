@@ -1,0 +1,79 @@
+--- a/train_gpt_mlx.py
++++ b/train_gpt_mlx.py
+@@ -71,6 +71,8 @@
+     tail_recur_ramp_start: float = float(os.environ.get("TAIL_RECUR_RAMP_START", 0.55))
+     tail_recur_ramp_end: float = float(os.environ.get("TAIL_RECUR_RAMP_END", 0.9))
+     tail_recur_min_gain: float = float(os.environ.get("TAIL_RECUR_MIN_GAIN", 0.35))
++    tail_recur_stage_gap: float = float(os.environ.get("TAIL_RECUR_STAGE_GAP", 0.16))
++    tail_recur_stage_span: float = float(os.environ.get("TAIL_RECUR_STAGE_SPAN", 0.12))
+     beta1: float = float(os.environ.get("BETA1", 0.9))
+     beta2: float = float(os.environ.get("BETA2", 0.95))
+     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
+@@ -633,16 +635,24 @@
+     arr: mx.array,
+     int8_fp16_keep_names: set[str],
+     mix: float,
++    include_kept_float: bool = True,
+ ) -> mx.array:
++    if should_keep_float_tensor(name, arr, int8_fp16_keep_names):
++        return roundtrip_tensor_like_final(name, arr, int8_fp16_keep_names) if include_kept_float else arr
+     target = roundtrip_tensor_like_final(name, arr, int8_fp16_keep_names)
+-    if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names):
++    if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating):
+         return target
+     return arr + (target - arr) * mix
+-def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
++def apply_final_roundtrip_to_state(
++    model: GPT,
++    int8_fp16_keep_names: set[str],
++    mix: float = 1.0,
++    include_kept_float: bool = True,
++) -> None:
+     model.update(
+         tree_unflatten(
+             [
+-                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix))
++                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix, include_kept_float))
+                 for name, arr in tree_flatten(model.state)
+             ]
+         )
+@@ -1178,8 +1188,12 @@
+         progress = min(max((progress - args.tail_recur_ramp_start) / (args.tail_recur_ramp_end - args.tail_recur_ramp_start), 0.0), 1.0)
+     if active_blocks == 1:
+         return mx.ones((1,), dtype=mx.float32)
+-    gains = np.linspace(args.tail_recur_min_gain, 1.0, active_blocks, dtype=np.float32)
+-    gains[:-1] = args.tail_recur_min_gain + (1.0 - args.tail_recur_min_gain) * progress
++    gains = np.ones((active_blocks,), dtype=np.float32)
++    for idx in range(active_blocks - 1):
++        stage_start = idx * args.tail_recur_stage_gap
++        stage_span = max(args.tail_recur_stage_span, 1e-6)
++        stage_progress = min(max((progress - stage_start) / stage_span, 0.0), 1.0)
++        gains[idx] = args.tail_recur_min_gain + (1.0 - args.tail_recur_min_gain) * stage_progress
+     gains[-1] = 1.0
+     return mx.array(gains, dtype=mx.float32)
+ def main() -> None:
+@@ -1261,6 +1275,7 @@
+     log(f"quant_aware:train_seconds:{args.quant_aware_train_seconds:.1f} iters:{args.quant_aware_iters} every:{args.quant_aware_every}")
+     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
+     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
++    log("quant_aware_keep_float:defer_final")
+     log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
+     log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
+     log(
+@@ -1270,6 +1285,7 @@
+     log(f"decoder_skip_alignment:start:{model.decoder_skip_start} count:{model.skip_weights.shape[0]} trim:{max((0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]) - 1, 0)}")
+     log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
+     log(f"tail_recur_curriculum:min_gain:{args.tail_recur_min_gain} ramp_start:{args.tail_recur_ramp_start} ramp_end:{args.tail_recur_ramp_end}")
++    log(f"tail_recur_staging:gap:{args.tail_recur_stage_gap} span:{args.tail_recur_stage_span}")
+     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
+     train_time_ms = 0.0
+     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
+@@ -1351,7 +1367,7 @@
+         if should_activate_quant_aware(args, next_step, approx_train_time_ms, max_wallclock_ms, reserved_final_ms) and (
+             last_quant_aware_step is None or next_step - last_quant_aware_step >= args.quant_aware_every
+         ):
+-            apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix)
++            apply_final_roundtrip_to_state(model, int8_fp16_keep_names, mix=quant_aware_proj_mix, include_kept_float=False)
+             last_quant_aware_step = next_step
+             quant_aware_proj_mix = min(quant_aware_proj_mix + args.quant_aware_proj_step, args.quant_aware_proj_end)
+             did_quant_aware_roundtrip = True
