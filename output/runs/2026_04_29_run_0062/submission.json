@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746192,
+  "code_bytes": 80440,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665752,
+  "rationale": "Build on the current reverse-tail recurrent baseline with a compact curriculum change instead of another scalar sweep. The script now keeps the staged tail-recurrence ramp during most of training, but once quant-aware endgame training activates it switches training-time tail recurrence gains to full strength. This directly aligns late updates with the final exact eval/export path, targets the still-promising recurrence-scheduling category, stays compile-stable, and adds only a few lines without bloating the script.",
+  "run_id": "2026_04_29_run_0062",
+  "runtime_seconds": 665.922119,
+  "submitter": "frido22",
+  "title": "Quant-Aware Full Tail Recurrence Endgame",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 577045,
+  "under_16mb": true,
+  "val_bpb": 2.05226898,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
