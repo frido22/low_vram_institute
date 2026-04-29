@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12752877,
+  "code_bytes": 80860,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12672017,
+  "rationale": "Keep the current reverse recurrent-tail family, but change the anchor source from a single decoder-output anchor to per-block first-pass tail anchors blended with the deeper refreshed anchor. This is a compact structural edit in an unspent local category: recurrence behavior, not another scalar sweep. The hypothesis is that lower tail blocks should recur against their own first-pass targets, preserving layer-local information while still inheriting a small amount of deeper refreshed context through the existing learned refresh gates. That should be friendlier to the final int8 roundtrip than pulling every recurrent block toward one shared late anchor.",
+  "run_id": "2026_04_29_run_0065",
+  "runtime_seconds": 664.363125,
+  "submitter": "frido22",
+  "title": "Block-Local Reverse Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 575075,
+  "under_16mb": true,
+  "val_bpb": 2.05432279,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
