@@ -917,3 +917,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0074,2.054222,True,False,Learned Reverse-Tail Exit Blend
 2026_04_29_run_0075,2.054235,True,False,Boosted Shallow Tail Eval Recurrence
 2026_04_29_run_0076,2.053526,True,False,Pulsed Full-Gain Reverse-Tail Curriculum
+2026_04_29_run_0077,2.052121,False,False,Additive Recurrent-Tail QKV FP16 Rescue
