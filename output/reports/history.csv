@@ -893,3 +893,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0047,2.054229,True,False,Asymmetric Reverse-Tail Recurrence Curriculum
 2026_04_29_run_0048,2.052298,True,False,Tail Value FP16 Reallocation
 2026_04_29_run_0049,2.055733,True,False,Reverse-Tail Local Output Anchors
+2026_04_29_run_0050,2.052287,True,False,Late Tail-Aligned Training Mask

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747919,
+  "code_bytes": 81609,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666310,
+  "rationale": "Builds on the recurrent-tail baseline with a compact validation-aligned loss curriculum: training progressively downweights prefix tokens and keeps full weight on the suffix window that most closely matches final stride-based scoring. The edit stays compile-stable by using a fixed-shape mask input, preserves the existing reverse-tail/quant-aware endgame, and reuses chunked microbatch handling so large microbatches still fit MLX constraints.",
+  "run_id": "2026_04_29_run_0050",
+  "runtime_seconds": 666.768726,
+  "submitter": "frido22",
+  "title": "Late Tail-Aligned Training Mask",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 577156,
+  "under_16mb": true,
+  "val_bpb": 2.05228735,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
