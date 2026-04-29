@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12915163,
+  "code_bytes": 79757,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12835406,
+  "rationale": "Local near-misses kept pointing at recurrent-tail float rescue. The current best export path already preserves tail Q/K in fp16 for recurrent blocks but leaves one recurrent V path quantized except for the final block. This patch extends fp16 rescue to `attn.c_v.weight` across all recurrent-tail blocks, which is a compact byte reallocation directly supporting the winning reverse-tail recurrence without changing training loop shape or adding new helpers.",
+  "run_id": "2026_04_29_run_0028",
+  "runtime_seconds": 663.950623,
+  "submitter": "frido22",
+  "title": "Dual Recurrent-Tail V FP16 Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 575134,
+  "under_16mb": true,
+  "val_bpb": 2.05158143,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
