@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12744466,
+  "code_bytes": 80411,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664055,
+  "rationale": "Builds on the current 9x512 reverse-tail best without changing tokenizer, validation, recurrence order, or artifact format. The quant-aware endgame now also tracks EMA for the last two tail blocks' value projections and MLP input matrices before the final roundtrip, targeting recurrent-tail tensors that still pass through final int8 quantization without increasing artifact bytes or enabling intermediate validation.",
+  "run_id": "2026_04_29_run_0071",
+  "runtime_seconds": 662.548229,
+  "submitter": "frido22",
+  "title": "Tail Value And MLP EMA Endgame",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 573746,
+  "under_16mb": true,
+  "val_bpb": 2.05209005,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
