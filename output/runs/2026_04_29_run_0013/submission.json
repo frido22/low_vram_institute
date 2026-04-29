@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 11771116,
+  "code_bytes": 81119,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 11689997,
+  "rationale": "Shift a small amount of export budget toward recurrent-tail value weights while trimming one tail projection keep block. This builds on the current reverse-tail recurrent family and targets the local signal that tail value-path float rescue is still live for final int8+zlib scoring.",
+  "run_id": "2026_04_29_run_0013",
+  "runtime_seconds": 655.333631,
+  "submitter": "frido22",
+  "title": "Recurrent Tail V FP16 Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 565507,
+  "under_16mb": true,
+  "val_bpb": 2.05403311,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
