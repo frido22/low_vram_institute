@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747046,
+  "code_bytes": 80490,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666556,
+  "rationale": "Builds on the best reverse-tail recurrent baseline with a compact structural change instead of another scalar sweep. The tail anchor is no longer frozen through the whole reverse recurrence pass: after each deeper recurrent block, it is partially refreshed toward the new hidden state using a gain-scaled fixed refresh. This spends no extra learned bytes, keeps shapes compile-stable, preserves the current quant-aware/export path, and directly targets the local signal that nearby anchor-refresh variants were promising while avoiding the heavier learned-gate versions that recently regressed.",
+  "run_id": "2026_04_29_run_0007",
+  "runtime_seconds": 659.079116,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor Drift Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 568745,
+  "under_16mb": true,
+  "val_bpb": 2.05268326,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
