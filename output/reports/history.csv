@@ -874,3 +874,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0027,2.053205,True,False,Defer Float-Kept Quant-Aware Roundtrips
 2026_04_29_run_0028,2.051581,True,False,Dual Recurrent-Tail V FP16 Rescue
 2026_04_29_run_0029,2.052248,True,False,BOS-Aware Bigram Gating
+2026_04_29_run_0030,2.066212,True,False,Randomized Training Stream Start

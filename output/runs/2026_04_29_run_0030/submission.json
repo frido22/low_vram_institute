@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12755203,
+  "code_bytes": 81178,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12674025,
+  "rationale": "The current recurrent-tail/export path is already strong, while recent loss-curriculum and float-budget variants regressed badly. This edit spends the run on an unspent data-order hypothesis: under a 600s cap, always starting at shard 0 / token 0 front-loads the same prefix of FineWeb. A deterministic random shard rotation plus seq_len-aligned initial offset should diversify what the fixed step budget sees without changing shapes, eval, quantization, or the hot training step.",
+  "run_id": "2026_04_29_run_0030",
+  "runtime_seconds": 688.952162,
+  "submitter": "frido22",
+  "title": "Randomized Training Stream Start",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 598902,
+  "under_16mb": true,
+  "val_bpb": 2.06621182,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
