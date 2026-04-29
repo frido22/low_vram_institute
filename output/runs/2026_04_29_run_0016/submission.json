@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12573965,
+  "code_bytes": 80067,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12493898,
+  "rationale": "Shift the int8 keep-float budget inside the winning recurrent tail from Q/K-heavy rescue to K/V-heavy rescue, while retaining only the final block Q in fp16. This is a compact export-budget change aimed directly at the final int8+zlib roundtrip metric, testing whether tail value-path preservation helps more than earlier tail query preservation without adding training-time cost.",
+  "run_id": "2026_04_29_run_0016",
+  "runtime_seconds": 713.489392,
+  "submitter": "frido22",
+  "title": "Recurrent Tail V/K Float Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 621020,
+  "under_16mb": true,
+  "val_bpb": 2.05250866,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}

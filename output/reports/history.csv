@@ -860,3 +860,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0013,2.054033,True,False,Recurrent Tail V FP16 Reallocation
 2026_04_29_run_0014,2.054241,True,False,Tail-Anchor Context Blend
 2026_04_29_run_0015,2.054906,True,False,Reverse-Tail Local Anchor Mix
+2026_04_29_run_0016,2.052509,True,False,Recurrent Tail V/K Float Reallocation
