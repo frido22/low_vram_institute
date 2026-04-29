@@ -456,6 +456,16 @@ INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.
 INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
 INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
 PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
+EMA_TAIL_FULL_BLOCKS = int(os.environ.get("EMA_TAIL_FULL_BLOCKS", 3))
+EMA_TAIL_QKV_BLOCKS = int(os.environ.get("EMA_TAIL_QKV_BLOCKS", 4))
+EMA_EXTRA_KEEP_NAMES = tuple(
+    name
+    for name in os.environ.get(
+        "EMA_EXTRA_KEEP_NAMES",
+        "skip_weights,logit_bias,logit_gain,bigram_scale,tail_recur_gates,tail_carry_gates",
+    ).split(",")
+    if name
+)
 INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
 INT8_FP16_KEEP_NAMES = tuple(
     name
@@ -471,7 +481,6 @@ BLOCK_FP16_MATRIX_SUFFIXES = (
     "mlp.proj.weight",
 )
 BLOCK_FP16_PROJ_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
-ROUNDTRIP_TAIL_FULL_MIX_SUFFIXES = ("attn.c_v.weight",) + BLOCK_FP16_PROJ_SUFFIXES
 def _np_float32(arr: mx.array) -> np.ndarray:
     return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
 def int8_clip_q(name: str) -> float:
@@ -487,15 +496,27 @@ def build_int8_fp16_keep_names(num_layers: int, tail_recur_blocks: int) -> set[s
         keep.update(prefix + suffix for suffix in BLOCK_FP16_PROJ_SUFFIXES)
     for block_idx in range(max(num_layers - tail_recur_blocks, 0), num_layers):
         prefix = f"blocks.{block_idx}."
-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:3])
-    if num_layers > 0 and tail_recur_blocks <= 0:
+        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:2])
+    if num_layers > 0:
         prefix = f"blocks.{num_layers - 1}."
         keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
     return keep
 def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
     return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL
-def should_track_ema_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
-    return name.endswith(BLOCK_FP16_PROJ_SUFFIXES) or should_keep_float_tensor(name, arr, int8_fp16_keep_names)
+def build_tracked_ema_names(num_layers: int, int8_fp16_keep_names: set[str]) -> set[str]:
+    tracked = set(int8_fp16_keep_names)
+    tracked.update(EMA_EXTRA_KEEP_NAMES)
+    full_start = max(num_layers - EMA_TAIL_FULL_BLOCKS, 0)
+    qkv_start = max(num_layers - EMA_TAIL_QKV_BLOCKS, 0)
+    for block_idx in range(num_layers):
+        prefix = f"blocks.{block_idx}."
+        if block_idx >= full_start:
+            tracked.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES)
+        elif block_idx >= qkv_start:
+            tracked.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:3])
+        else:
+            tracked.update(prefix + suffix for suffix in BLOCK_FP16_PROJ_SUFFIXES)
+    return tracked
 def keep_float_array(name: str, arr: mx.array, passthrough_orig_dtypes: dict[str, str]) -> np.ndarray:
     if any(pattern in name for pattern in INT8_KEEP_FLOAT_FP32_NAME_PATTERNS):
         return np.ascontiguousarray(_np_float32(arr))
@@ -631,44 +652,21 @@ def roundtrip_tensor_like_final(
     if transposed:
         out_arr = np.ascontiguousarray(out_arr.T)
     return mx.array(np.ascontiguousarray(out_arr), dtype=arr.dtype)
-def block_idx_from_name(name: str) -> int:
-    if not name.startswith("blocks."):
-        return -1
-    parts = name.split(".", 2)
-    return int(parts[1]) if len(parts) > 2 and parts[1].isdigit() else -1
-def roundtrip_mix_for_name(name: str, mix: float, tail_recur_start: int, num_layers: int) -> float:
-    if mix >= 1.0:
-        return 1.0
-    block_idx = block_idx_from_name(name)
-    if block_idx >= 0:
-        if block_idx >= tail_recur_start:
-            if name.endswith(ROUNDTRIP_TAIL_FULL_MIX_SUFFIXES):
-                return 1.0
-            return min(1.0, mix + 0.2)
-        if block_idx >= max(num_layers - INT8_FP16_TAIL_PROJ_BLOCKS, 0):
-            return min(1.0, mix + 0.1)
-        return mix * 0.3
-    if name.startswith("bigram_") or name in {"logit_bias", "logit_gain"}:
-        return mix * 0.5
-    return mix
 def blend_tensor_toward_final(
     name: str,
     arr: mx.array,
     int8_fp16_keep_names: set[str],
     mix: float,
-    tail_recur_start: int,
-    num_layers: int,
 ) -> mx.array:
     target = roundtrip_tensor_like_final(name, arr, int8_fp16_keep_names)
     if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names):
         return target
-    local_mix = roundtrip_mix_for_name(name, mix, tail_recur_start, num_layers)
-    return arr + (target - arr) * local_mix
+    return arr + (target - arr) * mix
 def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
     model.update(
         tree_unflatten(
             [
-                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix, model.tail_recur_start, len(model.blocks)))
+                (name, blend_tensor_toward_final(name, arr, int8_fp16_keep_names, mix))
                 for name, arr in tree_flatten(model.state)
             ]
         )
@@ -1249,6 +1247,7 @@ def main() -> None:
     train_loader = TokenLoader(args.train_files, log_fn=log, dataset_name=dataset_name)
     model = GPT(vocab_size=args.vocab_size, num_layers=args.num_layers, dim=args.model_dim, num_heads=args.num_heads, num_kv_heads=args.num_kv_heads, mlp_mult=args.mlp_mult, logit_chunk_tokens=args.logit_chunk_tokens, logit_softcap=args.logit_softcap, rope_base=args.rope_base, tied_embed_init_std=args.tied_embed_init_std, qk_gain_init=args.qk_gain_init, tail_recur_blocks=args.tail_recur_blocks)
     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
+    tracked_ema_names = build_tracked_ema_names(args.num_layers, int8_fp16_keep_names)
     opt = SplitOptimizers(model, args)
     tail_recur_eval_gains = mx.ones((args.tail_recur_blocks,), dtype=mx.float32)
     compiled_loss = mx.compile(lambda x, y, rg: model.loss(x, y, rg), inputs=model.state, outputs=model.state)
@@ -1301,7 +1300,15 @@ def main() -> None:
     log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
     log(f"tail_recur_curriculum:min_gain:{args.tail_recur_min_gain} ramp_start:{args.tail_recur_ramp_start} ramp_end:{args.tail_recur_ramp_end}")
     log(f"tail_recur_staging:gap:{args.tail_recur_stage_gap} span:{args.tail_recur_stage_span}")
-    log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
+    log(
+        "tail_ema:decay:{:.2f} tracked_names:{} tail_full_blocks:{} tail_qkv_blocks:{} extra_names:{}".format(
+            PROJ_EMA_DECAY,
+            len(tracked_ema_names),
+            EMA_TAIL_FULL_BLOCKS,
+            EMA_TAIL_QKV_BLOCKS,
+            ",".join(EMA_EXTRA_KEEP_NAMES) if EMA_EXTRA_KEEP_NAMES else "none",
+        )
+    )
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
     stop_after_step: int | None = None
@@ -1392,7 +1399,7 @@ def main() -> None:
                 tracked_ema = {
                     name: arr + mx.zeros_like(arr)
                     for name, arr in flat_params.items()
-                    if mx.issubdtype(arr.dtype, mx.floating) and should_track_ema_tensor(name, arr, int8_fp16_keep_names)
+                    if mx.issubdtype(arr.dtype, mx.floating) and name in tracked_ema_names
                 }
             else:
                 for name in tracked_ema:

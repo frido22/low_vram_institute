@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746617,
+  "code_bytes": 81095,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665522,
+  "rationale": "Build on the current reverse-tail recurrent baseline by shifting late-stage EMA toward tensors that are most likely to matter after int8+zlib export: all kept-float tensors plus deeper tail QKV/full-block weights and recurrent control scalars. This is a compact export-aligned structural edit, not another scalar sweep, and it directly targets the recurrent-tail/quantization endgame that remains the strongest local signal.",
+  "run_id": "2026_04_29_run_0052",
+  "runtime_seconds": 652.633995,
+  "submitter": "frido22",
+  "title": "Tail-Selective EMA Expansion",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 564410,
+  "under_16mb": true,
+  "val_bpb": 2.05255289,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
