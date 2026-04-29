@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747035,
+  "code_bytes": 82077,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664958,
+  "rationale": "Builds on the strongest reverse-tail recurrent baseline with one compact structural change: the recurrent tail now keeps the decoder-output anchor early, then gradually refreshes that anchor later in training and at eval. The edit is compile-stable, preserves the existing export/quant-aware path, and targets the still-promising reverse-tail anchor variant category without another tiny scalar sweep.",
+  "run_id": "2026_04_29_run_0059",
+  "runtime_seconds": 667.421001,
+  "submitter": "frido22",
+  "title": "Staged Reverse-Tail Anchor Refresh Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 578059,
+  "under_16mb": true,
+  "val_bpb": 2.0530988,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
