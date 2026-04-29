@@ -85,7 +85,6 @@ class Hyperparameters:
     muon_momentum_warmup_steps: int = int(os.environ.get("MUON_MOMENTUM_WARMUP_STEPS", 500))
     grad_clip_norm: float = float(os.environ.get("GRAD_CLIP_NORM", 0.0))
     out_dir: str = os.environ.get("OUT_DIR", "logs")
-    train_random_start: bool = bool(int(os.environ.get("TRAIN_RANDOM_START", "1")))
     @property
     def train_files(self) -> str:
         return f"{self.data_path}/fineweb_train_*.bin"
@@ -168,27 +167,16 @@ class TokenStream:
         pattern: str,
         log_fn: Callable[[str], None] | None = None,
         dataset_name: str = "",
-        seed: int = 0,
-        seq_len: int = 1,
-        random_start: bool = False,
     ):
         self.files = [Path(p) for p in sorted(glob.glob(pattern))]
         if not self.files:
             raise FileNotFoundError(f"No files found for pattern: {pattern}")
-        self.start_file_idx = 0
         self.epoch = 1
         self.file_idx = 0
         self.log_fn = log_fn
         self.dataset_name = dataset_name
-        if random_start and len(self.files) > 1:
-            self.start_file_idx = int(np.random.default_rng(seed).integers(len(self.files)))
-            self.files = self.files[self.start_file_idx :] + self.files[: self.start_file_idx]
         self.tokens = load_data_shard(self.files[0])
-        if random_start:
-            max_pos = max(((self.tokens.size - 2) // max(seq_len, 1)) * max(seq_len, 1), 0)
-            self.pos = int(np.random.default_rng(seed ^ 0x5F3759DF).integers(max_pos // max(seq_len, 1) + 1)) * max(seq_len, 1) if max_pos > 0 else 0
-        else:
-            self.pos = 0
+        self.pos = 0
     def next_file(self) -> None:
         self.file_idx = (self.file_idx + 1) % len(self.files)
         if self.file_idx == 0:
@@ -217,18 +205,8 @@ class TokenLoader:
         pattern: str,
         log_fn: Callable[[str], None] | None = None,
         dataset_name: str = "",
-        seed: int = 0,
-        seq_len: int = 1,
-        random_start: bool = False,
     ):
-        self.stream = TokenStream(
-            pattern,
-            log_fn=log_fn,
-            dataset_name=dataset_name,
-            seed=seed,
-            seq_len=seq_len,
-            random_start=random_start,
-        )
+        self.stream = TokenStream(pattern, log_fn=log_fn, dataset_name=dataset_name)
     def next_batch(self, batch_tokens: int, seq_len: int) -> tuple[mx.array, mx.array]:
         usable = (batch_tokens // seq_len) * seq_len
         if usable <= 0:
@@ -306,11 +284,11 @@ class Block(nn.Module):
 class GPT(nn.Module):
     def __init__(self, vocab_size: int, num_layers: int, dim: int, num_heads: int, num_kv_heads: int, mlp_mult: int,
                  logit_chunk_tokens: int, logit_softcap: float, rope_base: float, tied_embed_init_std: float,
-                 qk_gain_init: float, tail_recur_blocks: int):
+                 qk_gain_init: float, tail_recur_blocks: int, bos_token_id: int):
         super().__init__()
         if logit_softcap <= 0.0:
             raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
-        self.logit_chunk_tokens = logit_chunk_tokens; self.logit_softcap = logit_softcap
+        self.logit_chunk_tokens = logit_chunk_tokens; self.logit_softcap = logit_softcap; self.bos_token_id = bos_token_id
         self.tok_emb = nn.Embedding(vocab_size, dim)
         self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32); self.logit_gain = mx.array(1.0, dtype=mx.float32); self.bigram_rank = int(os.environ.get("BIGRAM_RANK", 64))
         if self.bigram_rank > 0:
@@ -335,7 +313,10 @@ class GPT(nn.Module):
     def project_logits(self, x: mx.array, prev_ids: mx.array | None = None) -> mx.array:
         logits = self.logit_gain.astype(x.dtype) * (x @ self.tok_emb.weight.astype(x.dtype).T)
         if self.bigram_rank > 0 and prev_ids is not None:
-            logits = logits + self.bigram_scale.astype(x.dtype) * self.bigram_out(self.bigram_in(prev_ids.reshape(-1)).astype(x.dtype))
+            bigram_logits = self.bigram_out(self.bigram_in(prev_ids.reshape(-1)).astype(x.dtype))
+            if self.bos_token_id >= 0:
+                bigram_logits = bigram_logits * (prev_ids.reshape(-1) != self.bos_token_id).astype(x.dtype)[:, None]
+            logits = logits + self.bigram_scale.astype(x.dtype) * bigram_logits
         return self.softcap(logits + self.logit_bias.astype(x.dtype))
     def __call__(self, input_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
         x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))
@@ -1244,15 +1225,8 @@ def main() -> None:
     doc_spans = build_validation_doc_spans(val_tokens, bos_token_id) if bos_token_id >= 0 else None
     base_bytes_lut, has_leading_space_lut, is_boundary_token_lut = build_sentencepiece_luts(sp, args.vocab_size)
     mx.random.seed(args.seed)
-    train_loader = TokenLoader(
-        args.train_files,
-        log_fn=log,
-        dataset_name=dataset_name,
-        seed=args.seed,
-        seq_len=args.train_seq_len,
-        random_start=args.train_random_start,
-    )
-    model = GPT(vocab_size=args.vocab_size, num_layers=args.num_layers, dim=args.model_dim, num_heads=args.num_heads, num_kv_heads=args.num_kv_heads, mlp_mult=args.mlp_mult, logit_chunk_tokens=args.logit_chunk_tokens, logit_softcap=args.logit_softcap, rope_base=args.rope_base, tied_embed_init_std=args.tied_embed_init_std, qk_gain_init=args.qk_gain_init, tail_recur_blocks=args.tail_recur_blocks)
+    train_loader = TokenLoader(args.train_files, log_fn=log, dataset_name=dataset_name)
+    model = GPT(vocab_size=args.vocab_size, num_layers=args.num_layers, dim=args.model_dim, num_heads=args.num_heads, num_kv_heads=args.num_kv_heads, mlp_mult=args.mlp_mult, logit_chunk_tokens=args.logit_chunk_tokens, logit_softcap=args.logit_softcap, rope_base=args.rope_base, tied_embed_init_std=args.tied_embed_init_std, qk_gain_init=args.qk_gain_init, tail_recur_blocks=args.tail_recur_blocks, bos_token_id=bos_token_id)
     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
     opt = SplitOptimizers(model, args)
     tail_recur_eval_gains = mx.ones((args.tail_recur_blocks,), dtype=mx.float32)
@@ -1269,10 +1243,6 @@ def main() -> None:
     log(f"run_id:{args.run_id}")
     log(f"mlx_version:{mx.__version__}")
     log(f"train_loader:shards pattern={args.train_files}")
-    log(
-        f"train_loader:start random:{args.train_random_start} "
-        f"file_idx:{train_loader.stream.start_file_idx} pos:{train_loader.stream.pos}"
-    )
     log(f"val_loader:shards pattern={args.val_files} tokens:{val_tokens.size - 1}")
     if expected_train_files is None:
         log(f"train_loader:dataset:{dataset_name} train_shards:{actual_train_files}")
