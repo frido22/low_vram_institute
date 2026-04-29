@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747812,
+  "code_bytes": 80240,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12667572,
+  "rationale": "Builds on the current reverse-tail recurrent baseline with a compact new recurrence-control path instead of another scalar sweep. The added tail_anchor_gates let each recurrent tail block refresh its anchor toward the newly updated hidden state, turning the fixed decoder-output anchor into a learned EMA-style anchor during reverse recurrence. This keeps shapes and compile behavior stable, stays cheap in bytes, preserves the existing quant-aware/export path, and directly targets the strong local motif around reverse-tail anchor variants.",
+  "run_id": "2026_04_29_run_0012",
+  "runtime_seconds": 637.84748,
+  "submitter": "frido22",
+  "title": "Reverse-Tail EMA Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 549888,
+  "under_16mb": true,
+  "val_bpb": 2.05298092,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
