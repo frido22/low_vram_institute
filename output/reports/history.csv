@@ -881,3 +881,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0034,2.052261,True,False,Quant-Aware Full-Tail Endgame
 2026_04_29_run_0035,2.050704,True,False,Lagged Tail-Carry Curriculum
 2026_04_29_run_0036,2.090048,True,False,Drop Bigram Head For Tail Value Float Rescue
+2026_04_29_run_0037,2.054105,True,False,Delayed Tail Carry Curriculum

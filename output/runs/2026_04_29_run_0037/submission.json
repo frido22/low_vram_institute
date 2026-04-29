@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12741680,
+  "code_bytes": 80603,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12661077,
+  "rationale": "Builds on the reverse-tail recurrent baseline with a compact structural edit: keep recurrent block updates on the existing staged schedule, but delay and sharpen the anchor carry path so early recurrence learns with less anchor interference and full carry only arrives late. This targets the strongest local motif (reverse-tail curricula) instead of repeating flat LR/batch sweeps, preserves compile-stable shapes, keeps export behavior unchanged, and stays under the line cap.",
+  "run_id": "2026_04_29_run_0037",
+  "runtime_seconds": 680.509491,
+  "submitter": "frido22",
+  "title": "Delayed Tail Carry Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 590781,
+  "under_16mb": true,
+  "val_bpb": 2.05410532,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
