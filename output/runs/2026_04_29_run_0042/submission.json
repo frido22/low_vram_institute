@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12918183,
+  "code_bytes": 81126,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12837057,
+  "rationale": "Build on the recurrent-tail baseline with one compact structural change instead of another scalar sweep. This adds a fixed reverse-tail anchor refresh schedule so the recurrence can gradually replace the stale decoder anchor with freshly recurrent states, while reallocating the fp16 export budget from one broader tail projection keep to full QKV preservation across the recurrent tail plus a small bridge projection keep just before it. The hypothesis is that exact int8+zlib validation is limited more by reverse-tail state reuse and value-path quantization than by more generic late projection rescue.",
+  "run_id": "2026_04_29_run_0042",
+  "runtime_seconds": 664.778308,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor Refresh With Tail QKV Float Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 575548,
+  "under_16mb": true,
+  "val_bpb": 2.05110957,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
