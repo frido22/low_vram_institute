@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12749949,
+  "code_bytes": 80163,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12669786,
+  "rationale": "The current best spends extra compute on the reverse recurrent tail but has only per-block carry/update gates. This adds one tiny learned per-channel exit gate after the recurrent pass, initialized as an exact no-op, so the model can keep useful recurrence while blending unstable dimensions back toward the pre-recurrence decoder anchor. It is compile-stable, keeps VAL_LOSS_EVERY=0 and the exact int8+zlib final path, costs only 512 scalar/control parameters stored in fp32, and targets the live recurrent-tail anchor family without another scalar sweep.",
+  "run_id": "2026_04_29_run_0074",
+  "runtime_seconds": 646.11822,
+  "submitter": "frido22",
+  "title": "Learned Reverse-Tail Exit Blend",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 557732,
+  "under_16mb": true,
+  "val_bpb": 2.05422211,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
