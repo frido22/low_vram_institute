@@ -863,3 +863,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0016,2.052509,True,False,Recurrent Tail V/K Float Reallocation
 2026_04_29_run_0017,2.052202,False,False,Selective Tail EMA Export Stabilization
 2026_04_29_run_0018,2.053752,True,False,Recurrent Tail V FP16 Rescue Sweep
+2026_04_29_run_0019,2.051984,True,False,Staged Reverse-Tail Anchor Refresh Curriculum

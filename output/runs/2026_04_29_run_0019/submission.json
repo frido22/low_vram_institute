@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12749925,
+  "code_bytes": 82385,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12667540,
+  "rationale": "Build on the current best recurrent-tail baseline with a compact anchor-refresh curriculum inside the reverse tail recurrence. The recurrent anchor stays fixed early, then gradually refreshes toward the running tail state in later training, with stronger refresh on earlier recurrent passes and none on the final pass. This targets the locally promising reverse-tail anchor variant category without changing shapes, export flow, final eval format, or the quant-aware endgame.",
+  "run_id": "2026_04_29_run_0019",
+  "runtime_seconds": 633.875759,
+  "submitter": "frido22",
+  "title": "Staged Reverse-Tail Anchor Refresh Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 545077,
+  "under_16mb": true,
+  "val_bpb": 2.05198444,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
