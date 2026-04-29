@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747274,
+  "code_bytes": 80217,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12667057,
+  "rationale": "Builds on the current reverse-tail recurrent baseline with a compact new idea: add one scalar anchor-refresh gate per recurrent tail block so the decoder-output anchor can be partially refreshed toward the live tail state during the reverse recurrence pass. This keeps shapes and step structure fixed, adds negligible byte cost, survives int8 export by marking the new control tensor as float-kept, and directly targets the recurrent-tail path that has stayed strongest locally.",
+  "run_id": "2026_04_29_run_0046",
+  "runtime_seconds": 687.868169,
+  "submitter": "frido22",
+  "title": "Staged Reverse-Tail Anchor Refresh Gate",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 598135,
+  "under_16mb": true,
+  "val_bpb": 2.05165095,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
