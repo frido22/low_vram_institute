@@ -867,3 +867,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0020,2.050947,True,False,Staged Reverse-Tail Anchor Refresh
 2026_04_29_run_0021,2.051828,True,False,Late Tail-Aligned Loss Curriculum
 2026_04_29_run_0022,2.052304,True,False,Learned Reverse-Tail Anchor Refresh
+2026_04_29_run_0023,2.052292,True,False,Wallclock-Aligned Reverse-Tail Curriculum

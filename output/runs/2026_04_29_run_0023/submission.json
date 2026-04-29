@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746567,
+  "code_bytes": 80474,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666093,
+  "rationale": "The current best family is recurrence-curriculum based, but its tail schedule was keyed to ITERATIONS despite this launcher stopping on wallclock long before 20k steps. That means the staged reverse-tail recurrence barely ramps during real Mac-mini runs. This edit keeps the proven 9x512 recurrent-tail/export path intact while moving recurrence staging onto actual train-budget progress (wallclock minus reserved final-eval time), so late-tail recurrence strengthens when the run is actually late. It is a compact structural change, not another flat LR/batch sweep, and it preserves exact final eval and artifact behavior.",
+  "run_id": "2026_04_29_run_0023",
+  "runtime_seconds": 648.629998,
+  "submitter": "frido22",
+  "title": "Wallclock-Aligned Reverse-Tail Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 560301,
+  "under_16mb": true,
+  "val_bpb": 2.05229225,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
