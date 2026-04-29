@@ -10,6 +10,7 @@ High-confidence local negatives:
 - Squeezed output-head families have consistently missed. Extra output-head capacity and large underfilled artifacts were not the bottleneck.
 - Larger update granularity, larger eval-batch changes, and broad nearby-shape churn did not beat the current best. Use them rarely.
 - Current planner waste pattern: overlong scripts. Plans that exceed the `1500` line limit are rejected before launch. Avoid ideas that need broad file growth.
+- Recent `2026_04_29` runs around `2.05` BPB are not useful evidence about the architecture. They enabled intermediate validation, stopped around step `51`, and spent the wallclock budget before real training. Keep `VAL_LOSS_EVERY=0` and preserve the final exact eval only.
 
 Medium-confidence local lessons:
 - Small control tweaks can get close, but they have plateaued. Do not let LR, batch, reserve, or seed sweeps dominate the queue.
@@ -25,4 +26,5 @@ What still looks promising:
 Planner bias from these runs:
 - Default to creative but compact structural edits on top of the `0031` recurrent-tail baseline.
 - Down-rank repeated hyperparameter-only sweeps, output-head-only expansions, large batch/eval perturbations, and file-bloating rewrites.
+- Reject plans that add intermediate validation, early tiny iteration caps, or any scoring proxy that prevents a normal 700+ step Mac-mini training run.
 - If a planned run needs many new helpers, simplify the existing script first or choose a smaller hypothesis.

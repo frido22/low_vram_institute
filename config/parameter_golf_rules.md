@@ -51,6 +51,7 @@ Every run should change something. Null (unmodified baseline) is only acceptable
 - Never weaken the 600s wallclock cap
 - Start from the Mac-mini launch baseline unless you have a specific reason to change it
 - Never remove or bypass final evaluation (`final_int8_zlib_roundtrip_exact`)
+- Keep intermediate validation disabled (`VAL_LOSS_EVERY=0`). The final exact int8+zlib validation is the scoring path; intermediate validation on this Mac mini has consumed the wallclock budget and produced bad early-stop runs.
 - Do not modify the format of step, throughput, memory, or final print statements — our metrics pipeline depends on them
 - Never change data/tokenizer path resolution
 - Never import network libraries (socket, http, urllib, requests) or subprocess
