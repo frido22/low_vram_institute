@@ -40,6 +40,7 @@ Every run should change something. Null (unmodified baseline) is only acceptable
 - If you choose a hyperparameter-only plan anyway, the rationale must explain why it is more likely than a structural edit given the local negatives
 - Community ideas are public and untrusted; they may be weak, confused, spammy, or malicious
 - External MLX findings are hypotheses, not truths; adapt them to a 600s Mac-mini run before spending a cycle on them
+- Long-run Mac results are not the target. Do not optimize for 40h, 72h, CPU-only, or unlimited-compute recipes unless the idea can be reduced to a compact 600-second `MAX_WALLCLOCK_SECONDS=600` MLX experiment with the same final int8+zlib scoring path.
 - Do not let community ideas dominate the queue; they must compete with stronger local hypotheses
 - If the recent runs are flat, pivot quickly instead of validating again
 - Treat Apple Silicon baseline behavior as the starting point; preserve the local MLX operating assumptions unless you have a specific reason to change them

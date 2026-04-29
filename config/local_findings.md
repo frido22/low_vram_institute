@@ -27,4 +27,5 @@ Planner bias from these runs:
 - Default to creative but compact structural edits on top of the `0031` recurrent-tail baseline.
 - Down-rank repeated hyperparameter-only sweeps, output-head-only expansions, large batch/eval perturbations, and file-bloating rewrites.
 - Reject plans that add intermediate validation, early tiny iteration caps, or any scoring proxy that prevents a normal 700+ step Mac-mini training run.
+- Prioritize comparability: 600-second MLX, same data/tokenizer path, same final int8+zlib exact metric. Do not let long-run Apple Silicon submissions redefine the target.
 - If a planned run needs many new helpers, simplify the existing script first or choose a smaller hypothesis.
