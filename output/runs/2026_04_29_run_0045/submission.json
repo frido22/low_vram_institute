@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747054,
+  "code_bytes": 80255,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666799,
+  "rationale": "Builds directly on the reverse-tail recurrent baseline and spends the run on a compact structural change rather than another scalar sweep. The new `tail_anchor_gates` let the recurrent tail progressively refresh its anchor after each reverse recurrent block, so later recurrent passes can reuse a learned moving anchor instead of the fixed decoder-output anchor. This keeps shapes and export behavior stable, adds only one small control tensor per tail block, preserves the current quant-aware endgame, and targets the still-promising reverse-tail anchor variant category without a broad rewrite.",
+  "run_id": "2026_04_29_run_0045",
+  "runtime_seconds": 657.154261,
+  "submitter": "frido22",
+  "title": "Gated Reverse-Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 567909,
+  "under_16mb": true,
+  "val_bpb": 2.05329826,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

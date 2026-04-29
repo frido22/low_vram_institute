@@ -888,3 +888,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0042,2.051110,True,False,Reverse-Tail Anchor Refresh With Tail QKV Float Reallocation
 2026_04_29_run_0043,2.051704,True,False,Wallclock-Aligned Reverse-Tail Curriculum
 2026_04_29_run_0044,2.010073,True,False,Reverse-Tail Hard Activation Curriculum
+2026_04_29_run_0045,2.053298,True,False,Gated Reverse-Tail Anchor Refresh
