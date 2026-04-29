@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12668369,
+  "code_bytes": 3101,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665268,
+  "rationale": "Builds on the current 9x512 reverse-tail recurrent best. The existing iteration-normalized ramp never reaches its ramp window in a 600s Mac-mini run, so the first recurrent tail block trains mostly at 0.35 gain while final evaluation uses full gain. This wrapper applies a surgical runtime patch that adds sparse compile-stable full-gain pulses from steps 64-480, exposing the tail to the exact eval profile without changing data paths, validation cadence, export budget, or final int8+zlib scoring.",
+  "run_id": "2026_04_29_run_0076",
+  "runtime_seconds": 656.4847,
+  "submitter": "frido22",
+  "title": "Pulsed Full-Gain Reverse-Tail Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 568627,
+  "under_16mb": true,
+  "val_bpb": 2.05352629,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
