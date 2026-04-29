@@ -900,3 +900,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0054,2.050429,True,False,Reverse-Tail Anchor Refresh With Value-Path FP16 Reallocation
 2026_04_29_run_0055,2.053418,True,False,Gated Reverse-Tail Anchor Refresh
 2026_04_29_run_0056,2.052558,False,False,Adaptive Tail Export Rescue
+2026_04_29_run_0057,2.051464,True,False,Reverse-Tail Anchor Refresh Curriculum

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746039,
+  "code_bytes": 80466,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665573,
+  "rationale": "Built on the current recurrent-tail baseline instead of another scalar sweep. This run adds a compact, compile-stable structural change: recurrent tail blocks now anneal from the original decoder-output anchor toward a partially refreshed local anchor as recurrence gain rises, while keeping the last reverse-tail block fully anchored. Hypothesis: this preserves the winning reverse-tail anchor behavior early, but reduces over-constraining of earlier recurrent passes late in training and at export time, improving the final int8+zlib roundtrip metric without adding parameter-heavy paths or changing eval/export plumbing.",
+  "run_id": "2026_04_29_run_0057",
+  "runtime_seconds": 682.019934,
+  "submitter": "frido22",
+  "title": "Reverse-Tail Anchor Refresh Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 592650,
+  "under_16mb": true,
+  "val_bpb": 2.05146374,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
