@@ -913,3 +913,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0067,2.051353,False,False,Staged Reverse-Tail Anchor Refresh
 2026_04_29_run_0070,2.051909,False,False,Step-Budgeted Reverse-Tail Recurrence Ramp
 2026_04_29_run_0071,2.052090,True,False,Tail Value And MLP EMA Endgame
+2026_04_29_run_0072,2.062243,True,False,Two-Stream Fixed-Offset Training Loader
