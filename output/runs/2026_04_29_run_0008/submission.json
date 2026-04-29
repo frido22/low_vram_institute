@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12749780,
+  "code_bytes": 82087,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12667693,
+  "rationale": "Builds on the reverse-tail recurrent baseline with a compact structural change: keep the decoder-output anchor fixed early, then gradually allow a small scheduled anchor refresh during the reverse recurrent tail. This spends extra recurrence capacity late, stays compile-stable, preserves the existing quant-aware/export path, and directly targets final int8 roundtrip behavior rather than another scalar-only sweep.",
+  "run_id": "2026_04_29_run_0008",
+  "runtime_seconds": 658.226755,
+  "submitter": "frido22",
+  "title": "Late Scheduled Tail Anchor Refresh",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 569822,
+  "under_16mb": true,
+  "val_bpb": 2.05152513,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

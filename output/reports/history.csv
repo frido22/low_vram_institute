@@ -852,3 +852,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0005,2.056217,True,False,Reverse-Tail Block-Local Anchors
 2026_04_29_run_0006,2.049005,True,False,Capped Staged Reverse-Tail Eval Profile
 2026_04_29_run_0007,2.052683,True,False,Reverse-Tail Anchor Drift Refresh
+2026_04_29_run_0008,2.051525,True,False,Late Scheduled Tail Anchor Refresh
