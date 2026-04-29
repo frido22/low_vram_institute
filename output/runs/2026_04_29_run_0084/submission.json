@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12692324,
+  "code_bytes": 22725,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12669599,
+  "rationale": "Reallocate the recurrent-tail fp16 export rescue from the first recurrent K matrix to the matching V matrix while keeping the final recurrent K rescued. This is byte-neutral because K and V have the same shape, preserves the winning reverse-tail curriculum and quant-aware endgame, and tests whether final int8 roundtrip error is more sensitive to recurrent value transport than to the earlier tail key projection.",
+  "run_id": "2026_04_29_run_0084",
+  "runtime_seconds": 679.692562,
+  "submitter": "frido22",
+  "title": "Byte-Neutral Tail Value FP16 Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 591902,
+  "under_16mb": true,
+  "val_bpb": 2.05250076,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
