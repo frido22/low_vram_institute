@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747781,
+  "code_bytes": 80309,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12667472,
+  "rationale": "Keep the current compact recurrent-tail/export setup, but spend the run on a traversal-order transplant instead of another scalar sweep. The recurrent tail pass now replays tail blocks in odds-then-evens order while preserving the same gates, carry anchor, tensor shapes, quant-aware endgame, and final exact int8+zlib evaluation path.",
+  "run_id": "2026_04_29_run_0082",
+  "runtime_seconds": 694.499358,
+  "submitter": "frido22",
+  "title": "Odds-Then-Evens Tail Recurrence Traversal",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 605781,
+  "under_16mb": true,
+  "val_bpb": 2.05271739,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
