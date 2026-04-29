@@ -858,3 +858,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0011,2.051986,True,False,Staged Tail-Weighted Loss Alignment
 2026_04_29_run_0012,2.052981,True,False,Reverse-Tail EMA Anchor Refresh
 2026_04_29_run_0013,2.054033,True,False,Recurrent Tail V FP16 Reallocation
+2026_04_29_run_0014,2.054241,True,False,Tail-Anchor Context Blend

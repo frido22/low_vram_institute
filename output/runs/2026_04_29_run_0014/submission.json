@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12751143,
+  "code_bytes": 80262,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12670881,
+  "rationale": "Build on the best reverse-tail recurrent family with a small structural change: the repeated tail blocks no longer always see the raw embedding anchor as their secondary residual source. A new learned per-tail-block `tail_anchor_mix` blends the decoder tail anchor into the recurrent block context, so recurrence can reuse late features without changing shapes, traversal order, export path, or the 600s schedule. This spends very few bytes, stays compile-stable, and directly targets the recurrent-tail path that still looks most live locally.",
+  "run_id": "2026_04_29_run_0014",
+  "runtime_seconds": 763.671758,
+  "submitter": "frido22",
+  "title": "Tail-Anchor Context Blend",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 674636,
+  "under_16mb": true,
+  "val_bpb": 2.05424114,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
