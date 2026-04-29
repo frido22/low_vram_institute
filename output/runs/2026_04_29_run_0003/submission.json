@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12747457,
+  "code_bytes": 81363,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666094,
+  "rationale": "The current best family is still the compact reverse-tail recurrent path, while recent anchor-refresh variants regressed badly. This run keeps the proven structure but splits the late-tail curriculum into two compile-stable schedules: the carry path turns on earlier and with a higher floor than the recurrent block update, so the model can learn to reuse the decoder-output anchor before paying the full recurrent transform cost. That is a real structural change, stays compact, preserves exact final int8+zlib evaluation, and directly targets the recurrent-tail/export regime that produced the local wins.",
+  "run_id": "2026_04_29_run_0003",
+  "runtime_seconds": 651.542953,
+  "submitter": "frido22",
+  "title": "Dual Carry/Update Tail Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 563435,
+  "under_16mb": true,
+  "val_bpb": 2.05127217,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
