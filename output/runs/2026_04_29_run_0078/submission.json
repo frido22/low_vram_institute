@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12681082,
+  "code_bytes": 3528,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12677554,
+  "rationale": "The current best stops training at the reserved final-eval deadline, so the existing LR warmdown is keyed to the wrong endpoint and usually never affects the quant-aware endgame. This surgical patch keeps the recurrent-tail model, export budget, validation path, and print formats intact while making warmdown target the actual train deadline before final_int8_zlib_roundtrip_exact.",
+  "run_id": "2026_04_29_run_0078",
+  "runtime_seconds": 678.957002,
+  "submitter": "frido22",
+  "title": "Train-Budget Quant-Aware Warmdown",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 589922,
+  "under_16mb": true,
+  "val_bpb": 2.05672736,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

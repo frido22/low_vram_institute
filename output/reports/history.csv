@@ -918,3 +918,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0075,2.054235,True,False,Boosted Shallow Tail Eval Recurrence
 2026_04_29_run_0076,2.053526,True,False,Pulsed Full-Gain Reverse-Tail Curriculum
 2026_04_29_run_0077,2.052121,False,False,Additive Recurrent-Tail QKV FP16 Rescue
+2026_04_29_run_0078,2.056727,True,False,Train-Budget Quant-Aware Warmdown
