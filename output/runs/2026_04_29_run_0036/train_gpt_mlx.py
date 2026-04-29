@@ -290,9 +290,7 @@ class GPT(nn.Module):
             raise ValueError(f"logit_softcap must be positive, got {logit_softcap}")
         self.logit_chunk_tokens = logit_chunk_tokens; self.logit_softcap = logit_softcap
         self.tok_emb = nn.Embedding(vocab_size, dim)
-        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32); self.logit_gain = mx.array(1.0, dtype=mx.float32); self.bigram_rank = int(os.environ.get("BIGRAM_RANK", 64))
-        if self.bigram_rank > 0:
-            self.bigram_in = nn.Embedding(vocab_size, self.bigram_rank); self.bigram_out = CastedLinear(self.bigram_rank, vocab_size); self.bigram_scale = mx.array(0.0, dtype=mx.float32)
+        self.logit_bias = mx.zeros((vocab_size,), dtype=mx.float32); self.logit_gain = mx.array(1.0, dtype=mx.float32)
         self.num_encoder_layers = num_layers // 2
         self.num_decoder_layers = num_layers - self.num_encoder_layers
         tail_recur_span = min(max(tail_recur_blocks, 0), self.num_decoder_layers)
@@ -310,10 +308,8 @@ class GPT(nn.Module):
             b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight); b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
         self.tok_emb.weight = (mx.random.normal(self.tok_emb.weight.shape, dtype=mx.float32) * tied_embed_init_std).astype(COMPUTE_DTYPE)
     def softcap(self, logits: mx.array) -> mx.array: return self.logit_softcap * mx.tanh(logits / self.logit_softcap)
-    def project_logits(self, x: mx.array, prev_ids: mx.array | None = None) -> mx.array:
+    def project_logits(self, x: mx.array) -> mx.array:
         logits = self.logit_gain.astype(x.dtype) * (x @ self.tok_emb.weight.astype(x.dtype).T)
-        if self.bigram_rank > 0 and prev_ids is not None:
-            logits = logits + self.bigram_scale.astype(x.dtype) * self.bigram_out(self.bigram_in(prev_ids.reshape(-1)).astype(x.dtype))
         return self.softcap(logits + self.logit_bias.astype(x.dtype))
     def __call__(self, input_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
         x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))
@@ -335,23 +331,23 @@ class GPT(nn.Module):
                 recur_x = x + recur_gain * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + recur_gain * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
         return self.final_norm(x)
     def loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
-        x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+        x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1)
         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
-            logits = self.project_logits(x, prev_ids)
+            logits = self.project_logits(x)
             return nn.losses.cross_entropy(logits.astype(mx.float32), y, reduction="mean")
         loss_sum = mx.array(0.0, dtype=mx.float32)
         n = int(x.shape[0])
         for s in range(0, n, self.logit_chunk_tokens):
             e = min(s + self.logit_chunk_tokens, n)
-            logits = self.project_logits(x[s:e], prev_ids[s:e])
+            logits = self.project_logits(x[s:e])
             loss_sum = loss_sum + nn.losses.cross_entropy(logits.astype(mx.float32), y[s:e], reduction="sum")
         return loss_sum / float(n)
     def masked_loss(self, input_ids: mx.array, target_ids: mx.array, loss_mask: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
-        x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+        x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1)
         mask = loss_mask.reshape(-1).astype(mx.float32)
         denom = mx.maximum(mx.sum(mask), mx.array(1.0, dtype=mx.float32))
         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
-            logits = self.project_logits(x, prev_ids)
+            logits = self.project_logits(x)
             logits_f = logits.astype(mx.float32)
             token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[:, None], axis=-1).reshape(-1)
             return mx.sum(token_loss.astype(mx.float32) * mask) / denom
@@ -359,7 +355,7 @@ class GPT(nn.Module):
         n = int(x.shape[0])
         for s in range(0, n, self.logit_chunk_tokens):
             e = min(s + self.logit_chunk_tokens, n)
-            logits = self.project_logits(x[s:e], prev_ids[s:e])
+            logits = self.project_logits(x[s:e])
             logits_f = logits.astype(mx.float32)
             token_loss = mx.logsumexp(logits_f, axis=-1) - mx.take_along_axis(logits_f, y[s:e, None], axis=-1).reshape(-1)
             loss_sum = mx.sum(token_loss.astype(mx.float32) * mask[s:e])
@@ -471,6 +467,7 @@ BLOCK_FP16_MATRIX_SUFFIXES = (
     "mlp.proj.weight",
 )
 BLOCK_FP16_PROJ_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
+BLOCK_FP16_VALUE_SUFFIXES = ("attn.c_v.weight",) + BLOCK_FP16_PROJ_SUFFIXES
 def _np_float32(arr: mx.array) -> np.ndarray:
     return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
 def int8_clip_q(name: str) -> float:
@@ -486,10 +483,10 @@ def build_int8_fp16_keep_names(num_layers: int, tail_recur_blocks: int) -> set[s
         keep.update(prefix + suffix for suffix in BLOCK_FP16_PROJ_SUFFIXES)
     for block_idx in range(max(num_layers - tail_recur_blocks, 0), num_layers):
         prefix = f"blocks.{block_idx}."
-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:2])
+        keep.update(prefix + suffix for suffix in BLOCK_FP16_VALUE_SUFFIXES)
     if num_layers > 0:
         prefix = f"blocks.{num_layers - 1}."
-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
+        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:2])
     return keep
 def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
     return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL

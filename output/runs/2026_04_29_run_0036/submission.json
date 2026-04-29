@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12114539,
+  "code_bytes": 79353,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12035186,
+  "rationale": "Recent local results say extra output-head capacity is not the bottleneck, while recurrent-tail float rescue remains live. This edit removes the bigram output branch to cut bytes and hot-path work, then reallocates the export budget toward recurrent-tail value/projection tensors and final-block Q/K float keeps, targeting the final int8+zlib roundtrip metric rather than train loss.",
+  "run_id": "2026_04_29_run_0036",
+  "runtime_seconds": 617.946336,
+  "submitter": "frido22",
+  "title": "Drop Bigram Head For Tail Value Float Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 529190,
+  "under_16mb": true,
+  "val_bpb": 2.09004833,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
