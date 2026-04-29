@@ -455,6 +455,9 @@ INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99
 INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
 INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
 INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
+INT8_FP16_TAIL_Q_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_Q_BLOCKS", 2))
+INT8_FP16_TAIL_K_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_K_BLOCKS", 1))
+INT8_FP16_TAIL_V_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_V_BLOCKS", 2))
 PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
 INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
 INT8_FP16_KEEP_NAMES = tuple(
@@ -471,6 +474,7 @@ BLOCK_FP16_MATRIX_SUFFIXES = (
     "mlp.proj.weight",
 )
 BLOCK_FP16_PROJ_SUFFIXES = ("attn.proj.weight", "mlp.proj.weight")
+TAIL_VALUE_MIX_SUFFIXES = ("attn.c_v.weight", "attn.proj.weight", "mlp.proj.weight")
 def _np_float32(arr: mx.array) -> np.ndarray:
     return np.array(arr.astype(mx.float32), dtype=np.float32, copy=False)
 def int8_clip_q(name: str) -> float:
@@ -484,12 +488,14 @@ def build_int8_fp16_keep_names(num_layers: int, tail_recur_blocks: int) -> set[s
     for block_idx in range(max(num_layers - INT8_FP16_TAIL_PROJ_BLOCKS, 0), num_layers):
         prefix = f"blocks.{block_idx}."
         keep.update(prefix + suffix for suffix in BLOCK_FP16_PROJ_SUFFIXES)
-    for block_idx in range(max(num_layers - tail_recur_blocks, 0), num_layers):
-        prefix = f"blocks.{block_idx}."
-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:2])
-    if num_layers > 0:
-        prefix = f"blocks.{num_layers - 1}."
-        keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
+    tail_start = max(num_layers - tail_recur_blocks, 0)
+    tail_end = num_layers
+    for block_idx in range(max(tail_end - INT8_FP16_TAIL_Q_BLOCKS, tail_start), tail_end):
+        keep.add(f"blocks.{block_idx}.attn.c_q.weight")
+    for block_idx in range(max(tail_end - INT8_FP16_TAIL_K_BLOCKS, tail_start), tail_end):
+        keep.add(f"blocks.{block_idx}.attn.c_k.weight")
+    for block_idx in range(max(tail_end - INT8_FP16_TAIL_V_BLOCKS, tail_start), tail_end):
+        keep.add(f"blocks.{block_idx}.attn.c_v.weight")
     return keep
 def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:
     return name in int8_fp16_keep_names or int(arr.size) <= INT8_KEEP_FLOAT_MAX_NUMEL
@@ -639,6 +645,8 @@ def blend_tensor_toward_final(
     target = roundtrip_tensor_like_final(name, arr, int8_fp16_keep_names)
     if mix >= 1.0 or not mx.issubdtype(arr.dtype, mx.floating) or should_keep_float_tensor(name, arr, int8_fp16_keep_names):
         return target
+    if name.endswith(TAIL_VALUE_MIX_SUFFIXES):
+        mix = min(1.0, mix + 0.2)
     return arr + (target - arr) * mix
 def apply_final_roundtrip_to_state(model: GPT, int8_fp16_keep_names: set[str], mix: float = 1.0) -> None:
     model.update(
@@ -1268,7 +1276,14 @@ def main() -> None:
     log(f"quant_aware_lr_mul:embed:{args.quant_aware_embed_lr_mul} matrix:{args.quant_aware_matrix_lr_mul} scalar:{args.quant_aware_scalar_lr_mul}")
     log(f"quant_aware_proj_mix:start:{args.quant_aware_proj_start} step:{args.quant_aware_proj_step} end:{args.quant_aware_proj_end}")
     log(f"int8_transpose_suffixes:{','.join(INT8_TRANSPOSE_SUFFIXES) if INT8_TRANSPOSE_SUFFIXES else 'none'}")
-    log(f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}")
+    log(
+        f"int8_fp16_keep:count:{len(int8_fp16_keep_names)} tail_full_blocks:{INT8_FP16_TAIL_FULL_BLOCKS} "
+        f"tail_proj_blocks:{INT8_FP16_TAIL_PROJ_BLOCKS}"
+    )
+    log(
+        f"int8_fp16_tail_qkv:q:{INT8_FP16_TAIL_Q_BLOCKS} k:{INT8_FP16_TAIL_K_BLOCKS} "
+        f"v:{INT8_FP16_TAIL_V_BLOCKS}"
+    )
     log(
         f"tail_recur:blocks:{args.tail_recur_blocks} start:{model.tail_recur_start} "
         f"active:{0 if model.tail_recur_gates is None else model.tail_recur_gates.shape[0]}"

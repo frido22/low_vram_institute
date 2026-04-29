@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12749264,
+  "code_bytes": 80640,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12668624,
+  "rationale": "Reallocates recurrent-tail fp16 export budget from broadly keeping Q/K toward keeping V on both tail blocks, while also making quant-aware blending slightly stronger on value-path tensors. The hypothesis is that the exact int8+zlib score is more sensitive to late-tail value/projection corruption than to an extra tail K matrix, so this should improve final roundtrip quality without a sprawling rewrite.",
+  "run_id": "2026_04_29_run_0066",
+  "runtime_seconds": 719.82125,
+  "submitter": "frido22",
+  "title": "Tail Value-Path Float Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 630595,
+  "under_16mb": true,
+  "val_bpb": 2.05244828,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
