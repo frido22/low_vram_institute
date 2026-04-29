@@ -454,7 +454,8 @@ INT8_CLIP_PERCENTILE = 99.99984; INT8_CLIP_Q = INT8_CLIP_PERCENTILE / 100.0
 INT8_PROJ_CLIP_PERCENTILE = float(os.environ.get("INT8_PROJ_CLIP_PERCENTILE", 99.9)); INT8_PROJ_CLIP_Q = INT8_PROJ_CLIP_PERCENTILE / 100.0
 INT8_ROW_OFFSET_MIN_RATIO = float(os.environ.get("INT8_ROW_OFFSET_MIN_RATIO", 0.02))
 INT8_FP16_TAIL_FULL_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_FULL_BLOCKS", 0))
-INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 2))
+INT8_FP16_TAIL_PROJ_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_PROJ_BLOCKS", 1))
+INT8_FP16_TAIL_V_BLOCKS = int(os.environ.get("INT8_FP16_TAIL_V_BLOCKS", 2))
 PROJ_EMA_DECAY = float(os.environ.get("PROJ_EMA_DECAY", 0.94))
 INT8_TRANSPOSE_SUFFIXES = tuple(suffix for suffix in os.environ.get("INT8_TRANSPOSE_SUFFIXES", "mlp.fc.weight").split(",") if suffix)
 INT8_FP16_KEEP_NAMES = tuple(
@@ -487,8 +488,8 @@ def build_int8_fp16_keep_names(num_layers: int, tail_recur_blocks: int) -> set[s
     for block_idx in range(max(num_layers - tail_recur_blocks, 0), num_layers):
         prefix = f"blocks.{block_idx}."
         keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[:2])
-    if num_layers > 0:
-        prefix = f"blocks.{num_layers - 1}."
+    for block_idx in range(max(num_layers - INT8_FP16_TAIL_V_BLOCKS, 0), num_layers):
+        prefix = f"blocks.{block_idx}."
         keep.update(prefix + suffix for suffix in BLOCK_FP16_MATRIX_SUFFIXES[2:3])
     return keep
 def should_keep_float_tensor(name: str, arr: mx.array, int8_fp16_keep_names: set[str]) -> bool:

@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 11770071,
+  "code_bytes": 80042,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 11690029,
+  "rationale": "Reallocate export budget from penultimate tail projections into recurrent-tail value-path preservation: reduce default tail projection FP16 keep from 2 blocks to 1 and add a separate `INT8_FP16_TAIL_V_BLOCKS` budget defaulting to 2. This keeps the current recurrent reverse-tail family intact while testing a compact float-budget shift toward the locally promising recurrent V path under final int8+zlib scoring.",
+  "run_id": "2026_04_29_run_0048",
+  "runtime_seconds": 671.429579,
+  "submitter": "frido22",
+  "title": "Tail Value FP16 Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 582388,
+  "under_16mb": true,
+  "val_bpb": 2.05229824,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
