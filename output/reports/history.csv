@@ -849,3 +849,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0002,2.054724,True,False,Reverse-Tail Anchor Refresh Gate
 2026_04_29_run_0003,2.051272,True,False,Dual Carry/Update Tail Curriculum
 2026_04_29_run_0004,2.052264,True,False,Tail Value-Path FP16 Reallocation
+2026_04_29_run_0005,2.056217,True,False,Reverse-Tail Block-Local Anchors
