@@ -855,3 +855,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0008,2.051525,True,False,Late Scheduled Tail Anchor Refresh
 2026_04_29_run_0009,2.056549,True,False,Late Tail Exit Recurrence Curriculum
 2026_04_29_run_0010,2.052079,True,False,Late Tail-Aligned Training Loss Curriculum
+2026_04_29_run_0011,2.051986,True,False,Staged Tail-Weighted Loss Alignment

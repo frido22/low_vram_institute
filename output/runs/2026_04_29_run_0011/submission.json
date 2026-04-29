@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12749035,
+  "code_bytes": 82349,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666686,
+  "rationale": "Keeps the current recurrent-tail baseline intact while adding a compact late-phase training bias toward the exact scored tail window. The change is compile-stable, reuses existing masked-loss machinery, and keeps full-token supervision early while progressively overweighting the eval-stride tail during the same recurrence ramp.",
+  "run_id": "2026_04_29_run_0011",
+  "runtime_seconds": 655.107765,
+  "submitter": "frido22",
+  "title": "Staged Tail-Weighted Loss Alignment",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 565662,
+  "under_16mb": true,
+  "val_bpb": 2.05198571,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
