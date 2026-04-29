@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12746611,
+  "code_bytes": 80409,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666202,
+  "rationale": "Build on the current recurrent-tail baseline with a compact structural change: keep reverse-tail recurrence and the existing gain curriculum, but partially refresh the decoder-output anchor after the deepest replay using the next block's staged gain. This stays compile-stable, adds no new learned tensors, and targets the locally promising anchor-refresh family without another scalar-only sweep.",
+  "run_id": "2026_04_29_run_0024",
+  "runtime_seconds": 652.89287,
+  "submitter": "frido22",
+  "title": "Staged Reverse-Tail Anchor Refresh Carryover",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 563719,
+  "under_16mb": true,
+  "val_bpb": 2.05096613,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
