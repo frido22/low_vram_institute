@@ -897,3 +897,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0051,2.047385,True,False,Cold-Start Tail Recurrence Curriculum
 2026_04_29_run_0052,2.052553,True,False,Tail-Selective EMA Expansion
 2026_04_29_run_0053,2.052178,True,False,Tail Value-Path Quant-Aware Export Focus
+2026_04_29_run_0054,2.050429,True,False,Reverse-Tail Anchor Refresh With Value-Path FP16 Reallocation
