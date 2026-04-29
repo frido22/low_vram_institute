@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12745579,
+  "code_bytes": 80613,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664966,
+  "rationale": "The strongest local family already depends on staged reverse-tail recurrence, but the old schedule keyed progress to nominal iterations even though runs stop on a 600s wallclock budget. This change aligns tail recurrence ramping to the actual usable train-time budget before reserved final eval, so the recurrent tail should reach its intended late-phase behavior more consistently on capped Mac-mini runs without adding parameter bytes or hot-path compile churn.",
+  "run_id": "2026_04_29_run_0043",
+  "runtime_seconds": 649.307194,
+  "submitter": "frido22",
+  "title": "Wallclock-Aligned Reverse-Tail Curriculum",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 561943,
+  "under_16mb": true,
+  "val_bpb": 2.05170419,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

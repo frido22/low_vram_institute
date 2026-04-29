@@ -886,3 +886,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0040,2.054976,True,False,Blended Local-Global Tail Anchors
 2026_04_29_run_0041,2.052705,True,False,Recurrent Tail V FP16 Keep Expansion
 2026_04_29_run_0042,2.051110,True,False,Reverse-Tail Anchor Refresh With Tail QKV Float Reallocation
+2026_04_29_run_0043,2.051704,True,False,Wallclock-Aligned Reverse-Tail Curriculum
