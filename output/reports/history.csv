@@ -963,3 +963,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_30_run_0029,2.124532,True,False,Doc-Window Stride Training Loader
 2026_04_30_run_0030,2.056177,True,False,Quant-Phase Final Tail Gain Close
 2026_04_30_run_0031,2.055291,True,False,Quant-Phase Final Tail Gain Close
+2026_04_30_run_0032,2.051878,True,False,Sqrt-Lead Reverse-Tail Carry Curriculum
