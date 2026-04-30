@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12666721,
+  "code_bytes": 3686,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12663035,
+  "rationale": "The current best trains the earlier recurrent tail pass at low gain but evaluates the final int8 roundtrip at full gain. This surgical wrapper patches state/best_script.py to blend that tail gain upward only during the quant-aware endgame, preserving the winning reverse-tail/export path while reducing the late train/eval recurrence mismatch without enabling intermediate validation.",
+  "run_id": "2026_04_30_run_0008",
+  "runtime_seconds": 746.543149,
+  "submitter": "frido22",
+  "title": "Quant-Aware Tail Recurrence Gain Bridge",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 656879,
+  "under_16mb": true,
+  "val_bpb": 2.05274642,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
