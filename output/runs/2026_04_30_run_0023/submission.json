@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12742868,
+  "code_bytes": 80072,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12662796,
+  "rationale": "Keep the current 9x512 reverse-tail recurrent baseline intact, but remove the late mismatch between training and scoring recurrence. The bulk run still uses the proven staged tail-recurrence curriculum, then the quant-aware endgame switches training to the same full tail-recurrence gains used by final exact evaluation. This spends the final roundtrip/EMA window calibrating the recurrent tail under the exported inference path without changing shapes, validation, tokenizer/data resolution, or artifact size.",
+  "run_id": "2026_04_30_run_0023",
+  "runtime_seconds": 785.856196,
+  "submitter": "frido22",
+  "title": "Quant-Aware Full-Gain Tail Alignment",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 697412,
+  "under_16mb": true,
+  "val_bpb": 2.05310166,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
