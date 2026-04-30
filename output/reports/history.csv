@@ -943,3 +943,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_30_run_0009,2.052509,True,False,Exact-Only Reserve Reclaim
 2026_04_30_run_0010,2.050909,True,False,Soft-Capped Reverse-Tail Eval Profile
 2026_04_30_run_0011,2.052029,True,False,Epoch-Phase Rotated Training Windows
+2026_04_30_run_0012,2.052815,True,False,Roundtrip-Anchored Tail EMA

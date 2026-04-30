@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12668616,
+  "code_bytes": 2391,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666225,
+  "rationale": "Builds on the current staged reverse-tail best by changing only the final export-aligned averaging path. The EMA now samples tensors only immediately after exact int8/float-kept roundtrips, with a lower decay so the short quant-aware endgame still contributes, and it records a final pre-save roundtrip sample if the stop step is not aligned. This targets final_int8_zlib_roundtrip_exact directly while preserving the recurrent-tail architecture, validation path, wallclock cap, and artifact format.",
+  "run_id": "2026_04_30_run_0012",
+  "runtime_seconds": 657.738779,
+  "submitter": "frido22",
+  "title": "Roundtrip-Anchored Tail EMA",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 568955,
+  "under_16mb": true,
+  "val_bpb": 2.05281492,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
