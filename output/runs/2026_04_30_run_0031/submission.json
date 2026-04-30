@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12680045,
+  "code_bytes": 23193,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12656852,
+  "rationale": "Softens only the deepest reverse-tail recurrent pass during the main training phase, then ramps it back toward the exact full-gain evaluation profile once the existing quant-aware endgame starts. This keeps the proven 9x512 reverse-tail/export path, preserves VAL_LOSS_EVERY=0 and the final int8+zlib roundtrip, and tests a compact recurrence-scheduling change instead of another scalar sweep.",
+  "run_id": "2026_04_30_run_0031",
+  "runtime_seconds": 767.37084,
+  "submitter": "frido22",
+  "title": "Quant-Phase Final Tail Gain Close",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 676326,
+  "under_16mb": true,
+  "val_bpb": 2.05529062,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
