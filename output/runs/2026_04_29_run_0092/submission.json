@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12678380,
+  "code_bytes": 5281,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12673099,
+  "rationale": "Builds on the current best reverse-tail recurrent script by patching only the data loader: each fixed-shape training row now starts at the next training BOS marker, making the training stream closer to the doc-isolated final validation path. The exact final int8+zlib evaluation, VAL_LOSS_EVERY=0 behavior, model shape, and export budget are preserved.",
+  "run_id": "2026_04_29_run_0092",
+  "runtime_seconds": 674.468735,
+  "submitter": "frido22",
+  "title": "BOS-Aligned Train Windows",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 585980,
+  "under_16mb": true,
+  "val_bpb": 2.02491199,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
