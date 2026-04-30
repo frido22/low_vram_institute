@@ -968,3 +968,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_30_run_0035,2.053454,True,False,Penultimate Recurrent Value FP16 Rescue
 2026_04_30_run_0036,2.052518,True,False,Additive Recurrent-Tail V FP16 Rescue
 2026_04_30_run_0038,2.043414,True,False,Mixed BOS-Continuous Training Windows
+2026_04_30_run_0039,2.052223,True,False,Full-Script Penultimate Recurrent V FP16 Rescue

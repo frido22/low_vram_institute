@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12914080,
+  "code_bytes": 80019,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12834061,
+  "rationale": "Return a complete script while spending a small amount of remaining export budget on the penultimate reverse-tail value projection. The current best already preserves recurrent-tail Q/K and the final-block V path; adding block 7 c_v keeps the proven staged reverse-tail recurrence, training loop, and final exact int8+zlib evaluation intact, but gives the earlier recurrent pass a less lossy value path after export. This is a compact export-budget reallocation rather than another scalar sweep.",
+  "run_id": "2026_04_30_run_0039",
+  "runtime_seconds": 722.843289,
+  "submitter": "frido22",
+  "title": "Full-Script Penultimate Recurrent V FP16 Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 633848,
+  "under_16mb": true,
+  "val_bpb": 2.05222335,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
