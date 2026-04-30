@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12711583,
+  "code_bytes": 22965,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12688618,
+  "rationale": "Initializes the existing trainable logit_bias from training-shard unigram counts so the 600s run spends fewer early updates learning token marginals, while preserving the 9x512 reverse-tail recurrent architecture and export path. It also hard-disables intermediate validation, removes the unquantized pre-save validation pass, and uses a tighter final-eval reserve so more wallclock goes to actual training without touching the final int8+zlib exact evaluation.",
+  "run_id": "2026_04_30_run_0022",
+  "runtime_seconds": 697.949243,
+  "submitter": "frido22",
+  "title": "Train-Shard Prior With Exact-Only Finish",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 649492,
+  "under_16mb": true,
+  "val_bpb": 2.05960309,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
