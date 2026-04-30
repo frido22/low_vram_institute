@@ -950,3 +950,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_30_run_0016,2.053419,True,False,Learned Reverse-Tail Gain Calibration
 2026_04_30_run_0017,2.054089,True,False,Learned Reverse-Tail Gain Calibration
 2026_04_30_run_0018,2.053350,True,False,Quant-Aware Floor And Exact-Only Guard
+2026_04_30_run_0019,2.052601,True,False,Late Budgeted Tail-Gain Rehearsal
