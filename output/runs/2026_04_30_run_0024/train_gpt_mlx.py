@@ -63,7 +63,6 @@ class Hyperparameters:
     tied_embed_init_std: float = float(os.environ.get("TIED_EMBED_INIT_STD", 0.005))
     logit_chunk_tokens: int = int(os.environ.get("LOGIT_CHUNK_TOKENS", 0))
     logit_softcap: float = float(os.environ.get("LOGIT_SOFTCAP", 30.0))
-    logit_bias_prior_mix: float = float(os.environ.get("LOGIT_BIAS_PRIOR_MIX", 0.4))
     eval_stride: int = int(os.environ.get("EVAL_STRIDE", 64))
     eval_doc_isolated: bool = bool(int(os.environ.get("EVAL_DOC_ISOLATED", "1")))
     rope_base: float = float(os.environ.get("ROPE_BASE", 10000.0))
@@ -108,7 +107,7 @@ class Hyperparameters:
         warmdown_ms = self.warmdown_iters * step_ms
         remaining_ms = max(1000.0 * self.max_wallclock_seconds - elapsed_ms, 0.0)
         return remaining_ms / max(warmdown_ms, 1e-9) if remaining_ms <= warmdown_ms else 1.0
-CONTROL_TENSOR_NAME_PATTERNS = tuple(pattern for pattern in os.environ.get("CONTROL_TENSOR_NAME_PATTERNS", "attn_scale,attn_scales,mlp_scale,mlp_scales,resid_mix,resid_mixes,q_gain,skip_weight,skip_weights,tail_recur_gates,tail_carry_gates,logit_bias,logit_gain,bigram_scale").split(",") if pattern)
+CONTROL_TENSOR_NAME_PATTERNS = tuple(pattern for pattern in os.environ.get("CONTROL_TENSOR_NAME_PATTERNS", "attn_scale,attn_scales,mlp_scale,mlp_scales,resid_mix,resid_mixes,q_gain,skip_weight,skip_weights,tail_recur_gates,tail_carry_gates").split(",") if pattern)
 INT8_KEEP_FLOAT_FP32_NAME_PATTERNS = tuple(pattern for pattern in os.environ.get("INT8_KEEP_FLOAT_FP32_NAME_PATTERNS", ",".join(CONTROL_TENSOR_NAME_PATTERNS)).split(",") if pattern)
 def token_chunks(total_tokens: int, seq_len: int, max_chunk_tokens: int) -> list[int]:
     usable_total = (total_tokens // seq_len) * seq_len
@@ -162,15 +161,6 @@ def load_data_shard(path: Path) -> np.ndarray:
     if tokens.size != num_tokens:
         raise ValueError(f"Short read for {path}")
     return tokens.astype(np.int32, copy=False)
-def init_logit_bias_from_tokens(model: "GPT", tokens: np.ndarray, vocab_size: int, mix: float) -> float:
-    if mix <= 0.0:
-        return 0.0
-    counts = np.bincount(tokens, minlength=vocab_size)[:vocab_size].astype(np.float32, copy=False)
-    probs = (counts + 0.5) / (float(counts.sum()) + 0.5 * vocab_size)
-    bias = np.log(probs).astype(np.float32, copy=False)
-    bias -= float(np.mean(bias, dtype=np.float64))
-    model.logit_bias = mx.array(bias * mix, dtype=mx.float32)
-    return float(np.mean(counts > 0))
 class TokenStream:
     def __init__(
         self,
@@ -1234,7 +1224,6 @@ def main() -> None:
     mx.random.seed(args.seed)
     train_loader = TokenLoader(args.train_files, log_fn=log, dataset_name=dataset_name)
     model = GPT(vocab_size=args.vocab_size, num_layers=args.num_layers, dim=args.model_dim, num_heads=args.num_heads, num_kv_heads=args.num_kv_heads, mlp_mult=args.mlp_mult, logit_chunk_tokens=args.logit_chunk_tokens, logit_softcap=args.logit_softcap, rope_base=args.rope_base, tied_embed_init_std=args.tied_embed_init_std, qk_gain_init=args.qk_gain_init, tail_recur_blocks=args.tail_recur_blocks)
-    logit_bias_prior_coverage = init_logit_bias_from_tokens(model, train_loader.stream.tokens, args.vocab_size, args.logit_bias_prior_mix)
     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
     opt = SplitOptimizers(model, args)
     tail_recur_eval_gains = mx.ones((args.tail_recur_blocks,), dtype=mx.float32)
@@ -1267,7 +1256,6 @@ def main() -> None:
     eval_mode = "doc_isolated_sliding" if args.eval_doc_isolated and doc_spans is not None and bos_token_id >= 0 else "flat_stream"
     log(f"eval_mode:{eval_mode} bos_token_id:{bos_token_id} val_docs:{0 if doc_spans is None else len(doc_spans)}")
     log(f"eval_stride:{args.eval_stride}")
-    log(f"logit_bias_prior:mix:{args.logit_bias_prior_mix} first_shard_coverage:{logit_bias_prior_coverage:.3f}")
     log(f"compute_dtype:{COMPUTE_DTYPE} compile:True")
     log(f"dtypes tok_emb:{model.tok_emb.weight.dtype} linear_weight:{model.blocks[0].attn.c_q.weight.dtype} skip_weights:{model.skip_weights.dtype}")
     estimated_final_eval_ms = estimate_eval_time_ms(args, compiled_loss, compiled_masked_loss, val_tokens, doc_spans, bos_token_id, tail_recur_eval_gains)
