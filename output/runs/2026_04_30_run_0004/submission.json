@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12745412,
+  "code_bytes": 80309,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12665103,
+  "rationale": "Keep the 9x512 reverse-tail recurrent best intact, but change the training signal by drawing each fixed-shape batch from two deterministic shuffled token streams with independent initial offsets. This spends one run on data traversal diversity without touching validation, final int8+zlib evaluation, or the recurrent-tail export path.",
+  "run_id": "2026_04_30_run_0004",
+  "runtime_seconds": 714.999922,
+  "submitter": "frido22",
+  "title": "Two-Stream Shuffled Train Traversal",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 625706,
+  "under_16mb": true,
+  "val_bpb": 2.05260565,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
