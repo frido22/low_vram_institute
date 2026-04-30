@@ -961,3 +961,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_30_run_0027,2.052798,True,False,Maturity-Gated Quant-Aware Endgame
 2026_04_30_run_0028,2.052260,True,False,Soft-Capped Penultimate Tail Eval Gain
 2026_04_30_run_0029,2.124532,True,False,Doc-Window Stride Training Loader
+2026_04_30_run_0030,2.056177,True,False,Quant-Phase Final Tail Gain Close
