@@ -952,3 +952,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_30_run_0018,2.053350,True,False,Quant-Aware Floor And Exact-Only Guard
 2026_04_30_run_0019,2.052601,True,False,Late Budgeted Tail-Gain Rehearsal
 2026_04_30_run_0020,2.053219,True,False,Quant-Aware Suffix-Loss Endgame
+2026_04_30_run_0021,2.053054,True,False,Exact-Roundtrip Scalar Calibration Tail

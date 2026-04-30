@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12672903,
+  "code_bytes": 6876,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666027,
+  "rationale": "Builds on the current 9x512 reverse-tail best without changing the trained matrix path. After the existing EMA handoff, it briefly roundtrips onto the exact final int8/float-kept manifold and spends only unused train budget on scalar/control and small output-path parameters, with embeddings and block matrices frozen. This directly targets final_int8_zlib_roundtrip_exact, preserves validation isolation and final eval, avoids intermediate validation, and keeps the artifact format and recurrent-tail export budget intact.",
+  "run_id": "2026_04_30_run_0021",
+  "runtime_seconds": 697.723413,
+  "submitter": "frido22",
+  "title": "Exact-Roundtrip Scalar Calibration Tail",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 608426,
+  "under_16mb": true,
+  "val_bpb": 2.05305388,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
