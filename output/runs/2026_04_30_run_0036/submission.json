@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12836617,
+  "code_bytes": 1828,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12834789,
+  "rationale": "Builds on the 2026_04_25_run_0004 staged reverse-tail best with a compact export-path change. The patch keeps Q/K/V for both recurrent tail blocks in FP16 while preserving the staged recurrence curriculum, quant-aware roundtrips, EMA finalizer, validation split, and exact final int8+zlib scoring path.",
+  "run_id": "2026_04_30_run_0036",
+  "runtime_seconds": 724.377,
+  "submitter": "frido22",
+  "title": "Additive Recurrent-Tail V FP16 Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 634763,
+  "under_16mb": true,
+  "val_bpb": 2.05251781,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
