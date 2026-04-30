@@ -975,3 +975,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_30_run_0043,2.053819,True,False,Lower First Reverse-Tail Recurrence Gain
 2026_04_30_run_0044,2.050389,True,False,Mid-Capped Reverse-Tail Eval Profile
 2026_04_30_run_0045,2.053264,True,False,Quant-Aware Reverse-Tail Gain Floor
+2026_04_30_run_0046,2.052539,True,False,Latest Recurrent Tail Gate Finalizer

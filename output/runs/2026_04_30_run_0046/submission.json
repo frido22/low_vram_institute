@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12742848,
+  "code_bytes": 80251,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12662597,
+  "rationale": "Builds on the 1.5111 staged reverse-tail recurrent baseline with a compact finalizer change: the late EMA no longer overwrites the learned recurrent tail gates, which are stored as fp32 controls and do not need quantization smoothing. This preserves the architecture, training loop, artifact budget, VAL_LOSS_EVERY=0 default, and final_int8_zlib_roundtrip_exact path while letting the final full-gain recurrent tail use the latest gate/carry calibration.",
+  "run_id": "2026_04_30_run_0046",
+  "runtime_seconds": 727.48607,
+  "submitter": "frido22",
+  "title": "Latest Recurrent Tail Gate Finalizer",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 639572,
+  "under_16mb": true,
+  "val_bpb": 2.05253942,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
