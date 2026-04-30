@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12658756,
+  "code_bytes": 3772,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12654984,
+  "rationale": "Adds a tiny trainable block-scalar gain on the existing reverse recurrent tail. It keeps the staged curriculum and int8+zlib export path intact while letting the model calibrate recurrent reuse under the final roundtrip objective.",
+  "run_id": "2026_04_30_run_0016",
+  "runtime_seconds": 751.922341,
+  "submitter": "frido22",
+  "title": "Learned Reverse-Tail Gain Calibration",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 663484,
+  "under_16mb": true,
+  "val_bpb": 2.05341892,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
