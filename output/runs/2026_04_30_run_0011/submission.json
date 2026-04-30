@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12667820,
+  "code_bytes": 2096,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12665724,
+  "rationale": "Builds on the 1.5111 staged reverse-tail baseline with a compact traversal-order change instead of another LR or export sweep. The model, quant-aware endgame, final exact int8+zlib evaluation, and artifact budget stay unchanged, but each new pass through the training shard starts 64 tokens later. That exposes the same data under different sequence-boundary phases, closer to the stride-64 doc-isolated scoring path, without validation leakage, shape churn, or extra model bytes.",
+  "run_id": "2026_04_30_run_0011",
+  "runtime_seconds": 661.258077,
+  "submitter": "frido22",
+  "title": "Epoch-Phase Rotated Training Windows",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 572102,
+  "under_16mb": true,
+  "val_bpb": 2.05202892,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
