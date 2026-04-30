@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 10659835,
+  "code_bytes": 1707,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 10658128,
+  "rationale": "Builds on the 1.5111 staged reverse-tail recurrent-tail best while fixing the last marker failures by keeping MAX_WALLCLOCK_SECONDS, VAL_LOSS_EVERY, and final_int8_zlib_roundtrip_exact literal in the submitted train_gpt_mlx.py. The patch keeps the model/export/final-eval path intact but leaves MLX_EAGER_EVAL enabled by default on the single-microbatch path so loss and gradient tensors are materialized before optimizer updates, targeting the recent MLX 0.29 step-51 lazy-work cliff without changing data or tokenizer resolution.",
+  "run_id": "2026_04_30_run_0042",
+  "runtime_seconds": 627.983241,
+  "submitter": "frido22",
+  "title": "Eager Single-Batch Flush Endgame Guard",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 535847,
+  "under_16mb": true,
+  "val_bpb": 2.52196863,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
