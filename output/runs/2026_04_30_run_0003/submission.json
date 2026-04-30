@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12668694,
+  "code_bytes": 3874,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664820,
+  "rationale": "Builds on the current 9x512 reverse recurrent-tail best without changing data, validation cadence, export format, or the final exact int8+zlib path. The close capped-profile miss suggests the shallower recurrent tail replay may be over-strong at final eval relative to its 0.35 training gain, so this run uses a softer 0.86 eval cap and gradually bridges training gains toward that profile only during the quant-aware endgame. It is compile-stable, byte-neutral, and directly targets final roundtrip behavior rather than loss proxies.",
+  "run_id": "2026_04_30_run_0003",
+  "runtime_seconds": 690.025764,
+  "submitter": "frido22",
+  "title": "Quant-Aware Soft-Capped Tail Recurrence Bridge",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 600877,
+  "under_16mb": true,
+  "val_bpb": 2.05154879,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}

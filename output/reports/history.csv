@@ -934,3 +934,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0092,2.024912,True,False,BOS-Aligned Train Windows
 2026_04_30_run_0001,2.052064,False,False,Recurrent Tail Exit Anchor Gate
 2026_04_30_run_0002,2.053035,True,False,Penultimate Recurrent V FP16 Reallocation
+2026_04_30_run_0003,2.051549,True,False,Quant-Aware Soft-Capped Tail Recurrence Bridge
