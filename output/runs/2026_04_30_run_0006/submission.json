@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12745211,
+  "code_bytes": 80392,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664819,
+  "rationale": "Initializes the recurrent-tail gate tensors to tiny nonzero values so the shared reverse-tail path starts receiving useful recurrence gradients as soon as the zero-projection blocks begin moving, while keeping the initial network effectively unchanged. Carry gates get an even smaller seed to preserve the decoder-output anchor during the second tail revisit. Also fixes the masked chunk-loss accumulator for correctness if logit chunking is enabled.",
+  "run_id": "2026_04_30_run_0006",
+  "runtime_seconds": 699.406571,
+  "submitter": "frido22",
+  "title": "Seeded Tail Recurrence Gates",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 610715,
+  "under_16mb": true,
+  "val_bpb": 2.05236189,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
