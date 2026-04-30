@@ -946,3 +946,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_30_run_0012,2.052815,True,False,Roundtrip-Anchored Tail EMA
 2026_04_30_run_0013,1.958925,True,False,Pre-Recurrent Tail V FP16 Rescue
 2026_04_30_run_0014,1.959874,True,False,Single-Block Tail Recurrence Warmup
+2026_04_30_run_0015,2.056948,True,False,Soft Tail-Context Weighted Training Loss
