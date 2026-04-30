@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12745204,
+  "code_bytes": 80394,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664810,
+  "rationale": "Builds on the current 9x512 staged reverse-tail best with a compact recurrence-scheduling edit. The first recurrent tail pass trains at low gain for the whole 600s run, while the current best evaluates it at gain 1.0; the prior hard cap at 0.72 was a close miss, so this tests a milder 0.90 export/eval cap to reduce train/eval recurrence mismatch while preserving nearly all tail capacity and the existing quant-aware int8+zlib path.",
+  "run_id": "2026_04_30_run_0010",
+  "runtime_seconds": 664.66836,
+  "submitter": "frido22",
+  "title": "Soft-Capped Reverse-Tail Eval Profile",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 575926,
+  "under_16mb": true,
+  "val_bpb": 2.05090949,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

@@ -941,3 +941,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_30_run_0007,2.052509,True,False,Additive Recurrent-Tail V FP16 Keep
 2026_04_30_run_0008,2.052746,True,False,Quant-Aware Tail Recurrence Gain Bridge
 2026_04_30_run_0009,2.052509,True,False,Exact-Only Reserve Reclaim
+2026_04_30_run_0010,2.050909,True,False,Soft-Capped Reverse-Tail Eval Profile
