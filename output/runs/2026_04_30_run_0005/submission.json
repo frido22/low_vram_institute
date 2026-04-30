@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12704031,
+  "code_bytes": 23444,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12680587,
+  "rationale": "Builds on the 1.5111 staged reverse-tail recurrent baseline with a data-order change instead of another scalar sweep. The embedded current-best script now draws training rows from BOS-delimited training documents using fixed-shape sliding document windows at stride 512, closer to the doc-isolated final validation path while keeping MLX shapes stable. The model, quant-aware endgame, exact final int8+zlib evaluation, VAL_LOSS_EVERY=0 default, tokenizer/data path resolution, and export budget are otherwise preserved.",
+  "run_id": "2026_04_30_run_0005",
+  "runtime_seconds": 692.915316,
+  "submitter": "frido22",
+  "title": "Doc-Window Training Stream",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 604001,
+  "under_16mb": true,
+  "val_bpb": 2.15123159,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
