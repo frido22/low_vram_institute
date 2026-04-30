@@ -957,3 +957,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_30_run_0023,2.053102,True,False,Quant-Aware Full-Gain Tail Alignment
 2026_04_30_run_0024,2.052443,True,False,Refine current best
 2026_04_30_run_0025,2.059392,True,False,Tail Input-Anchor Carry Unlock
+2026_04_30_run_0026,2.030988,True,False,Final RMS Output Scale

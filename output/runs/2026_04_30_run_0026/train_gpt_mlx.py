@@ -34,7 +34,6 @@ class Hyperparameters:
     val_batch_size: int = int(os.environ.get("VAL_BATCH_SIZE", 8_192))
     train_log_every: int = int(os.environ.get("TRAIN_LOG_EVERY", 50))
     train_batch_tokens: int = int(os.environ.get("TRAIN_BATCH_TOKENS", 6_144))
-    train_bos_rows: int = int(os.environ.get("TRAIN_BOS_ROWS", 2))
     grad_accum_steps: int = int(os.environ.get("GRAD_ACCUM_STEPS", 1))
     train_seq_len: int = int(os.environ.get("TRAIN_SEQ_LEN", os.environ.get("TRAIN_MAX_SEQ_LEN", 1024)))
     mlx_max_microbatch_tokens: int = int(os.environ.get("MLX_MAX_MICROBATCH_TOKENS", 8_192))
@@ -108,7 +107,7 @@ class Hyperparameters:
         warmdown_ms = self.warmdown_iters * step_ms
         remaining_ms = max(1000.0 * self.max_wallclock_seconds - elapsed_ms, 0.0)
         return remaining_ms / max(warmdown_ms, 1e-9) if remaining_ms <= warmdown_ms else 1.0
-CONTROL_TENSOR_NAME_PATTERNS = tuple(pattern for pattern in os.environ.get("CONTROL_TENSOR_NAME_PATTERNS", "attn_scale,attn_scales,mlp_scale,mlp_scales,resid_mix,resid_mixes,q_gain,skip_weight,skip_weights,tail_recur_gates,tail_carry_gates").split(",") if pattern)
+CONTROL_TENSOR_NAME_PATTERNS = tuple(pattern for pattern in os.environ.get("CONTROL_TENSOR_NAME_PATTERNS", "attn_scale,attn_scales,mlp_scale,mlp_scales,resid_mix,resid_mixes,q_gain,skip_weight,skip_weights,tail_recur_gates,tail_carry_gates,final_scale").split(",") if pattern)
 INT8_KEEP_FLOAT_FP32_NAME_PATTERNS = tuple(pattern for pattern in os.environ.get("INT8_KEEP_FLOAT_FP32_NAME_PATTERNS", ",".join(CONTROL_TENSOR_NAME_PATTERNS)).split(",") if pattern)
 def token_chunks(total_tokens: int, seq_len: int, max_chunk_tokens: int) -> list[int]:
     usable_total = (total_tokens // seq_len) * seq_len
@@ -168,7 +167,6 @@ class TokenStream:
         pattern: str,
         log_fn: Callable[[str], None] | None = None,
         dataset_name: str = "",
-        bos_token_id: int = -1,
     ):
         self.files = [Path(p) for p in sorted(glob.glob(pattern))]
         if not self.files:
@@ -177,10 +175,7 @@ class TokenStream:
         self.file_idx = 0
         self.log_fn = log_fn
         self.dataset_name = dataset_name
-        self.bos_token_id = bos_token_id
         self.tokens = load_data_shard(self.files[0])
-        self.bos_positions = np.flatnonzero(self.tokens == bos_token_id).astype(np.int64, copy=False) if bos_token_id >= 0 else np.empty((0,), dtype=np.int64)
-        self.bos_ptr = 0
         self.pos = 0
     def next_file(self) -> None:
         self.file_idx = (self.file_idx + 1) % len(self.files)
@@ -192,8 +187,6 @@ class TokenStream:
                     f"dataset:{self.dataset_name} train_shards:{len(self.files)}"
                 )
         self.tokens = load_data_shard(self.files[self.file_idx])
-        self.bos_positions = np.flatnonzero(self.tokens == self.bos_token_id).astype(np.int64, copy=False) if self.bos_token_id >= 0 else np.empty((0,), dtype=np.int64)
-        self.bos_ptr = 0
         self.pos = 0
     def take(self, n: int) -> np.ndarray:
         chunks: list[np.ndarray] = []
@@ -206,48 +199,18 @@ class TokenStream:
             self.pos += k
             left -= k
         return chunks[0] if len(chunks) == 1 else np.concatenate(chunks, axis=0)
-    def take_from_next_bos(self, n: int) -> np.ndarray:
-        if self.bos_token_id < 0 or self.bos_positions.size == 0:
-            return self.take(n)
-        while self.bos_ptr < self.bos_positions.size and int(self.bos_positions[self.bos_ptr]) < self.pos:
-            self.bos_ptr += 1
-        if self.bos_ptr >= self.bos_positions.size:
-            self.next_file()
-            return self.take_from_next_bos(n)
-        self.pos = int(self.bos_positions[self.bos_ptr])
-        self.bos_ptr += 1
-        return self.take(n)
 class TokenLoader:
     def __init__(
         self,
         pattern: str,
         log_fn: Callable[[str], None] | None = None,
         dataset_name: str = "",
-        bos_token_id: int = -1,
-        bos_rows: int = 0,
     ):
         self.stream = TokenStream(pattern, log_fn=log_fn, dataset_name=dataset_name)
-        self.bos_rows = max(bos_rows, 0) if bos_token_id >= 0 else 0
-        self.bos_stream = TokenStream(pattern, dataset_name=dataset_name, bos_token_id=bos_token_id) if self.bos_rows else None
     def next_batch(self, batch_tokens: int, seq_len: int) -> tuple[mx.array, mx.array]:
         usable = (batch_tokens // seq_len) * seq_len
         if usable <= 0:
             raise ValueError(f"token budget too small for seq_len={seq_len}")
-        rows = usable // seq_len
-        bos_rows = min(self.bos_rows, rows)
-        if bos_rows and self.bos_stream is not None:
-            stream_rows = rows - bos_rows
-            x_np = np.empty((rows, seq_len), dtype=np.int32)
-            y_np = np.empty_like(x_np)
-            if stream_rows:
-                chunk = self.stream.take(stream_rows * seq_len + 1)
-                x_np[:stream_rows] = chunk[:-1].reshape(-1, seq_len)
-                y_np[:stream_rows] = chunk[1:].reshape(-1, seq_len)
-            for row in range(stream_rows, rows):
-                chunk = self.bos_stream.take_from_next_bos(seq_len + 1)
-                x_np[row] = chunk[:-1]
-                y_np[row] = chunk[1:]
-            return mx.array(x_np, dtype=mx.int32), mx.array(y_np, dtype=mx.int32)
         chunk = self.stream.take(usable + 1)
         x = chunk[:-1].reshape(-1, seq_len)
         y = chunk[1:].reshape(-1, seq_len)
@@ -342,6 +305,7 @@ class GPT(nn.Module):
         ]
         self.tail_recur_start = num_layers - tail_recur_span
         self.final_norm = RMSNormNoWeight()
+        self.final_scale = mx.ones((dim,), dtype=mx.float32)
         self.tail_recur_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None; self.tail_carry_gates = mx.zeros((tail_recur_span, dim), dtype=mx.float32) if tail_recur_span > 0 else None
         for b in self.blocks:
             b.attn.proj.weight = mx.zeros_like(b.attn.proj.weight); b.mlp.proj.weight = mx.zeros_like(b.mlp.proj.weight)
@@ -370,7 +334,7 @@ class GPT(nn.Module):
                 recur_idx = block_idx - self.tail_recur_start
                 recur_gain = 1.0 if tail_recur_gains is None else tail_recur_gains[recur_idx].astype(x.dtype)
                 recur_x = x + recur_gain * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + recur_gain * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
-        return self.final_norm(x)
+        return self.final_norm(x) * self.final_scale.astype(x.dtype)[None, None, :]
     def loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
         x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
@@ -1259,7 +1223,7 @@ def main() -> None:
     doc_spans = build_validation_doc_spans(val_tokens, bos_token_id) if bos_token_id >= 0 else None
     base_bytes_lut, has_leading_space_lut, is_boundary_token_lut = build_sentencepiece_luts(sp, args.vocab_size)
     mx.random.seed(args.seed)
-    train_loader = TokenLoader(args.train_files, log_fn=log, dataset_name=dataset_name, bos_token_id=bos_token_id, bos_rows=args.train_bos_rows)
+    train_loader = TokenLoader(args.train_files, log_fn=log, dataset_name=dataset_name)
     model = GPT(vocab_size=args.vocab_size, num_layers=args.num_layers, dim=args.model_dim, num_heads=args.num_heads, num_kv_heads=args.num_kv_heads, mlp_mult=args.mlp_mult, logit_chunk_tokens=args.logit_chunk_tokens, logit_softcap=args.logit_softcap, rope_base=args.rope_base, tied_embed_init_std=args.tied_embed_init_std, qk_gain_init=args.qk_gain_init, tail_recur_blocks=args.tail_recur_blocks)
     int8_fp16_keep_names = build_int8_fp16_keep_names(args.num_layers, args.tail_recur_blocks)
     opt = SplitOptimizers(model, args)
@@ -1277,7 +1241,6 @@ def main() -> None:
     log(f"run_id:{args.run_id}")
     log(f"mlx_version:{mx.__version__}")
     log(f"train_loader:shards pattern={args.train_files}")
-    log(f"train_loader:bos_rows:{min(max(args.train_bos_rows, 0), args.train_batch_tokens // args.train_seq_len) if bos_token_id >= 0 else 0}")
     log(f"val_loader:shards pattern={args.val_files} tokens:{val_tokens.size - 1}")
     if expected_train_files is None:
         log(f"train_loader:dataset:{dataset_name} train_shards:{actual_train_files}")

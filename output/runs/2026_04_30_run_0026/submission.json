@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12764249,
+  "code_bytes": 80031,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12684218,
+  "rationale": "Adds a learned per-channel scale after the final RMSNorm, initialized to the current behavior, so the tied output path gets cheap export-surviving channel calibration without changing data flow, recurrence, evaluation, or wallclock rules. This spends only 512 FP32 control parameters on the scored output geometry and keeps the 9x512 reverse-tail curriculum and final exact int8+zlib path intact.",
+  "run_id": "2026_04_30_run_0026",
+  "runtime_seconds": 766.242853,
+  "submitter": "frido22",
+  "title": "Final RMS Output Scale",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 676989,
+  "under_16mb": true,
+  "val_bpb": 2.03098751,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
