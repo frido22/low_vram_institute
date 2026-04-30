@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13066251,
+  "code_bytes": 80988,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12985263,
+  "rationale": "Builds on the best reverse-tail recurrent script by spending the first 160 updates on only the deepest recurrent tail block, then switching to the full two-block recurrent tail for the remainder and final exact int8+zlib eval. This preserves the winning reverse-tail/export path while buying early training throughput and avoiding another scalar LR/reserve sweep.",
+  "run_id": "2026_04_30_run_0014",
+  "runtime_seconds": 934.075314,
+  "submitter": "frido22",
+  "title": "Single-Block Tail Recurrence Warmup",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 845110,
+  "under_16mb": true,
+  "val_bpb": 1.95987367,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}

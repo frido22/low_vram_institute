@@ -73,6 +73,8 @@ class Hyperparameters:
     tail_recur_min_gain: float = float(os.environ.get("TAIL_RECUR_MIN_GAIN", 0.35))
     tail_recur_stage_gap: float = float(os.environ.get("TAIL_RECUR_STAGE_GAP", 0.16))
     tail_recur_stage_span: float = float(os.environ.get("TAIL_RECUR_STAGE_SPAN", 0.12))
+    tail_recur_warmup_steps: int = int(os.environ.get("TAIL_RECUR_WARMUP_STEPS", 160))
+    tail_recur_warmup_blocks: int = int(os.environ.get("TAIL_RECUR_WARMUP_BLOCKS", 1))
     beta1: float = float(os.environ.get("BETA1", 0.9))
     beta2: float = float(os.environ.get("BETA2", 0.95))
     adam_eps: float = float(os.environ.get("ADAM_EPS", 1e-8))
@@ -315,7 +317,7 @@ class GPT(nn.Module):
         if self.bigram_rank > 0 and prev_ids is not None:
             logits = logits + self.bigram_scale.astype(x.dtype) * self.bigram_out(self.bigram_in(prev_ids.reshape(-1)).astype(x.dtype))
         return self.softcap(logits + self.logit_bias.astype(x.dtype))
-    def __call__(self, input_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
+    def __call__(self, input_ids: mx.array, tail_recur_gains: mx.array | None = None, tail_recur_active_blocks: int | None = None) -> mx.array:
         x = rms_norm(self.tok_emb(input_ids).astype(COMPUTE_DTYPE))
         x0 = x
         skips: list[mx.array] = []
@@ -328,14 +330,17 @@ class GPT(nn.Module):
                 x = x + self.skip_weights[skip_idx].astype(x.dtype)[None, None, :] * skips.pop()
             x = self.blocks[self.num_encoder_layers + i](x, x0)
         if self.tail_recur_gates is not None:
+            tail_start = self.tail_recur_start
+            if tail_recur_active_blocks is not None:
+                tail_start = max(len(self.blocks) - max(tail_recur_active_blocks, 0), self.tail_recur_start)
             tail_anchor = x
-            for block_idx in range(len(self.blocks) - 1, self.tail_recur_start - 1, -1):
+            for block_idx in range(len(self.blocks) - 1, tail_start - 1, -1):
                 recur_idx = block_idx - self.tail_recur_start
                 recur_gain = 1.0 if tail_recur_gains is None else tail_recur_gains[recur_idx].astype(x.dtype)
                 recur_x = x + recur_gain * mx.tanh(self.tail_carry_gates[recur_idx]).astype(x.dtype)[None, None, :] * (tail_anchor - x); x = recur_x + recur_gain * mx.tanh(self.tail_recur_gates[recur_idx]).astype(x.dtype)[None, None, :] * (self.blocks[block_idx](recur_x, x0) - recur_x)
         return self.final_norm(x)
-    def loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None) -> mx.array:
-        x = self(input_ids, tail_recur_gains).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
+    def loss(self, input_ids: mx.array, target_ids: mx.array, tail_recur_gains: mx.array | None = None, tail_recur_active_blocks: int | None = None) -> mx.array:
+        x = self(input_ids, tail_recur_gains, tail_recur_active_blocks).reshape(-1, self.tok_emb.weight.shape[1]); y = target_ids.reshape(-1); prev_ids = input_ids.reshape(-1)
         if self.logit_chunk_tokens <= 0 or x.shape[0] <= self.logit_chunk_tokens:
             logits = self.project_logits(x, prev_ids)
             return nn.losses.cross_entropy(logits.astype(mx.float32), y, reduction="mean")
@@ -427,6 +432,9 @@ class SplitOptimizers:
     ) -> None:
         params = dict(tree_flatten(model.parameters()))
         grads = dict(tree_flatten(grads_tree))
+        for k, p in params.items():
+            if k not in grads:
+                grads[k] = mx.zeros_like(p)
         updated = dict(params)
         updated.update(self.muon.step(params, grads, step=step, lr_mul=lr_mul * matrix_lr_mul))
         self.adam_embed.learning_rate = self.args.tied_embed_lr * lr_mul * embed_lr_mul
@@ -1230,6 +1238,7 @@ def main() -> None:
     compiled_loss = mx.compile(lambda x, y, rg: model.loss(x, y, rg), inputs=model.state, outputs=model.state)
     compiled_masked_loss = mx.compile(lambda x, y, m, rg: model.masked_loss(x, y, m, rg), inputs=model.state, outputs=model.state)
     compiled_loss_and_grad = mx.compile(nn.value_and_grad(model, lambda x, y, rg: model.loss(x, y, rg)), inputs=model.state, outputs=model.state)
+    compiled_loss_and_grad_warm = mx.compile(nn.value_and_grad(model, lambda x, y, rg: model.loss(x, y, rg, args.tail_recur_warmup_blocks)), inputs=model.state, outputs=model.state)
     if "MLX_EAGER_EVAL" not in os.environ:
         args.mlx_eager_eval = not args.use_single_microbatch_path
     elif args.use_single_microbatch_path and args.mlx_eager_eval:
@@ -1277,6 +1286,7 @@ def main() -> None:
     log("tail_recur_order:reverse"); log("tail_recur_carry:decoder_output_anchor")
     log(f"tail_recur_curriculum:min_gain:{args.tail_recur_min_gain} ramp_start:{args.tail_recur_ramp_start} ramp_end:{args.tail_recur_ramp_end}")
     log(f"tail_recur_staging:gap:{args.tail_recur_stage_gap} span:{args.tail_recur_stage_span}")
+    log(f"tail_recur_warmup:steps:{args.tail_recur_warmup_steps} active_blocks:{args.tail_recur_warmup_blocks}")
     log("tail_ema:decay:{:.2f} tracked_float_kept:all tracked_proj_suffixes:all".format(PROJ_EMA_DECAY))
     train_time_ms = 0.0
     max_wallclock_ms = 1000.0 * args.max_wallclock_seconds if args.max_wallclock_seconds > 0 else None
@@ -1326,8 +1336,9 @@ def main() -> None:
             step < 10 or (step + 1) % args.train_log_every == 0 or stop_after_step is not None
         )
         tail_recur_gains = tail_recur_schedule(args, step, args.tail_recur_blocks)
+        active_loss_and_grad = compiled_loss_and_grad_warm if 0 <= args.tail_recur_warmup_blocks < args.tail_recur_blocks and step < args.tail_recur_warmup_steps else compiled_loss_and_grad
         if args.use_single_microbatch_path:
-            train_loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
+            train_loss, grads = train_step_loss_and_grad(args, train_loader, active_loss_and_grad, tail_recur_gains)
             if args.mlx_eager_eval:
                 mx.eval(train_loss, grads)
             grads = clip_grad_tree(grads, args.grad_clip_norm)
@@ -1336,7 +1347,7 @@ def main() -> None:
             train_loss = mx.array(0.0, dtype=mx.float32)
             grad_scale = 1.0 / args.grad_accum_steps
             for _ in range(args.grad_accum_steps):
-                loss, grads = train_step_loss_and_grad(args, train_loader, compiled_loss_and_grad, tail_recur_gains)
+                loss, grads = train_step_loss_and_grad(args, train_loader, active_loss_and_grad, tail_recur_gains)
                 accum = accumulate_flat_grads(accum, grads, grad_scale)
                 train_loss = train_loss + loss.astype(mx.float32) * grad_scale
                 if args.mlx_eager_eval:
