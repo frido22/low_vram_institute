@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12836439,
+  "code_bytes": 1657,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12834782,
+  "rationale": "Builds on the current staged reverse-tail best by spending the remaining artifact headroom on the value path used by both recurrent tail blocks. Earlier value-path reallocations had to trade away other FP16 rescue, but this is additive: last-two projection rescue, tail QK rescue, quant-aware roundtrips, and EMA finalization are left intact while the penultimate recurrent c_v matrix now survives export in FP16. This directly targets final_int8_zlib_roundtrip_exact val_bpb with no hot-loop shape change and trims a redundant final-block-only V keep branch.",
+  "run_id": "2026_04_30_run_0007",
+  "runtime_seconds": 669.474288,
+  "submitter": "frido22",
+  "title": "Additive Recurrent-Tail V FP16 Keep",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 580937,
+  "under_16mb": true,
+  "val_bpb": 2.05250903,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}

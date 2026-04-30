@@ -938,3 +938,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_30_run_0004,2.052606,False,False,Two-Stream Shuffled Train Traversal
 2026_04_30_run_0005,2.151232,True,False,Doc-Window Training Stream
 2026_04_30_run_0006,2.052362,True,False,Seeded Tail Recurrence Gates
+2026_04_30_run_0007,2.052509,True,False,Additive Recurrent-Tail V FP16 Keep
