@@ -1,0 +1,139 @@
+/Users/frido_mac/Projects/low_vram_institute/logs/parameter_golf/2026_04_30_run_0033.txt
+WARNING: disabling MLX_EAGER_EVAL on single_microbatch_path for throughput
+run_id:2026_04_30_run_0033
+mlx_version:0.29.3
+train_loader:shards pattern=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/datasets/fineweb10B_sp1024/fineweb_train_*.bin
+val_loader:shards pattern=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/datasets/fineweb10B_sp1024/fineweb_val_*.bin tokens:261120
+WARNING: train_loader:subset dataset:fineweb10B_sp1024 train_shards:1/195 new epochs will arrive sooner than the full dataset
+tokenizer_path:/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/tokenizers/fineweb_1024_bpe.model
+model_params:17193546 vocab_size:1024 layers:9 dim:512 heads:8 kv_heads:4 seq_len:1024 tie_embeddings:True
+iterations:20000 train_batch_tokens:6144 grad_accum_steps:1 microbatch_tokens:6144 microbatch_batch_size:6 val_batch_size:8192 max_wallclock_seconds:600.000
+train_epoch_offset_tokens:64
+mlx_max_microbatch_tokens:8192
+optimizer:muon+adam muon_matrix_params:54 scalar_params:44 embed_lr:0.03 matrix_lr:0.02 scalar_lr:0.02 muon_momentum:0.95 muon_steps:5
+val_bpb:enabled tokenizer_kind=sentencepiece tokenizer_path=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/tokenizers/fineweb_1024_bpe.model
+eval_mode:doc_isolated_sliding bos_token_id:1 val_docs:233
+eval_stride:64
+compute_dtype:mlx.core.bfloat16 compile:True
+dtypes tok_emb:mlx.core.bfloat16 linear_weight:mlx.core.float32 skip_weights:mlx.core.float32
+final_eval_budget:estimate_ms:42970 reserve_ms:72000 estimate_batches:2
+quant_aware:train_seconds:48.0 iters:96 every:24
+quant_aware_lr_mul:embed:0.6 matrix:0.35 scalar:0.8
+quant_aware_proj_mix:start:0.55 step:0.2 end:0.95
+int8_transpose_suffixes:mlp.fc.weight
+int8_fp16_keep:count:10 tail_full_blocks:0 tail_proj_blocks:2
+tail_recur:blocks:2 start:7 active:2
+decoder_skip_alignment:start:2 count:3 trim:1
+tail_recur_order:reverse
+tail_recur_carry:decoder_output_anchor
+tail_recur_curriculum:min_gain:0.35 ramp_start:0.55 ramp_end:0.9
+tail_recur_staging:gap:0.16 span:0.12
+tail_ema:decay:0.94 tracked_float_kept:all tracked_proj_suffixes:all
+step:1/20000 train_loss:6.9419 train_time:10ms step_avg:10.00ms tok_s:614525
+step:2/20000 train_loss:13.3239 train_time:1634ms step_avg:817.09ms tok_s:77699
+step:3/20000 train_loss:10.9048 train_time:7555ms step_avg:2518.31ms tok_s:187560
+step:4/20000 train_loss:9.0017 train_time:14785ms step_avg:3696.18ms tok_s:224747
+step:5/20000 train_loss:7.6762 train_time:22421ms step_avg:4484.12ms tok_s:322234
+step:6/20000 train_loss:7.1249 train_time:29756ms step_avg:4959.35ms tok_s:329881
+step:7/20000 train_loss:7.0737 train_time:37543ms step_avg:5363.34ms tok_s:284196
+step:8/20000 train_loss:6.5399 train_time:47486ms step_avg:5935.72ms tok_s:89999
+step:9/20000 train_loss:6.1896 train_time:57962ms step_avg:6440.17ms tok_s:125597
+step:10/20000 train_loss:6.2771 train_time:70568ms step_avg:7056.76ms tok_s:182869
+step:50/20000 train_loss:4.6479 train_time:84428ms step_avg:1688.55ms tok_s:645209
+quant_aware_roundtrip:step:51
+val_progress:1/255
+val_progress:25/255
+val_progress:50/255
+val_progress:75/255
+val_progress:100/255
+val_progress:125/255
+val_progress:150/255
+val_progress:175/255
+val_progress:200/255
+val_progress:225/255
+val_progress:250/255
+val_progress:255/255
+step:51/20000 val_loss:4.6301 val_bpb:2.0525 train_time:654031ms step_avg:12824.14ms
+stopping_early: wallclock_cap train_time:654031ms step:51/20000
+saved_model:/Users/frido_mac/Projects/low_vram_institute/logs/parameter_golf/2026_04_30_run_0033_mlx_model.npz bytes:67748186
+serialized_model_int8_zlib:12663081 bytes (payload:20483364 raw_pickle:20492785 payload_ratio:3.31x)
+val_progress:1/255
+val_progress:25/255
+val_progress:50/255
+val_progress:75/255
+val_progress:100/255
+val_progress:125/255
+val_progress:150/255
+val_progress:175/255
+val_progress:200/255
+val_progress:225/255
+val_progress:250/255
+val_progress:255/255
+throughput:avg_tok_s:479.10 total_tokens:313344
+final_int8_zlib_roundtrip val_loss:4.6295 val_bpb:2.0522 eval_time:40487ms
+final_int8_zlib_roundtrip_exact val_loss:4.62948637 val_bpb:2.05219667
+00.000
+train_epoch_offset_tokens:64
+mlx_max_microbatch_tokens:8192
+optimizer:muon+adam muon_matrix_params:54 scalar_params:44 embed_lr:0.03 matrix_lr:0.02 scalar_lr:0.02 muon_momentum:0.95 muon_steps:5
+val_bpb:enabled tokenizer_kind=sentencepiece tokenizer_path=/Users/frido_mac/Projects/low_vram_institute/third_party/parameter-golf/data/tokenizers/fineweb_1024_bpe.model
+eval_mode:doc_isolated_sliding bos_token_id:1 val_docs:233
+eval_stride:64
+compute_dtype:mlx.core.bfloat16 compile:True
+dtypes tok_emb:mlx.core.bfloat16 linear_weight:mlx.core.float32 skip_weights:mlx.core.float32
+final_eval_budget:estimate_ms:42970 reserve_ms:72000 estimate_batches:2
+quant_aware:train_seconds:48.0 iters:96 every:24
+quant_aware_lr_mul:embed:0.6 matrix:0.35 scalar:0.8
+quant_aware_proj_mix:start:0.55 step:0.2 end:0.95
+int8_transpose_suffixes:mlp.fc.weight
+int8_fp16_keep:count:10 tail_full_blocks:0 tail_proj_blocks:2
+tail_recur:blocks:2 start:7 active:2
+decoder_skip_alignment:start:2 count:3 trim:1
+tail_recur_order:reverse
+tail_recur_carry:decoder_output_anchor
+tail_recur_curriculum:min_gain:0.35 ramp_start:0.55 ramp_end:0.9
+tail_recur_staging:gap:0.16 span:0.12
+tail_ema:decay:0.94 tracked_float_kept:all tracked_proj_suffixes:all
+step:1/20000 train_loss:6.9419 train_time:10ms step_avg:10.00ms tok_s:614525
+step:2/20000 train_loss:13.3239 train_time:1634ms step_avg:817.09ms tok_s:77699
+step:3/20000 train_loss:10.9048 train_time:7555ms step_avg:2518.31ms tok_s:187560
+step:4/20000 train_loss:9.0017 train_time:14785ms step_avg:3696.18ms tok_s:224747
+step:5/20000 train_loss:7.6762 train_time:22421ms step_avg:4484.12ms tok_s:322234
+step:6/20000 train_loss:7.1249 train_time:29756ms step_avg:4959.35ms tok_s:329881
+step:7/20000 train_loss:7.0737 train_time:37543ms step_avg:5363.34ms tok_s:284196
+step:8/20000 train_loss:6.5399 train_time:47486ms step_avg:5935.72ms tok_s:89999
+step:9/20000 train_loss:6.1896 train_time:57962ms step_avg:6440.17ms tok_s:125597
+step:10/20000 train_loss:6.2771 train_time:70568ms step_avg:7056.76ms tok_s:182869
+step:50/20000 train_loss:4.6479 train_time:84428ms step_avg:1688.55ms tok_s:645209
+quant_aware_roundtrip:step:51
+val_progress:1/255
+val_progress:25/255
+val_progress:50/255
+val_progress:75/255
+val_progress:100/255
+val_progress:125/255
+val_progress:150/255
+val_progress:175/255
+val_progress:200/255
+val_progress:225/255
+val_progress:250/255
+val_progress:255/255
+step:51/20000 val_loss:4.6301 val_bpb:2.0525 train_time:654031ms step_avg:12824.14ms
+stopping_early: wallclock_cap train_time:654031ms step:51/20000
+saved_model:/Users/frido_mac/Projects/low_vram_institute/logs/parameter_golf/2026_04_30_run_0033_mlx_model.npz bytes:67748186
+serialized_model_int8_zlib:12663081 bytes (payload:20483364 raw_pickle:20492785 payload_ratio:3.31x)
+val_progress:1/255
+val_progress:25/255
+val_progress:50/255
+val_progress:75/255
+val_progress:100/255
+val_progress:125/255
+val_progress:150/255
+val_progress:175/255
+val_progress:200/255
+val_progress:225/255
+val_progress:250/255
+val_progress:255/255
+throughput:avg_tok_s:479.10 total_tokens:313344
+final_int8_zlib_roundtrip val_loss:4.6295 val_bpb:2.0522 eval_time:40487ms
+final_int8_zlib_roundtrip_exact val_loss:4.62948637 val_bpb:2.05219667

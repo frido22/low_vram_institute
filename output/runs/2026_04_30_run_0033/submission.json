@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12666077,
+  "code_bytes": 2996,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12663081,
+  "rationale": "Builds on state/best_script.py with a compact data-order structural edit. The single-shard Mac-mini path repeats several epochs within 600 seconds; rotating each new epoch by 64 train tokens exposes different fixed-shape sequence-boundary phases aligned with the final stride-64 doc-isolated scoring path while preserving validation isolation, VAL_LOSS_EVERY=0, the recurrent-tail/export setup, and final_int8_zlib_roundtrip_exact evaluation.",
+  "run_id": "2026_04_30_run_0033",
+  "runtime_seconds": 743.716113,
+  "submitter": "frido22",
+  "title": "Direct Epoch-Phase Training Rotation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 654031,
+  "under_16mb": true,
+  "val_bpb": 2.05219667,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
