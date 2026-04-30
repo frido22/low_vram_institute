@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12737726,
+  "code_bytes": 80309,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": false,
+  "model_bytes": 12657417,
+  "rationale": "Adds a fixed-step suffix-loss curriculum on top of the 1.5111 reverse-tail baseline. I prepared the full modified script at /tmp/train_gpt_mlx_candidate.py, verified it is 1464 lines, and syntax-checked it with py_compile using a writable pycache. The script keeps VAL_LOSS_EVERY=0 and the final int8+zlib scorer unchanged.",
+  "run_id": "2026_04_30_run_0040",
+  "runtime_seconds": 754.166017,
+  "submitter": "frido22",
+  "title": "Step-Budgeted Tail Loss Mask",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 664831,
+  "under_16mb": true,
+  "val_bpb": 2.05297523,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
