@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12647049,
+  "code_bytes": 3772,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12643277,
+  "rationale": "Adds a tiny trainable scalar gain bias per recurrent tail block on top of the staged reverse-tail gains. This preserves the current recurrent-tail/export path and exact final int8+zlib evaluation while letting the exported model learn whether each recurrent reuse should be slightly boosted or damped.",
+  "run_id": "2026_04_30_run_0017",
+  "runtime_seconds": 767.56618,
+  "submitter": "frido22",
+  "title": "Learned Reverse-Tail Gain Calibration",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 677855,
+  "under_16mb": true,
+  "val_bpb": 2.05408892,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
