@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 13259605,
+  "code_bytes": 23152,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 13236453,
+  "rationale": "Spend a small amount of remaining artifact headroom on the value projection immediately before the recurrent tail, preserving the recurrent-tail/projection export path while giving the tail a cleaner carried state. The wrapper embeds the complete patched script and keeps the required exact final-eval marker literal for launch scanning.",
+  "run_id": "2026_04_30_run_0013",
+  "runtime_seconds": 874.81957,
+  "submitter": "frido22",
+  "title": "Pre-Recurrent Tail V FP16 Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 786203,
+  "under_16mb": true,
+  "val_bpb": 1.95892484,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
