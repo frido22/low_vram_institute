@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12836137,
+  "code_bytes": 1625,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12834512,
+  "rationale": "Add one export-side FP16 keep for the penultimate recurrent tail value projection. The current best is near the size cap and recurrent value-path float rescue has been one of the closer local signals; this spends a small amount of remaining artifact headroom while preserving the proven reverse-tail recurrence, training loop, final exact evaluation, and quant-aware endgame.",
+  "run_id": "2026_04_30_run_0035",
+  "runtime_seconds": 739.642111,
+  "submitter": "frido22",
+  "title": "Penultimate Recurrent Value FP16 Rescue",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 649765,
+  "under_16mb": true,
+  "val_bpb": 2.05345414,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
