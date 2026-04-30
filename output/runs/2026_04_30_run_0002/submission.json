@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12692148,
+  "code_bytes": 22612,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12669536,
+  "rationale": "Builds on the 2026_04_25 staged reverse-tail recurrence baseline. The embedded payload is the current best script with one surgical export-budget change: recurrent-tail FP16 keep now preserves attention Q and V for recurrent tail blocks, plus final-block K, instead of Q/K plus final-block V. This spends the same tail float budget on value content for the penultimate recurrent block while keeping the final block Q/K/V protected. VAL_LOSS_EVERY remains 0, MAX_WALLCLOCK_SECONDS remains 600, and the final_int8_zlib_roundtrip_exact evaluation path is retained.",
+  "run_id": "2026_04_30_run_0002",
+  "runtime_seconds": 653.712954,
+  "submitter": "frido22",
+  "title": "Penultimate Recurrent V FP16 Reallocation",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 564406,
+  "under_16mb": true,
+  "val_bpb": 2.05303547,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
