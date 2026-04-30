@@ -959,3 +959,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_30_run_0025,2.059392,True,False,Tail Input-Anchor Carry Unlock
 2026_04_30_run_0026,2.030988,True,False,Final RMS Output Scale
 2026_04_30_run_0027,2.052798,True,False,Maturity-Gated Quant-Aware Endgame
+2026_04_30_run_0028,2.052260,True,False,Soft-Capped Penultimate Tail Eval Gain
