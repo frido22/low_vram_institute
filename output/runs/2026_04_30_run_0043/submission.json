@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12663673,
+  "code_bytes": 1228,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12662445,
+  "rationale": "The winning 600s run never reaches the step-based recurrence ramp, so the active training profile is effectively [tail_recur_min_gain, 1.0] while final exact eval uses full gains. The staged script improved when this first recurrent-tail gain was lower than the earlier linear profile; this run nudges that active gain from 0.35 to 0.32 while preserving the reverse-tail architecture, export budget, quant-aware endgame, and exact final evaluation path.",
+  "run_id": "2026_04_30_run_0043",
+  "runtime_seconds": 759.561565,
+  "submitter": "frido22",
+  "title": "Lower First Reverse-Tail Recurrence Gain",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 670120,
+  "under_16mb": true,
+  "val_bpb": 2.05381901,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
