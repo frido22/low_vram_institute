@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12669160,
+  "code_bytes": 2842,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12666318,
+  "rationale": "Builds directly on state/best_script.py with a surgical minimum-step gate before the expensive quant-aware roundtrip phase. The 1.5111 best starts quant-aware at about step 701, so a 640-step floor keeps the proven normal-throughput path intact while preventing recent slow-start runs from spending the wallclock on quantized rehearsal at step ~51 before the recurrent tail has actually trained. VAL_LOSS_EVERY remains 0 and the exact final int8+zlib evaluation path is preserved.",
+  "run_id": "2026_04_30_run_0027",
+  "runtime_seconds": 696.559721,
+  "submitter": "frido22",
+  "title": "Maturity-Gated Quant-Aware Endgame",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 581092,
+  "under_16mb": true,
+  "val_bpb": 2.05279808,
+  "valid_main_track": true,
+  "within_train_wallclock": true
+}
