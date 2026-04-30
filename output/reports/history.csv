@@ -932,3 +932,4 @@ run_id,final_val_bpb,modified,improved,title
 2026_04_29_run_0090,2.051953,True,False,Penultimate Tail Value FP16 Rescue
 2026_04_29_run_0091,2.052995,True,False,Penultimate Tail Value FP16 Rescue
 2026_04_29_run_0092,2.024912,True,False,BOS-Aligned Train Windows
+2026_04_30_run_0001,2.052064,False,False,Recurrent Tail Exit Anchor Gate
