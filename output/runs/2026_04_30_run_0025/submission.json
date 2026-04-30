@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12703904,
+  "code_bytes": 22982,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12680922,
+  "rationale": "Adds a compact learned input-anchor mix to the existing reverse-tail carry path. The first reverse recurrent pass previously had no carry-anchor delta because x equals the decoder-output anchor; this gives that carry gate a small trainable x0 direction while preserving the current 9x512 recurrent-tail/export endgame, VAL_LOSS_EVERY=0, MAX_WALLCLOCK_SECONDS, and exact final int8+zlib scoring. The returned wrapper executes the complete modified source embedded inside it.",
+  "run_id": "2026_04_30_run_0025",
+  "runtime_seconds": 714.429498,
+  "submitter": "frido22",
+  "title": "Tail Input-Anchor Carry Unlock",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 624500,
+  "under_16mb": true,
+  "val_bpb": 2.05939227,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
