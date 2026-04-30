@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12666546,
+  "code_bytes": 2477,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664069,
+  "rationale": "Materializes the current best script and adds an endgame-only recurrence schedule: during quant-aware training, the reverse-tail replay gain is floored at 0.72 while final evaluation remains full-gain. This keeps shapes, export, and exact final int8+zlib evaluation unchanged while giving the roundtrip phase updates closer to the scoring path.",
+  "run_id": "2026_04_30_run_0045",
+  "runtime_seconds": 711.579032,
+  "submitter": "frido22",
+  "title": "Quant-Aware Reverse-Tail Gain Floor",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 623827,
+  "under_16mb": true,
+  "val_bpb": 2.05326408,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
