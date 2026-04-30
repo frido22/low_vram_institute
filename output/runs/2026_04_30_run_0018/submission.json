@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12665581,
+  "code_bytes": 2020,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12663561,
+  "rationale": "Keeps the current recurrent-tail best intact while hard-disabling intermediate validation and preventing quant-aware roundtrips before step 640. The recent failures burned the budget around step 51, so this guards the proven late endgame without changing the successful path where roundtrips begin after roughly 700 steps.",
+  "run_id": "2026_04_30_run_0018",
+  "runtime_seconds": 749.501775,
+  "submitter": "frido22",
+  "title": "Quant-Aware Floor And Exact-Only Guard",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 632928,
+  "under_16mb": true,
+  "val_bpb": 2.05334964,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
