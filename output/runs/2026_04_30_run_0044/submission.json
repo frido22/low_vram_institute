@@ -1,0 +1,18 @@
+{
+  "artifact_bytes": 12668610,
+  "code_bytes": 4370,
+  "hardware": "Mac mini M4 16GB",
+  "has_modified_script": true,
+  "model_bytes": 12664240,
+  "rationale": "Caps the first reverse-tail recurrence pass to 0.86 at final eval and as the late schedule target, preserving the proven 9x512 reverse-tail path while reducing the mismatch between low staged training gain and full-gain exact eval. This is a compact follow-up to the close capped-profile misses and changes no data paths, validation path, or export budget.",
+  "run_id": "2026_04_30_run_0044",
+  "runtime_seconds": 749.511642,
+  "submitter": "frido22",
+  "title": "Mid-Capped Reverse-Tail Eval Profile",
+  "track": "mac_mini_official_like",
+  "train_time_ms": 659662,
+  "under_16mb": true,
+  "val_bpb": 2.050389,
+  "valid_main_track": false,
+  "within_train_wallclock": false
+}
